@@ -14,7 +14,14 @@ model User {
   id              String   @id @default(cuid())
   email           String   @unique
   password        String
-  name            String?
+  
+  // New Fields
+  firstName       String
+  lastName        String
+  businessName    String?
+  phoneNumber     String?
+  websiteUrl      String?
+
   role            Role     @default(AGENT)
   
   // Wallet
@@ -22,10 +29,10 @@ model User {
   bonusBalance    Decimal  @default(0.00) @db.Decimal(10, 2)
 
   // API Integration Details
-  apiKeyPublic    String?  @unique // Used in their frontend JS
-  apiKeySecret    String?  @unique // Used in their backend
-  webhookUrl      String?          // Where we send updates (e.g. CAC success)
-  ipWhitelist     String?          // Security: only allow their server IP
+  apiKeyPublic    String?  @unique
+  apiKeySecret    String?  @unique
+  webhookUrl      String?
+  ipWhitelist     String?
 
   // Relationships
   transactions    Transaction[]
@@ -35,14 +42,13 @@ model User {
   updatedAt       DateTime @updatedAt
 }
 
-// 2. WALLET LOGS (Money History Only)
-// This is for the "Finance" section. strictly credit/debit logs.
+// 2. WALLET LOGS
 model Transaction {
   id          String          @id @default(cuid())
   userId      String
   amount      Decimal         @db.Decimal(10, 2)
-  type        TransactionType // FUND_WALLET, SERVICE_CHARGE, REFUND
-  reference   String          @unique // Unique Payment Ref
+  type        TransactionType
+  reference   String          @unique
   status      Status          @default(PENDING)
   description String?
   
@@ -50,41 +56,25 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
-// 3. SERVICE REQUESTS (The Core "Service Grid")
-// This handles EVERYTHING: Airtime, CAC, NIN, etc.
-// We use the 'serviceType' to separate them strictly on the Dashboard.
+// 3. SERVICE REQUESTS
 model ServiceRequest {
   id            String      @id @default(cuid())
   userId        String
-  
-  // What service is this?
   serviceType   ServiceType 
-  
-  // Status tracking
-  status        Status      @default(PENDING) // PENDING, PROCESSING, COMPLETED, REJECTED
-  
-  // The Data (Flexible)
-  // Store input (e.g. Phone number, Documents for CAC)
+  status        Status      @default(PENDING) 
   requestData   Json        
-  
-  // The Result (Flexible)
-  // Store output (e.g. Token, Pin, PDF URL for NIN Slip)
   responseData  Json?       
-  
-  // Money involved
   cost          Decimal     @default(0.00) @db.Decimal(10, 2)
-  
-  // Admin Feedback (for Manual Services)
   adminNote     String?     
 
   user          User        @relation(fields: [userId], references: [id])
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@index([serviceType]) // Optimizes filtering so "NIN" page loads fast
+  @@index([serviceType])
 }
 
-// --- ENUMS (The Categories) ---
+// --- ENUMS ---
 
 enum Role {
   SUPER_ADMIN
@@ -107,13 +97,9 @@ enum Status {
   REJECTED
 }
 
-// Your Full List of Services
 enum ServiceType {
-  // Utilities
   AIRTIME
   DATA
-  
-  // Identity
   NIN_VERIFICATION
   NIN_VALIDATION
   NIN_PERSONALIZATION
@@ -123,13 +109,9 @@ enum ServiceType {
   BVN_RETRIEVAL
   BVN_MODIFICATION
   ANDROID_BVN_ENROLLMENT
-  
-  // Corporate / Govt
   CAC_REGISTRATION
   IPE_CLEARANCE
   JTB_TIN_REGISTRATION
-  
-  // Education
   JAMB_SERVICES
   EXAM_PIN_WAEC
   EXAM_PIN_NECO
