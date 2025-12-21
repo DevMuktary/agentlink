@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { lookupNinByPhone } from '@/services/providers/robost-phone'; // Clean Import
-
-const SERVICE_COST = 100;
+import { lookupNinByPhone } from '@/services/providers/robost-phone';
 
 export async function POST(req: Request) {
   try {
@@ -11,33 +9,35 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
     const { phone, reference } = await req.json();
+    if (!phone) return NextResponse.json({ status: false, error: 'Phone required' }, { status: 400 });
 
-    if (!phone) {
-      return NextResponse.json({ status: false, error: 'Phone number required' }, { status: 400 });
+    // 1. GET DYNAMIC PRICE
+    const service = await prisma.service.findUnique({ where: { code: 'NIN_SEARCH_BY_PHONE' } });
+    if (!service || !service.isActive) {
+      return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
     }
+    const serviceCost = Number(service.price);
 
-    if (Number(user.walletBalance) < SERVICE_COST) {
+    if (Number(user.walletBalance) < serviceCost) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // Deduct & Log
     const requestLog = await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
-        data: { walletBalance: { decrement: SERVICE_COST } }
+        data: { walletBalance: { decrement: serviceCost } }
       });
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: 'NIN_VERIFICATION', // You might want to add 'PHONE_VERIFICATION' to your Enum later
+          serviceType: 'NIN_SEARCH_BY_PHONE', // DISTINCT TYPE
           status: 'PROCESSING',
-          cost: SERVICE_COST,
+          cost: serviceCost,
           requestData: { phone, clientReference: reference }, 
         }
       });
     });
 
-    // Call Provider (Phone Only)
     const result = await lookupNinByPhone(phone);
 
     if (result.success) {
@@ -47,9 +47,8 @@ export async function POST(req: Request) {
       });
       return NextResponse.json({ status: true, message: 'Success', data: result.data });
     } else {
-      // Refund Logic
       await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: SERVICE_COST } } }),
+        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } }),
         prisma.serviceRequest.update({ where: { id: requestLog.id }, data: { status: 'FAILED', responseData: { error: result.error } } })
       ]);
       return NextResponse.json({ status: false, error: result.error, message: 'Refunded' }, { status: 400 });
