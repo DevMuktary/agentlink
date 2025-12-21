@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // URL is now removed from here and handled in prisma.config.ts
+  url      = env("DATABASE_URL")
 }
 
 // 1. USERS (Agents & Admins)
@@ -36,6 +36,7 @@ model User {
 }
 
 // 2. WALLET LOGS (Money History Only)
+// This is for the "Finance" section. strictly credit/debit logs.
 model Transaction {
   id          String          @id @default(cuid())
   userId      String
@@ -50,6 +51,8 @@ model Transaction {
 }
 
 // 3. SERVICE REQUESTS (The Core "Service Grid")
+// This handles EVERYTHING: Airtime, CAC, NIN, etc.
+// We use the 'serviceType' to separate them strictly on the Dashboard.
 model ServiceRequest {
   id            String      @id @default(cuid())
   userId        String
@@ -58,12 +61,14 @@ model ServiceRequest {
   serviceType   ServiceType 
   
   // Status tracking
-  status        Status      @default(PENDING) 
+  status        Status      @default(PENDING) // PENDING, PROCESSING, COMPLETED, REJECTED
   
   // The Data (Flexible)
+  // Store input (e.g. Phone number, Documents for CAC)
   requestData   Json        
   
   // The Result (Flexible)
+  // Store output (e.g. Token, Pin, PDF URL for NIN Slip)
   responseData  Json?       
   
   // Money involved
@@ -76,10 +81,10 @@ model ServiceRequest {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@index([serviceType]) // Optimizes filtering
+  @@index([serviceType]) // Optimizes filtering so "NIN" page loads fast
 }
 
-// --- ENUMS ---
+// --- ENUMS (The Categories) ---
 
 enum Role {
   SUPER_ADMIN
@@ -102,6 +107,7 @@ enum Status {
   REJECTED
 }
 
+// Your Full List of Services
 enum ServiceType {
   // Utilities
   AIRTIME
