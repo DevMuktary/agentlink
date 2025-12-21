@@ -12,7 +12,7 @@ async function main() {
     { code: ServiceType.VNIN_SLIP, name: 'VNIN Slip', price: 200.00, description: 'Generate Standard/Premium Slips.' },
     { code: ServiceType.VNIN_TO_NIBSS, name: 'VNIN to NIBSS', price: 500.00, description: 'Validate for Bank Account.' },
     
-    // --- NEW VALIDATION SERVICES ---
+    // --- VALIDATION SERVICES ---
     { 
       code: ServiceType.NIN_VALIDATION_NO_RECORD, 
       name: 'NIN Validation (No Record)', 
