@@ -11,7 +11,9 @@ import {
   Building2, 
   GraduationCap,
   Activity,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  FileDigit
 } from 'lucide-react';
 
 interface UserData {
@@ -43,10 +45,48 @@ export default function DashboardHome() {
   }, []);
 
   const services = [
-    { title: "NIN Services", icon: ShieldCheck, href: "/dashboard/services/nin-verification", color: "bg-blue-600", desc: "Verify IDs & Print Slips" },
-    { title: "Airtime & Data", icon: Wifi, href: "/dashboard/services/utilities", color: "bg-green-600", desc: "VTU for all Networks" },
-    { title: "CAC Registration", icon: Building2, href: "/dashboard/services/cac", color: "bg-purple-600", desc: "Register Companies" },
-    { title: "Exam Pins", icon: GraduationCap, href: "/dashboard/services/education", color: "bg-orange-600", desc: "WAEC, NECO & JAMB" },
+    { 
+      title: "NIN Verification", 
+      icon: ShieldCheck, 
+      href: "/dashboard/services/nin-verification", 
+      color: "bg-blue-600", 
+      desc: "View verification logs & history." 
+    },
+    { 
+      title: "VNIN Slip", 
+      icon: FileText, 
+      href: "/dashboard/services/vnin", 
+      color: "bg-indigo-600", 
+      desc: "Download generated slip history." 
+    },
+    { 
+      title: "VNIN to NIBSS", 
+      icon: FileDigit, 
+      href: "/dashboard/services/vnin-nibss", 
+      color: "bg-teal-600", 
+      desc: "View validation history logs." 
+    },
+    { 
+      title: "Airtime & Data", 
+      icon: Wifi, 
+      href: "/dashboard/services/utilities", 
+      color: "bg-green-600", 
+      desc: "View VTU transaction logs." 
+    },
+    { 
+      title: "CAC Registration", 
+      icon: Building2, 
+      href: "/dashboard/services/cac", 
+      color: "bg-purple-600", 
+      desc: "Track application status history." 
+    },
+    { 
+      title: "Exam Pins", 
+      icon: GraduationCap, 
+      href: "/dashboard/services/education", 
+      color: "bg-orange-600", 
+      desc: "View purchased token history." 
+    },
   ];
 
   if (loading) {
@@ -124,12 +164,12 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* 2. SERVICE GRID */}
+      {/* 2. SERVICE GRID (HISTORY ACCESS) */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5 flex items-center">
-          Access Services
+          Access History
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {services.map((service, index) => (
             <Link 
               key={index} 
