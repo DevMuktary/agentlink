@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import axios from 'axios';
 import { validateApiKey } from '@/lib/api-auth';
+import { verifyNinWithProvider } from '@/services/providers/dataverify';
 
-// Configuration from your existing provider setup
-const DATAVERIFY_URL = 'https://dataverify.com.ng/developers/nin_slips/vnin_slip.php'; // Example endpoint from your code
-const SERVICE_COST = 100; // Set your price per verification
+const SERVICE_COST = 100; // ₦100 per verification
 
 export async function POST(req: Request) {
   try {
-    // 1. Authenticate Agent
+    // 1. Authenticate Agent (Security Layer)
     const user = await validateApiKey(req);
     if (!user) {
-      return NextResponse.json({ status: false, message: 'Invalid API Key' }, { status: 401 });
+      return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
     }
 
     // 2. Validate Input
@@ -20,66 +18,60 @@ export async function POST(req: Request) {
     const { nin, reference } = body;
 
     if (!nin || nin.length !== 11) {
-      return NextResponse.json({ status: false, message: 'Invalid NIN format' }, { status: 400 });
+      return NextResponse.json({ status: false, error: 'Invalid NIN format. Must be 11 digits.' }, { status: 400 });
     }
 
-    // 3. Check Balance
+    // 3. Check Wallet Balance
     if (Number(user.walletBalance) < SERVICE_COST) {
-      return NextResponse.json({ status: false, message: 'Insufficient wallet balance' }, { status: 402 });
+      return NextResponse.json({ status: false, error: 'Insufficient wallet balance.' }, { status: 402 });
     }
 
-    // 4. Deduct Balance & Log "Processing"
-    // We use a transaction to ensure money is safe
+    // 4. TRANSACTION START: Deduct Money & Log Request
+    // We deduct FIRST to prevent "free service" exploits.
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // Deduct Balance
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: SERVICE_COST } }
       });
 
-      // Create Request Record
+      // Create Pending Record
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
           serviceType: 'NIN_VERIFICATION',
           status: 'PROCESSING',
           cost: SERVICE_COST,
-          requestData: { nin, clientReference: reference }, // Store what they sent
+          requestData: { nin, clientReference: reference }, 
         }
       });
     });
 
-    // 5. Call Provider (DataVerify)
-    // Using the logic from your uploaded 'vnin-slip/route.ts'
-    const apiKey = process.env.DATAVERIFY_API_KEY; 
-    
-    const providerRes = await axios.post(DATAVERIFY_URL, {
-      api_key: apiKey,
-      nin: nin
-    });
+    // 5. CALL SEPARATE PROVIDER LAYER
+    // This calls the file in `src/services/providers/dataverify.ts`
+    const result = await verifyNinWithProvider(nin);
 
-    const apiData = providerRes.data;
-
-    // 6. Handle Success/Failure
-    if (apiData.status === 'success' || apiData.success === true) {
+    // 6. Handle Outcome
+    if (result.success) {
       
-      // Update Record to Completed
+      // A. Success: Update Record
       await prisma.serviceRequest.update({
         where: { id: requestLog.id },
         data: { 
           status: 'COMPLETED',
-          responseData: apiData // Store the full result (Photo, Name, etc.)
+          responseData: result.data 
         }
       });
 
       return NextResponse.json({
         status: true,
         message: 'Verification Successful',
-        data: apiData
+        data: result.data
       });
 
     } else {
-      // Failed: Refund the user
+      
+      // B. Failed: Refund Agent & Mark Failed
       await prisma.$transaction([
         prisma.user.update({
           where: { id: user.id },
@@ -89,16 +81,21 @@ export async function POST(req: Request) {
           where: { id: requestLog.id },
           data: { 
             status: 'FAILED',
-            responseData: { error: apiData.message || 'Provider Failed' }
+            responseData: { error: result.error },
+            adminNote: 'Auto-refunded due to provider failure.'
           }
         })
       ]);
 
-      return NextResponse.json({ status: false, message: 'Verification Failed. You have been refunded.' }, { status: 400 });
+      return NextResponse.json({ 
+        status: false, 
+        error: result.error || 'Verification Failed',
+        message: 'Your wallet has been refunded.'
+      }, { status: 400 });
     }
 
   } catch (error: any) {
-    console.error("API Error:", error);
-    return NextResponse.json({ status: false, message: 'Server Error' }, { status: 500 });
+    console.error("API Gateway Error:", error);
+    return NextResponse.json({ status: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
