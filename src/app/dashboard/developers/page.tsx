@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
+import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Key, 
   Copy, 
@@ -84,7 +85,7 @@ export default function DevelopersPage() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading Developer Settings...</div>;
+  if (loading) return <GlobalLoader />;
 
   return (
     <div className="max-w-4xl space-y-8 animate-in fade-in duration-500">
