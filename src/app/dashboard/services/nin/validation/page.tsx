@@ -21,7 +21,6 @@ export default function NinValidationHistoryPage() {
   const fetchHistory = async () => {
     try {
       const res = await axios.get('/api/user/requests'); 
-      // Filter for Validation services only
       const logs = res.data.filter((r: any) => 
         r.serviceType === 'NIN_VALIDATION_NO_RECORD' || 
         r.serviceType === 'NIN_VALIDATION_UPDATE_RECORD'
