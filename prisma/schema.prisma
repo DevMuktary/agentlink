@@ -39,10 +39,10 @@ model User {
 // 2. SERVICES (Dynamic Pricing)
 model Service {
   id          String      @id @default(cuid())
-  code        ServiceType @unique // Links to the Enum
+  code        ServiceType @unique
   name        String
   description String?
-  price       Decimal     @default(0.00) @db.Decimal(10, 2) // The Agent Price
+  price       Decimal     @default(0.00) @db.Decimal(10, 2)
   isActive    Boolean     @default(true)
 
   updatedAt   DateTime    @updatedAt
@@ -78,7 +78,7 @@ model Transaction {
   status      Status          @default(PENDING)
   description String?
   
-  serviceId   String?         // Optional link to specific service
+  serviceId   String?
   
   user        User            @relation(fields: [userId], references: [id])
   createdAt   DateTime        @default(now())
@@ -108,23 +108,30 @@ enum Status {
 }
 
 enum ServiceType {
+  // UTILITIES
   AIRTIME
   DATA
   
-  NIN_VERIFICATION        // Search by NIN
-  NIN_SEARCH_BY_PHONE     // Search by Phone (New!)
-  
+  // NIN SERVICES
+  NIN_VERIFICATION       // By ID
+  NIN_SEARCH_BY_PHONE    // By Phone
   NIN_VALIDATION
   NIN_PERSONALIZATION
   VNIN_SLIP
   VNIN_TO_NIBSS
+  IPE_CLEARANCE
+  
+  // BVN SERVICES
   BVN_VERIFICATION
   BVN_RETRIEVAL
   BVN_MODIFICATION
   ANDROID_BVN_ENROLLMENT
+  
+  // CORPORATE / GOVT
   CAC_REGISTRATION
-  IPE_CLEARANCE
   JTB_TIN_REGISTRATION
+  
+  // EDUCATION
   JAMB_SERVICES
   EXAM_PIN_WAEC
   EXAM_PIN_NECO
