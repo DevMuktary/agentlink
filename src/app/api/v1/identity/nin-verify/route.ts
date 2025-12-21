@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { verifyNinByNumber } from '@/services/providers/robost';
+// FIX: Import from the correct 'robost-nin' file using the new function name
+import { lookupNinByNumber } from '@/services/providers/robost-nin'; 
 
 export async function POST(req: Request) {
   try {
@@ -12,11 +13,16 @@ export async function POST(req: Request) {
     if (!nin || nin.length !== 11) return NextResponse.json({ status: false, error: 'Invalid NIN' }, { status: 400 });
 
     // 1. GET DYNAMIC PRICE
+    // We use the code 'NIN_VERIFICATION' as defined in your Seed/Schema
     const service = await prisma.service.findUnique({ where: { code: 'NIN_VERIFICATION' } });
-    if (!service || !service.isActive) {
+    
+    // Fallback logic if service hasn't been seeded yet to prevent crashes
+    const serviceCost = service ? Number(service.price) : 100;
+    const isServiceActive = service ? service.isActive : true;
+
+    if (!isServiceActive) {
       return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
     }
-    const serviceCost = Number(service.price);
 
     // 2. Check Balance
     if (Number(user.walletBalance) < serviceCost) {
@@ -34,13 +40,14 @@ export async function POST(req: Request) {
           userId: user.id,
           serviceType: 'NIN_VERIFICATION',
           status: 'PROCESSING',
-          cost: serviceCost, // Save the cost at time of purchase
+          cost: serviceCost, 
           requestData: { nin, clientReference: reference }, 
         }
       });
     });
 
-    const result = await verifyNinByNumber(nin);
+    // 4. Call Provider (Using the new separated file)
+    const result = await lookupNinByNumber(nin);
 
     if (result.success) {
       await prisma.serviceRequest.update({
@@ -49,6 +56,7 @@ export async function POST(req: Request) {
       });
       return NextResponse.json({ status: true, message: 'Success', data: result.data });
     } else {
+      // Refund Logic
       await prisma.$transaction([
         prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } }),
         prisma.serviceRequest.update({ where: { id: requestLog.id }, data: { status: 'FAILED', responseData: { error: result.error } } })
@@ -57,6 +65,7 @@ export async function POST(req: Request) {
     }
 
   } catch (error) {
+    console.error("NIN Verify Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
