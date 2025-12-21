@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
+import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Wallet, 
   ShieldCheck, 
@@ -10,16 +11,14 @@ import {
   Building2, 
   GraduationCap,
   Activity,
-  ArrowRight,
-  Loader2
+  ArrowRight
 } from 'lucide-react';
 
-// Define the User Type
 interface UserData {
   firstName: string;
   lastName: string;
   businessName: string | null;
-  walletBalance: string; // Prisma returns Decimal as string/number
+  walletBalance: string;
   _count: {
     requests: number;
   };
@@ -29,7 +28,6 @@ export default function DashboardHome() {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch Real Data on Mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -52,12 +50,7 @@ export default function DashboardHome() {
   ];
 
   if (loading) {
-    return (
-      <div className="h-[50vh] flex flex-col items-center justify-center text-gray-500">
-        <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-600" />
-        <p>Loading Dashboard...</p>
-      </div>
-    );
+    return <GlobalLoader />;
   }
 
   return (
