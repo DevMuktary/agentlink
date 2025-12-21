@@ -9,28 +9,35 @@ async function main() {
     {
       code: ServiceType.NIN_VERIFICATION,
       name: 'NIN Verification (By Number)',
-      price: 100.00, // ₦100
+      price: 100.00,
       description: 'Verify identity using 11-digit NIN.'
     },
     {
       code: ServiceType.NIN_SEARCH_BY_PHONE,
       name: 'NIN Verification (By Phone)',
-      price: 150.00, // ₦150 (Usually more expensive)
+      price: 150.00,
       description: 'Retrieve NIN details using Phone Number.'
     },
+    // --- NEW SERVICE ADDED HERE ---
+    {
+      code: ServiceType.VNIN_SLIP,
+      name: 'VNIN Slip Generation',
+      price: 200.00, // Example price
+      description: 'Generate and download standard VNIN Slip PDF.'
+    },
+    // ------------------------------
     {
       code: ServiceType.AIRTIME,
       name: 'Airtime VTU',
-      price: 0.00, // Percentage based usually, but 0 base
+      price: 0.00,
       description: 'Airtime top-up for all networks.'
-    },
-    // Add others as needed...
+    }
   ];
 
   for (const service of services) {
     await prisma.service.upsert({
       where: { code: service.code },
-      update: { price: service.price }, // Update price if exists
+      update: { price: service.price },
       create: service,
     });
   }
