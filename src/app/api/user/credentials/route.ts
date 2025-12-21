@@ -30,7 +30,7 @@ export async function GET() {
   return NextResponse.json(user);
 }
 
-// POST: Rotate API Keys (Generate New Ones)
+// POST: Rotate API Keys
 export async function POST() {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -48,20 +48,31 @@ export async function POST() {
 
 // PATCH: Update Webhook URL
 export async function PATCH(req: Request) {
-  const userId = await getUserId();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const userId = await getUserId();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { webhookUrl } = await req.json();
+    const body = await req.json();
+    const { webhookUrl } = body;
 
-  // Basic URL validation
-  if (webhookUrl && !webhookUrl.startsWith('http')) {
-    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+    // Validation: Allow empty string (to clear), otherwise must start with http/https
+    if (webhookUrl && webhookUrl.trim() !== '') {
+      if (!webhookUrl.startsWith('http://') && !webhookUrl.startsWith('https://')) {
+        return NextResponse.json(
+          { error: 'Invalid URL. It must start with http:// or https://' }, 
+          { status: 400 }
+        );
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { webhookUrl: webhookUrl || null } // Save as null if empty
+    });
+
+    return NextResponse.json({ message: 'Webhook updated successfully' });
+  } catch (error) {
+    console.error("Webhook Update Error:", error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { webhookUrl }
-  });
-
-  return NextResponse.json({ message: 'Webhook updated' });
 }
