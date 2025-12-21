@@ -5,7 +5,6 @@ import axios from 'axios';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// 1. We move the Logic into this sub-component
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,80 +23,94 @@ function LoginForm() {
       await axios.post('/api/auth/login', formData);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid credentials');
+      setError(err.response?.data?.error || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg border border-gray-100">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-        <p className="mt-2 text-sm text-gray-600">Login to manage your API integration</p>
-      </div>
-
-      {registered && (
-        <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm text-center">
-          Account created! Please log in.
+    <div className="flex-1 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
+      <div className="mx-auto w-full max-w-sm lg:w-96 bg-white p-6 sm:p-10 rounded-2xl shadow-sm sm:shadow-none border sm:border-none border-gray-100">
+        <div className="mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Welcome Back</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Please enter your details to sign in.
+          </p>
         </div>
-      )}
 
-      {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
-          {error}
-        </div>
-      )}
+        {registered && (
+          <div className="mb-6 bg-green-50 text-green-700 p-4 rounded-lg text-sm font-medium border border-green-200">
+            Account created successfully! Please log in.
+          </div>
+        )}
 
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-        <div className="space-y-4">
+        {error && (
+          <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-lg text-sm border border-red-200">
+            {error}
+          </div>
+        )}
+
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email Address</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
             <input
               type="email"
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              placeholder="agent@example.com"
+              className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
             <input
               type="password"
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+              className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
           </div>
-        </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-        >
-          {loading ? 'Logging in...' : 'Sign In'}
-        </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {loading ? 'Logging in...' : 'Sign In'}
+          </button>
 
-        <div className="text-center text-sm">
-          <span className="text-gray-600">Don't have an API account? </span>
-          <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-            Register here
-          </Link>
-        </div>
-      </form>
+          <div className="text-center mt-2">
+            <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500 text-sm">
+              Create an account
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
-// 2. The Main Page just wraps the Form in Suspense
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Suspense fallback={<div className="text-gray-500">Loading login...</div>}>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-gray-50 lg:bg-white">
+      {/* MOBILE HEADER */}
+      <div className="lg:hidden bg-slate-900 px-6 py-6 text-white shadow-md">
+        <h1 className="text-2xl font-bold tracking-wide">AgentLink</h1>
+      </div>
+
+      {/* DESKTOP SIDEBAR */}
+      <div className="hidden lg:flex lg:w-1/3 bg-slate-900 flex-col justify-center p-12 text-white">
+        <div>
+          <h1 className="text-4xl font-bold tracking-wider mb-6">AgentLink</h1>
+          <p className="text-lg text-slate-400">Secure, Reliable, and Fast API Infrastructure.</p>
+        </div>
+      </div>
+
+      {/* FORM AREA */}
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center">Loading...</div>}>
         <LoginForm />
       </Suspense>
     </div>
