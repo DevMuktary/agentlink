@@ -11,7 +11,22 @@ async function main() {
     { code: ServiceType.NIN_SEARCH_BY_PHONE, name: 'NIN By Phone', price: 150.00, description: 'Retrieve NIN using Phone Number.' },
     { code: ServiceType.VNIN_SLIP, name: 'VNIN Slip', price: 200.00, description: 'Generate Standard/Premium Slips.' },
     { code: ServiceType.VNIN_TO_NIBSS, name: 'VNIN to NIBSS', price: 500.00, description: 'Validate for Bank Account.' },
-    { code: ServiceType.NIN_VALIDATION, name: 'NIN Validation', price: 300.00, description: 'Validate NIN Details.' },
+    
+    // --- NEW VALIDATION SERVICES ---
+    { 
+      code: ServiceType.NIN_VALIDATION_NO_RECORD, 
+      name: 'NIN Validation (No Record)', 
+      price: 350.00, 
+      description: 'Validate NIN showing "No Record Found".' 
+    },
+    { 
+      code: ServiceType.NIN_VALIDATION_UPDATE_RECORD, 
+      name: 'NIN Validation (Update Record)', 
+      price: 500.00, 
+      description: 'Validate NIN after detail updates.' 
+    },
+    // -------------------------------
+
     { code: ServiceType.NIN_PERSONALIZATION, name: 'NIN Personalization', price: 1000.00, description: 'Personalize NIN Data.' },
     { code: ServiceType.IPE_CLEARANCE, name: 'IPE Clearance', price: 1500.00, description: 'Clear IPE Issues.' },
 
