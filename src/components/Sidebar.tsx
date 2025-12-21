@@ -16,7 +16,9 @@ import {
   UserCheck,
   Building2,
   GraduationCap,
-  FileText
+  FileText,
+  FileDigit,
+  CreditCard
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -33,8 +35,9 @@ const menuItems = [
     category: "Identity Services",
     items: [
       { name: "NIN Verification", href: "/dashboard/services/nin-verification", icon: UserCheck },
+      { name: "VNIN Slip", href: "/dashboard/services/vnin", icon: FileText }, // The page we just built
+      { name: "VNIN to NIBSS", href: "/dashboard/services/vnin-nibss", icon: FileDigit }, // New Placeholder
       { name: "NIN Validation", href: "/dashboard/services/nin-validation", icon: FileBadge },
-      { name: "VNIN Generation", href: "/dashboard/services/vnin", icon: FileText },
       { name: "BVN Services", href: "/dashboard/services/bvn", icon: UserCheck },
     ]
   },
@@ -100,7 +103,7 @@ export default function Sidebar() {
                       <Link 
                         key={item.href} 
                         href={item.href}
-                        onClick={() => setIsOpen(false)} // Close on click (mobile)
+                        onClick={() => setIsOpen(false)}
                         className={`
                           flex items-center px-2 py-2.5 text-sm font-medium rounded-md transition-colors
                           ${isActive 
