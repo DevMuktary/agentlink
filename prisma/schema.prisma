@@ -36,7 +36,7 @@ model User {
   updatedAt       DateTime @updatedAt
 }
 
-// 2. SERVICES (Dynamic Pricing)
+// 2. SERVICES
 model Service {
   id          String      @id @default(cuid())
   code        ServiceType @unique
@@ -113,9 +113,13 @@ enum ServiceType {
   DATA
   
   // NIN SERVICES
-  NIN_VERIFICATION       // By ID
-  NIN_SEARCH_BY_PHONE    // By Phone
-  NIN_VALIDATION
+  NIN_VERIFICATION       
+  NIN_SEARCH_BY_PHONE    
+  
+  // VALIDATION TYPES (New)
+  NIN_VALIDATION_NO_RECORD
+  NIN_VALIDATION_UPDATE_RECORD
+  
   NIN_PERSONALIZATION
   VNIN_SLIP
   VNIN_TO_NIBSS
