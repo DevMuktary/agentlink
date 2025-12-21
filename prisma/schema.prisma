@@ -1,0 +1,138 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. USERS (Agents & Admins)
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String?
+  role            Role     @default(AGENT)
+  
+  // Wallet
+  walletBalance   Decimal  @default(0.00) @db.Decimal(10, 2)
+  bonusBalance    Decimal  @default(0.00) @db.Decimal(10, 2)
+
+  // API Integration Details
+  apiKeyPublic    String?  @unique // Used in their frontend JS
+  apiKeySecret    String?  @unique // Used in their backend
+  webhookUrl      String?          // Where we send updates (e.g. CAC success)
+  ipWhitelist     String?          // Security: only allow their server IP
+
+  // Relationships
+  transactions    Transaction[]
+  requests        ServiceRequest[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 2. WALLET LOGS (Money History Only)
+// This is for the "Finance" section. strictly credit/debit logs.
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  amount      Decimal         @db.Decimal(10, 2)
+  type        TransactionType // FUND_WALLET, SERVICE_CHARGE, REFUND
+  reference   String          @unique // Unique Payment Ref
+  status      Status          @default(PENDING)
+  description String?
+  
+  user        User            @relation(fields: [userId], references: [id])
+  createdAt   DateTime        @default(now())
+}
+
+// 3. SERVICE REQUESTS (The Core "Service Grid")
+// This handles EVERYTHING: Airtime, CAC, NIN, etc.
+// We use the 'serviceType' to separate them strictly on the Dashboard.
+model ServiceRequest {
+  id            String      @id @default(cuid())
+  userId        String
+  
+  // What service is this?
+  serviceType   ServiceType 
+  
+  // Status tracking
+  status        Status      @default(PENDING) // PENDING, PROCESSING, COMPLETED, REJECTED
+  
+  // The Data (Flexible)
+  // Store input (e.g. Phone number, Documents for CAC)
+  requestData   Json        
+  
+  // The Result (Flexible)
+  // Store output (e.g. Token, Pin, PDF URL for NIN Slip)
+  responseData  Json?       
+  
+  // Money involved
+  cost          Decimal     @default(0.00) @db.Decimal(10, 2)
+  
+  // Admin Feedback (for Manual Services)
+  adminNote     String?     
+
+  user          User        @relation(fields: [userId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([serviceType]) // Optimizes filtering so "NIN" page loads fast
+}
+
+// --- ENUMS (The Categories) ---
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  AGENT
+}
+
+enum TransactionType {
+  DEPOSIT
+  SERVICE_CHARGE
+  REFUND
+  BONUS
+}
+
+enum Status {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+// Your Full List of Services
+enum ServiceType {
+  // Utilities
+  AIRTIME
+  DATA
+  
+  // Identity
+  NIN_VERIFICATION
+  NIN_VALIDATION
+  NIN_PERSONALIZATION
+  VNIN_SLIP
+  VNIN_TO_NIBSS
+  BVN_VERIFICATION
+  BVN_RETRIEVAL
+  BVN_MODIFICATION
+  ANDROID_BVN_ENROLLMENT
+  
+  // Corporate / Govt
+  CAC_REGISTRATION
+  IPE_CLEARANCE
+  JTB_TIN_REGISTRATION
+  
+  // Education
+  JAMB_SERVICES
+  EXAM_PIN_WAEC
+  EXAM_PIN_NECO
+  EXAM_PIN_NABTEB
+  EXAM_PIN_JAMB
+}
