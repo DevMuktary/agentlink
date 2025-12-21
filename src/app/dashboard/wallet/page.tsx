@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  Wallet, 
   ArrowUpRight, 
   ArrowDownLeft, 
-  Search, 
   Download,
   CreditCard,
-  History
+  History,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function WalletPage() {
@@ -18,6 +18,9 @@ export default function WalletPage() {
   const [userData, setUserData] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showFundModal, setShowFundModal] = useState(false);
+  
+  // Computed Stats
+  const [stats, setStats] = useState({ totalDeposits: 0, totalSpent: 0 });
 
   useEffect(() => {
     fetchWalletData();
@@ -25,18 +28,54 @@ export default function WalletPage() {
 
   const fetchWalletData = async () => {
     try {
-      // Parallel Fetch for speed
       const [userRes, txRes] = await Promise.all([
         axios.get('/api/user/me'),
         axios.get('/api/user/transactions')
       ]);
+      
       setUserData(userRes.data);
       setTransactions(txRes.data);
+
+      // Calculate Totals from History
+      const txs = txRes.data;
+      const deposits = txs
+        .filter((t: any) => t.type === 'DEPOSIT' && t.status === 'COMPLETED')
+        .reduce((acc: number, curr: any) => acc + Number(curr.amount), 0);
+        
+      const spent = txs
+        .filter((t: any) => t.type !== 'DEPOSIT' && t.status === 'COMPLETED')
+        .reduce((acc: number, curr: any) => acc + Number(curr.amount), 0);
+
+      setStats({ totalDeposits: deposits, totalSpent: spent });
+
     } catch (error) {
       console.error("Error loading wallet data");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownload = () => {
+    if (transactions.length === 0) return alert("No transactions to download.");
+
+    // Create CSV Content
+    const headers = ["Date,Reference,Type,Amount,Status"];
+    const rows = transactions.map(tx => {
+      const date = new Date(tx.createdAt).toLocaleDateString('en-NG');
+      const amount = Number(tx.amount).toFixed(2);
+      return `${date},${tx.reference},${tx.type},${amount},${tx.status}`;
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    
+    // Trigger Download
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const formatDate = (dateString: string) => {
@@ -47,6 +86,9 @@ export default function WalletPage() {
   };
 
   if (loading) return <GlobalLoader />;
+
+  const balance = Number(userData?.walletBalance || 0);
+  const isLowBalance = balance < 1000;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -59,7 +101,7 @@ export default function WalletPage() {
             <h2 className="text-blue-200 text-sm font-medium uppercase tracking-wider">Wallet Balance</h2>
             <div className="mt-3 flex items-baseline">
               <span className="text-5xl font-bold tracking-tight">
-                ₦{Number(userData?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ₦{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
             
@@ -78,25 +120,48 @@ export default function WalletPage() {
         </div>
 
         {/* Stats Card */}
-        <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
-              <ArrowDownLeft className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Deposits</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">Good Standing</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
-              <ArrowUpRight className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">Active Agent</p>
+        <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center gap-6">
+          
+          {/* Account Status Row */}
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
+            <div className="flex items-center space-x-3">
+              <div className={`p-2.5 rounded-full ${isLowBalance ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                {isLowBalance ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Account Status</p>
+                <p className={`font-bold ${isLowBalance ? 'text-orange-600' : 'text-green-600'}`}>
+                  {isLowBalance ? "Low Balance" : "Good Standing"}
+                </p>
+              </div>
             </div>
           </div>
+
+          {/* Deposits & Spent Row */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full">
+                <ArrowDownLeft className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase">In</p>
+                <p className="font-bold text-gray-900 dark:text-white">₦{stats.totalDeposits.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-full">
+                <ArrowUpRight className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase">Out</p>
+                <p className="font-bold text-gray-900 dark:text-white">₦{stats.totalSpent.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -109,8 +174,12 @@ export default function WalletPage() {
           </div>
           
           <div className="flex gap-2">
-            <button className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              <Download className="w-5 h-5" />
+            <button 
+              onClick={handleDownload}
+              className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition-colors text-sm font-medium"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download CSV
             </button>
           </div>
         </div>
@@ -146,7 +215,7 @@ export default function WalletPage() {
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         tx.type === 'DEPOSIT' 
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                          : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
                         {tx.type.replace('_', ' ')}
                       </span>
@@ -185,15 +254,15 @@ export default function WalletPage() {
             
             <div className="space-y-4 mb-6">
               <div className="flex justify-between py-2 border-b dark:border-gray-700">
-                <span className="text-gray-500">Bank Name</span>
+                <span className="text-gray-500 dark:text-gray-400">Bank Name</span>
                 <span className="font-bold dark:text-white">Moniepoint</span>
               </div>
               <div className="flex justify-between py-2 border-b dark:border-gray-700">
-                <span className="text-gray-500">Account Number</span>
-                <span className="font-bold text-xl dark:text-white">8012345678</span>
+                <span className="text-gray-500 dark:text-gray-400">Account Number</span>
+                <span className="font-bold text-xl dark:text-white select-all">8012345678</span>
               </div>
               <div className="flex justify-between py-2 border-b dark:border-gray-700">
-                <span className="text-gray-500">Account Name</span>
+                <span className="text-gray-500 dark:text-gray-400">Account Name</span>
                 <span className="font-bold dark:text-white">AgentLink Systems</span>
               </div>
             </div>
