@@ -5,30 +5,50 @@ import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json();
+    const body = await req.json();
+    const { 
+      firstName, 
+      lastName, 
+      businessName, 
+      phoneNumber, 
+      email, 
+      password, 
+      websiteUrl 
+    } = body;
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
+    // 1. Basic Validation
+    if (!email || !password || !firstName || !lastName || !phoneNumber) {
+      return NextResponse.json(
+        { error: 'Missing required fields' }, 
+        { status: 400 }
+      );
     }
 
-    // 1. Check if user exists
+    // 2. Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'User already exists' }, 
+        { status: 400 }
+      );
     }
 
-    // 2. Hash Password
+    // 3. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Generate API Keys (pk_live_... and sk_live_...)
+    // 4. Generate API Keys
     const apiKeyPublic = 'pk_live_' + crypto.randomBytes(12).toString('hex');
     const apiKeySecret = 'sk_live_' + crypto.randomBytes(24).toString('hex');
 
-    // 4. Create User
+    // 5. Create User
     const user = await prisma.user.create({
       data: {
-        name,
+        firstName,
+        lastName,
+        businessName,
+        phoneNumber,
         email,
+        websiteUrl,
         password: hashedPassword,
         apiKeyPublic,
         apiKeySecret,
@@ -36,9 +56,16 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ message: 'Account created successfully', userId: user.id });
+    return NextResponse.json({ 
+      message: 'Account created successfully', 
+      userId: user.id 
+    });
+
   } catch (error) {
     console.error('Registration Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' }, 
+      { status: 500 }
+    );
   }
 }
