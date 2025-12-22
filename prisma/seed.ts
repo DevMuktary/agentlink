@@ -6,12 +6,61 @@ async function main() {
   console.log('Seeding Services...');
 
   const services = [
-    // --- IDENTITY (NIN) ---
-    { code: ServiceType.NIN_VERIFICATION, serviceCode: 101, name: 'NIN Verification', price: 100.00, description: 'Verify using NIN Number.' },
-    { code: ServiceType.NIN_SEARCH_BY_PHONE, serviceCode: 102, name: 'NIN By Phone', price: 150.00, description: 'Retrieve NIN using Phone Number.' },
-    { code: ServiceType.VNIN_SLIP, serviceCode: 103, name: 'VNIN Slip', price: 200.00, description: 'Generate Standard/Premium Slips.' },
-    { code: ServiceType.VNIN_TO_NIBSS, serviceCode: 104, name: 'VNIN to NIBSS', price: 500.00, description: 'Validate for Bank Account.' },
-    
+    // --- IDENTITY (NIN LOOKUP) ---
+    { 
+      code: ServiceType.NIN_VERIFICATION, 
+      serviceCode: 101, 
+      name: 'NIN Verification', 
+      price: 100.00, 
+      description: 'Verify using NIN Number.' 
+    },
+    { 
+      code: ServiceType.NIN_SEARCH_BY_PHONE, 
+      serviceCode: 102, 
+      name: 'NIN By Phone', 
+      price: 150.00, 
+      description: 'Retrieve NIN using Phone Number.' 
+    },
+
+    // --- VNIN SERVICES (DISTINCT) ---
+    { 
+      code: ServiceType.VNIN_SLIP, 
+      serviceCode: 103, 
+      name: 'VNIN Slip Generation', 
+      price: 200.00, 
+      description: 'Generate Standard VNIN Slip PDF.' 
+    },
+    { 
+      code: ServiceType.VNIN_TO_NIBSS, 
+      serviceCode: 104, 
+      name: 'VNIN to NIBSS', 
+      price: 500.00, 
+      description: 'Validate VNIN for Bank Account.' 
+    },
+
+    // --- NEW PDF SLIPS (NIN) ---
+    { 
+      code: ServiceType.NIN_SLIP_PREMIUM, 
+      serviceCode: 110, 
+      name: 'NIN Slip (Premium)', 
+      price: 1000.00, 
+      description: 'Generate Premium Design PDF.' 
+    },
+    { 
+      code: ServiceType.NIN_SLIP_STANDARD, 
+      serviceCode: 111, 
+      name: 'NIN Slip (Standard)', 
+      price: 700.00, 
+      description: 'Generate Standard Design PDF.' 
+    },
+    { 
+      code: ServiceType.NIN_SLIP_REGULAR, 
+      serviceCode: 112, 
+      name: 'NIN Slip (Regular)', 
+      price: 500.00, 
+      description: 'Generate Regular Design PDF.' 
+    },
+
     // --- VALIDATION SERVICES (The 3 Types) ---
     { 
       code: ServiceType.NIN_VALIDATION_NO_RECORD, 
@@ -34,10 +83,22 @@ async function main() {
       price: 450.00, 
       description: 'Validate Virtual NIN.' 
     },
-    // ----------------------------------------
 
-    { code: ServiceType.NIN_PERSONALIZATION, serviceCode: 105, name: 'NIN Personalization', price: 1000.00, description: 'Personalize NIN Data.' },
-    { code: ServiceType.IPE_CLEARANCE, serviceCode: 106, name: 'IPE Clearance', price: 1500.00, description: 'Clear IPE Issues.' },
+    // --- OTHER IDENTITY ---
+    { 
+      code: ServiceType.NIN_PERSONALIZATION, 
+      serviceCode: 105, 
+      name: 'NIN Personalization', 
+      price: 1000.00, 
+      description: 'Personalize NIN Data.' 
+    },
+    { 
+      code: ServiceType.IPE_CLEARANCE, 
+      serviceCode: 106, 
+      name: 'IPE Clearance', 
+      price: 1500.00, 
+      description: 'Clear IPE Issues.' 
+    },
 
     // --- IDENTITY (BVN) ---
     { code: ServiceType.BVN_VERIFICATION, serviceCode: 201, name: 'BVN Verification', price: 100.00, description: 'Verify BVN Details.' },
