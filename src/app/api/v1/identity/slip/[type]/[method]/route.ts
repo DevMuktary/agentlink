@@ -4,15 +4,16 @@ import { validateApiKey } from '@/lib/api-auth';
 import { lookupNinByNumber } from '@/services/providers/robost-nin';
 import { lookupNinByPhone } from '@/services/providers/robost-phone';
 import { generateNinSlipPdf } from '@/services/pdf-generator';
+import { ServiceType } from '@prisma/client';
 
 export async function POST(
   req: Request,
   { params }: { params: { type: string; method: string } }
 ) {
   try {
-    // 1. Parse Params (premium/standard/regular AND nin/phone)
-    const { type, method } = await params; // Note: awaiting params is good practice in Next 15+
-    const { value, reference } = await req.json(); // 'value' is NIN or Phone
+    // 1. Parse Params
+    const { type, method } = await params;
+    const { value, reference } = await req.json();
 
     if (!['premium', 'standard', 'regular'].includes(type)) {
       return NextResponse.json({ status: false, error: 'Invalid slip type' }, { status: 400 });
@@ -25,22 +26,31 @@ export async function POST(
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 3. Determine Cost (You can fetch from DB later)
-    // Assuming flat rate for slips for now, or fetch 'VNIN_SLIP' from DB
-    const service = await prisma.service.findUnique({ where: { code: 'VNIN_SLIP' } });
-    const COST = service ? Number(service.price) : 200;
+    // 3. Map URL Param to Database Enum
+    let dbServiceCode: ServiceType;
+    if (type === 'premium') dbServiceCode = ServiceType.NIN_SLIP_PREMIUM;
+    else if (type === 'standard') dbServiceCode = ServiceType.NIN_SLIP_STANDARD;
+    else dbServiceCode = ServiceType.NIN_SLIP_REGULAR;
 
+    // 4. Fetch Dynamic Price
+    const service = await prisma.service.findUnique({ where: { code: dbServiceCode } });
+    if (!service || !service.isActive) {
+        return NextResponse.json({ status: false, error: `${type} Slip service unavailable` }, { status: 503 });
+    }
+    const COST = Number(service.price);
+
+    // 5. Check Balance
     if (Number(user.walletBalance) < COST) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 4. Deduct Balance
+    // 6. Deduct Balance
     const requestLog = await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: user.id }, data: { walletBalance: { decrement: COST } } });
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: 'VNIN_SLIP', 
+          serviceType: dbServiceCode, 
           status: 'PROCESSING',
           cost: COST,
           requestData: { type, method, value, clientReference: reference }, 
@@ -48,7 +58,7 @@ export async function POST(
       });
     });
 
-    // 5. Fetch Data from Provider (RobostTech)
+    // 7. Fetch Data from Provider (RobostTech)
     let dataResult;
     if (method === 'nin') {
       dataResult = await lookupNinByNumber(value);
@@ -65,7 +75,7 @@ export async function POST(
         return NextResponse.json({ status: false, error: dataResult.error }, { status: 400 });
     }
 
-    // 6. Generate PDF using your logic
+    // 8. Generate PDF
     try {
         const pdfBuffer = await generateNinSlipPdf(type, dataResult.data);
         const pdfBase64 = pdfBuffer.toString('base64');
@@ -81,7 +91,7 @@ export async function POST(
 
         return NextResponse.json({
             status: true,
-            message: 'Slip Generated Successfully',
+            message: `${type.toUpperCase()} Slip Generated Successfully`,
             pdf_base64: pdfBase64,
             data: dataResult.data
         });
