@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  CheckCircle2, XCircle, Clock, Search, Filter, AlertCircle, FileBadge 
+  CheckCircle2, XCircle, Clock, Search, Filter, FileBadge, ShieldCheck 
 } from 'lucide-react';
 
 export default function NinValidationHistoryPage() {
@@ -21,9 +21,11 @@ export default function NinValidationHistoryPage() {
   const fetchHistory = async () => {
     try {
       const res = await axios.get('/api/user/requests'); 
+      // Filter for Validation services only
       const logs = res.data.filter((r: any) => 
         r.serviceType === 'NIN_VALIDATION_NO_RECORD' || 
-        r.serviceType === 'NIN_VALIDATION_UPDATE_RECORD'
+        r.serviceType === 'NIN_VALIDATION_UPDATE_RECORD' ||
+        r.serviceType === 'NIN_VALIDATION_VNIN'
       );
       setRequests(logs);
       setFilteredRequests(logs);
@@ -41,6 +43,8 @@ export default function NinValidationHistoryPage() {
       result = result.filter(r => r.serviceType === 'NIN_VALIDATION_NO_RECORD');
     } else if (filterType === 'UPDATE_RECORD') {
       result = result.filter(r => r.serviceType === 'NIN_VALIDATION_UPDATE_RECORD');
+    } else if (filterType === 'VNIN') {
+      result = result.filter(r => r.serviceType === 'NIN_VALIDATION_VNIN');
     }
 
     if (searchQuery) {
@@ -71,8 +75,9 @@ export default function NinValidationHistoryPage() {
               className="w-full sm:w-48 pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none cursor-pointer"
             >
               <option value="ALL">All Types</option>
-              <option value="NO_RECORD">No Record Found</option>
-              <option value="UPDATE_RECORD">Update Record</option>
+              <option value="NO_RECORD">No Record (329)</option>
+              <option value="UPDATE_RECORD">Update Record (330)</option>
+              <option value="VNIN">V-NIN Validation (331)</option>
             </select>
           </div>
 
@@ -95,7 +100,7 @@ export default function NinValidationHistoryPage() {
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Date</th>
-                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Validation Type</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Type</th>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">NIN Number</th>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Cost</th>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Status</th>
@@ -112,14 +117,21 @@ export default function NinValidationHistoryPage() {
                       {new Date(item.createdAt).toLocaleString('en-NG')}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 text-xs rounded-md font-medium ${
-                        item.serviceType === 'NIN_VALIDATION_NO_RECORD' 
-                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' 
-                          : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                      }`}>
-                        <FileBadge className="w-3 h-3 mr-1" />
-                        {item.serviceType === 'NIN_VALIDATION_NO_RECORD' ? 'No Record Found' : 'Update Record'}
-                      </span>
+                      {item.serviceType === 'NIN_VALIDATION_NO_RECORD' && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-md font-medium bg-orange-100 text-orange-700">
+                          <FileBadge className="w-3 h-3 mr-1" /> No Record
+                        </span>
+                      )}
+                      {item.serviceType === 'NIN_VALIDATION_UPDATE_RECORD' && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-md font-medium bg-indigo-100 text-indigo-700">
+                          <FileBadge className="w-3 h-3 mr-1" /> Update Record
+                        </span>
+                      )}
+                      {item.serviceType === 'NIN_VALIDATION_VNIN' && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-md font-medium bg-teal-100 text-teal-700">
+                          <ShieldCheck className="w-3 h-3 mr-1" /> V-NIN Valid
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 font-mono text-gray-700 dark:text-gray-200">
                       {item.requestData?.nin || '---'}
