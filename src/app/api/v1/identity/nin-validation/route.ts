@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { ServiceType } from '@prisma/client';
 
 export async function POST(req: Request) {
   try {
@@ -10,35 +9,38 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
 
     const body = await req.json();
-    const { nin, type, reference } = body;
+    const { nin, service_code, reference } = body;
 
     // 2. Validate Inputs
     if (!nin || nin.length !== 11) {
       return NextResponse.json({ status: false, error: 'Invalid NIN format. Must be 11 digits.' }, { status: 400 });
     }
     
-    if (!type || (type !== 'NO_RECORD' && type !== 'UPDATE_RECORD')) {
-      return NextResponse.json({ status: false, error: "Invalid type. Use 'NO_RECORD' or 'UPDATE_RECORD'." }, { status: 400 });
+    if (!service_code) {
+      return NextResponse.json({ status: false, error: "Missing 'service_code' (e.g., 329)." }, { status: 400 });
     }
 
-    // 3. Determine Service Code
-    const serviceCode = type === 'NO_RECORD' 
-      ? ServiceType.NIN_VALIDATION_NO_RECORD 
-      : ServiceType.NIN_VALIDATION_UPDATE_RECORD;
+    // 3. Find Service by Code
+    const service = await prisma.service.findUnique({ 
+        where: { serviceCode: Number(service_code) } 
+    });
 
-    // 4. Get Price
-    const service = await prisma.service.findUnique({ where: { code: serviceCode } });
-    if (!service || !service.isActive) {
-      return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
+    // Verify it's a validation service
+    if (!service || !service.isActive || 
+       (service.code !== 'NIN_VALIDATION_NO_RECORD' && 
+        service.code !== 'NIN_VALIDATION_UPDATE_RECORD' &&
+        service.code !== 'NIN_VALIDATION_VNIN')) {
+      return NextResponse.json({ status: false, error: 'Invalid or inactive Service Code.' }, { status: 404 });
     }
+
     const cost = Number(service.price);
 
-    // 5. Check Balance
+    // 4. Check Balance
     if (Number(user.walletBalance) < cost) {
       return NextResponse.json({ status: false, error: 'Insufficient wallet balance' }, { status: 402 });
     }
 
-    // 6. Deduct Money & Create Request (Manual Service)
+    // 5. Deduct Money & Create Request (Manual Service)
     const requestLog = await prisma.$transaction(async (tx) => {
       // Deduct
       await tx.user.update({
@@ -50,10 +52,10 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: serviceCode,
+          serviceType: service.code,
           status: 'PROCESSING', // Manual service stays processing
           cost: cost,
-          requestData: { nin, clientReference: reference, type }, 
+          requestData: { nin, clientReference: reference, service_code }, 
           adminNote: 'Waiting for Admin Validation'
         }
       });
