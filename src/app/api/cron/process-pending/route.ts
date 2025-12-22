@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { checkIpeStatus } from '@/services/providers/robost-ipe';
+// FIX: Update Import for IPE
+import { checkIpeStatus } from '@/services/providers/ninslip-ipe'; 
 import { checkPersonalizationStatus } from '@/services/providers/robost-personalization';
 
-// Secure this route so only Railway/You can call it
 const CRON_SECRET = process.env.CRON_JOB_SECRET || 'my-secret-cron-key';
 
 export async function GET(req: Request) {
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Fetch Processing Requests (Limit 20 to prevent timeouts)
+  // Fetch Processing Requests
   const pendingRequests = await prisma.serviceRequest.findMany({
     where: { 
       status: 'PROCESSING',
@@ -29,22 +29,21 @@ export async function GET(req: Request) {
 
     let result: any = null;
 
-    // 1. Check IPE
+    // 1. Check IPE (Using NinSlip)
     if (req.serviceType === 'IPE_CLEARANCE') {
       result = await checkIpeStatus(trackingId);
     }
-    // 2. Check Personalization
+    // 2. Check Personalization (Using Robost)
     else if (req.serviceType === 'NIN_PERSONALIZATION') {
       result = await checkPersonalizationStatus(trackingId);
     }
 
-    // 3. Update Database if status changed
+    // 3. Update DB if status changed (COMPLETED or FAILED)
     if (result && result.success && result.status !== 'PROCESSING') {
-      
       await prisma.serviceRequest.update({
         where: { id: req.id },
         data: {
-          status: result.status, // COMPLETED or FAILED
+          status: result.status,
           responseData: result.data || { message: result.message },
           adminNote: result.status === 'FAILED' ? 'Provider marked as Failed. No Refund.' : null
         }
@@ -54,7 +53,7 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({ 
-    message: 'Cron executed successfully', 
+    message: 'Cron executed', 
     checked: pendingRequests.length, 
     updated: processed 
   });
