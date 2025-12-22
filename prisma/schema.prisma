@@ -113,22 +113,23 @@ enum ServiceType {
   AIRTIME
   DATA
   
-  // NIN SERVICES
+  // NIN SERVICES (Lookup)
   NIN_VERIFICATION       
   NIN_SEARCH_BY_PHONE    
   
-  // VALIDATION
-  NIN_VALIDATION_NO_RECORD
-  NIN_VALIDATION_UPDATE_RECORD
-  NIN_VALIDATION_VNIN
-  
-  // SLIP GENERATION (New Granular Types)
+  // NIN SLIP GENERATION (New PDF Types)
   NIN_SLIP_PREMIUM
   NIN_SLIP_STANDARD
   NIN_SLIP_REGULAR
   
+  // VALIDATION TYPES (Distinct)
+  NIN_VALIDATION_NO_RECORD
+  NIN_VALIDATION_UPDATE_RECORD
+  NIN_VALIDATION_VNIN  // This is specifically for V-NIN Validation
+  
+  // OTHER IDENTITY
   NIN_PERSONALIZATION
-  VNIN_SLIP           // Kept for legacy/external provider support if needed
+  VNIN_SLIP            // This is the Standard VNIN Slip Generation
   VNIN_TO_NIBSS
   IPE_CLEARANCE
   
