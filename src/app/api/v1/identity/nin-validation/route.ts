@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+import { ServiceType } from '@prisma/client';
 
 export async function POST(req: Request) {
   try {
@@ -12,12 +13,12 @@ export async function POST(req: Request) {
     const { nin, service_code, reference } = body;
 
     // 2. Validate Inputs
-    if (!nin || nin.length !== 11) {
-      return NextResponse.json({ status: false, error: 'Invalid NIN format. Must be 11 digits.' }, { status: 400 });
+    if (!nin) {
+      return NextResponse.json({ status: false, error: 'Invalid NIN/VNIN format.' }, { status: 400 });
     }
     
     if (!service_code) {
-      return NextResponse.json({ status: false, error: "Missing 'service_code' (e.g., 329)." }, { status: 400 });
+      return NextResponse.json({ status: false, error: "Missing 'service_code'. Use 329, 330, or 331." }, { status: 400 });
     }
 
     // 3. Find Service by Code
@@ -25,22 +26,25 @@ export async function POST(req: Request) {
         where: { serviceCode: Number(service_code) } 
     });
 
-    // Verify it's a validation service
-    if (!service || !service.isActive || 
-       (service.code !== 'NIN_VALIDATION_NO_RECORD' && 
-        service.code !== 'NIN_VALIDATION_UPDATE_RECORD' &&
-        service.code !== 'NIN_VALIDATION_VNIN')) {
-      return NextResponse.json({ status: false, error: 'Invalid or inactive Service Code.' }, { status: 404 });
+    // 4. Verify it is a VALIDATION service (Manual)
+    const validCodes = [
+      'NIN_VALIDATION_NO_RECORD', 
+      'NIN_VALIDATION_UPDATE_RECORD', 
+      'NIN_VALIDATION_VNIN' // <--- Code 331 is strictly handled here
+    ];
+
+    if (!service || !service.isActive || !validCodes.includes(service.code)) {
+      return NextResponse.json({ status: false, error: 'Invalid Service Code for Validation.' }, { status: 404 });
     }
 
     const cost = Number(service.price);
 
-    // 4. Check Balance
+    // 5. Check Balance
     if (Number(user.walletBalance) < cost) {
       return NextResponse.json({ status: false, error: 'Insufficient wallet balance' }, { status: 402 });
     }
 
-    // 5. Deduct Money & Create Request (Manual Service)
+    // 6. Deduct Money & Create Request (Manual Service)
     const requestLog = await prisma.$transaction(async (tx) => {
       // Deduct
       await tx.user.update({
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
         data: {
           userId: user.id,
           serviceType: service.code,
-          status: 'PROCESSING', // Manual service stays processing
+          status: 'PROCESSING', // Always PROCESSING because it's manual
           cost: cost,
           requestData: { nin, clientReference: reference, service_code }, 
           adminNote: 'Waiting for Admin Validation'
@@ -66,8 +70,9 @@ export async function POST(req: Request) {
       message: 'Validation Request Submitted Successfully',
       data: {
         reference: requestLog.id,
+        service: service.name,
         status: 'PROCESSING',
-        note: 'This is a manual service. Status will be updated within 24-72 hours.'
+        note: 'This is a manual service. Status will be updated by Admin.'
       }
     });
 
