@@ -8,11 +8,11 @@ import { ServiceType } from '@prisma/client';
 
 export async function POST(
   req: Request,
-  { params }: { params: { type: string; method: string } }
+  { params }: { params: Promise<{ type: string; method: string }> } // FIX: Type as Promise
 ) {
   try {
-    // 1. Parse Params
-    const { type, method } = await params;
+    // 1. Parse Params (Await the Promise)
+    const { type, method } = await params; 
     const { value, reference } = await req.json();
 
     if (!['premium', 'standard', 'regular'].includes(type)) {
@@ -28,12 +28,14 @@ export async function POST(
 
     // 3. Map URL Param to Database Enum
     let dbServiceCode: ServiceType;
-    if (type === 'premium') dbServiceCode = ServiceType.NIN_SLIP_PREMIUM;
-    else if (type === 'standard') dbServiceCode = ServiceType.NIN_SLIP_STANDARD;
-    else dbServiceCode = ServiceType.NIN_SLIP_REGULAR;
+    if (type === 'premium') dbServiceCode = 'NIN_SLIP_PREMIUM' as ServiceType;
+    else if (type === 'standard') dbServiceCode = 'NIN_SLIP_STANDARD' as ServiceType;
+    else dbServiceCode = 'NIN_SLIP_REGULAR' as ServiceType;
 
     // 4. Fetch Dynamic Price
     const service = await prisma.service.findUnique({ where: { code: dbServiceCode } });
+    
+    // Safety check if service hasn't been seeded yet
     if (!service || !service.isActive) {
         return NextResponse.json({ status: false, error: `${type} Slip service unavailable` }, { status: 503 });
     }
