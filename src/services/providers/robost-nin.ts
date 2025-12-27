@@ -18,10 +18,11 @@ export async function lookupNinByNumber(nin: string): Promise<NinLookupResult> {
   try {
     const response = await axios.post(
       ENDPOINT,
-      { nin },
+      { nin }, // Ensure this matches RobostTech documentation exactly
       {
         headers: { 
-          'api-key': ROBOST_API_KEY, // Header 1: Strictly for NIN Lookup
+          'Authorization': `Bearer ${ROBOST_API_KEY}`, // TRY THIS: Some Robost endpoints use Bearer
+          'api-key': ROBOST_API_KEY, // Keep this as backup/alternative
           'Content-Type': 'application/json' 
         },
         timeout: 60000 
@@ -30,15 +31,19 @@ export async function lookupNinByNumber(nin: string): Promise<NinLookupResult> {
 
     const apiRes = response.data;
 
-    if (apiRes.success && apiRes.data) {
-      return { success: true, data: apiRes.data };
+    if (apiRes.success || apiRes.status === 'success' || apiRes.data) {
+      return { success: true, data: apiRes.data || apiRes };
     } else {
       return { success: false, error: apiRes.message || 'Verification failed' };
     }
 
   } catch (error: any) {
-    console.error('RobostTech NIN Error:', error.message);
-    if (error.code === 'ECONNABORTED') return { success: false, error: 'Service Timed Out' };
-    return { success: false, error: error.response?.data?.message || 'Provider Error' };
+    // Enhanced Error Logging
+    if (error.response) {
+        console.error('RobostTech Response Error:', JSON.stringify(error.response.data));
+        return { success: false, error: error.response.data.message || `Provider Error: ${error.response.status}` };
+    }
+    console.error('RobostTech Network Error:', error.message);
+    return { success: false, error: 'Service Timed Out or Network Error' };
   }
 }
