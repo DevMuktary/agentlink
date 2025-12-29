@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Wallet, Code2, LogOut, Menu, X,
   ShieldCheck, FileText, FileDigit, FileBadge, UserCheck, 
-  Smartphone, Wifi, Building2, GraduationCap, Users
+  Wifi, Building2, GraduationCap, Users
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,7 +22,10 @@ const menuItems = [
     category: "Identity (NIN)",
     items: [
       { name: "NIN Verification", href: "/dashboard/services/nin-verification", icon: UserCheck },
-      { name: "VNIN Slip", href: "/dashboard/services/vnin", icon: FileText },
+      // --- NEW LINK ADDED HERE ---
+      { name: "NIN Slips History", href: "/dashboard/services/nin-slips", icon: FileText }, 
+      // ---------------------------
+      { name: "VNIN Slip", href: "/dashboard/services/vnin", icon: FileBadge },
       { name: "VNIN to NIBSS", href: "/dashboard/services/vnin-nibss", icon: FileDigit },
       { name: "IPE Clearance", href: "/dashboard/services/nin/ipe-clearance", icon: ShieldCheck },
       { name: "NIN Personalization", href: "/dashboard/services/nin/personalization", icon: Users },
