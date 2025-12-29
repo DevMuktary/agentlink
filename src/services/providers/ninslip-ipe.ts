@@ -34,7 +34,12 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
 
     const apiRes = response.data;
 
-    // NinSlip success pattern
+    // --- DEBUGGING LOG ---
+    if (apiRes.status !== 'success') {
+      console.error("IPE PROVIDER REJECTED:", JSON.stringify(apiRes, null, 2));
+    }
+    // ---------------------
+
     if (apiRes.status === 'success') {
       return { 
         success: true, 
@@ -49,10 +54,20 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
     };
 
   } catch (error: any) {
-    console.error('NinSlip Submit Error:', error.message);
+    // --- DEBUGGING LOG ---
+    if (error.response) {
+       console.error("IPE PROVIDER ERROR DATA:", JSON.stringify(error.response.data, null, 2));
+       return { 
+         success: false, 
+         message: error.response.data.message || 'Provider rejected request' 
+       };
+    }
+    // ---------------------
+    
+    console.error('NinSlip Connection Error:', error.message);
     return { 
       success: false, 
-      message: error.response?.data?.message || 'Submission failed connection' 
+      message: 'Submission failed connection' 
     };
   }
 }
@@ -76,17 +91,14 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
 
     const apiRes = response.data;
 
-    // Case A: Success
     if (apiRes.status === 'success' && apiRes.clearance_status === 'Successful') {
       return { 
         success: true, 
         status: 'COMPLETED', 
-        data: apiRes.data // Contains reply, name, dob etc.
+        data: apiRes.data 
       };
     }
 
-    // Case B: Explicit Failure (Defensive coding based on standard API patterns)
-    // If the provider sends a clear "Failed" status
     if (apiRes.status === 'failed' || apiRes.clearance_status === 'Failed' || apiRes.clearance_status === 'Rejected') {
       return { 
         success: true, 
@@ -95,7 +107,6 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
       };
     }
 
-    // Case C: Still Processing (Default)
     return { 
       success: true, 
       status: 'PROCESSING', 
