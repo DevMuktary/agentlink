@@ -1,0 +1,14 @@
+name: Trigger IPE Cron
+on:
+  schedule:
+    - cron: '*/15 * * * *' # Runs every 15 minutes
+  workflow_dispatch: # Allows you to click "Run Now" manually for testing
+
+jobs:
+  ping-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call API Route
+        run: |
+          curl -X GET ${{ secrets.APP_URL }}/api/cron/process-pending \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
