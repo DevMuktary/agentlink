@@ -7,7 +7,7 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Wallet, ShieldCheck, Wifi, Building2, GraduationCap, 
   Activity, ArrowRight, FileText, Users, Eye, EyeOff, 
-  CreditCard, Smartphone, ScrollText, UserCheck
+  CreditCard, Smartphone, ScrollText, UserCheck, Printer
 } from 'lucide-react';
 
 interface UserData {
@@ -25,7 +25,6 @@ export default function DashboardHome() {
   const [greeting, setGreeting] = useState('');
 
   useEffect(() => {
-    // Set greeting based on time
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Good Morning');
     else if (hour < 18) setGreeting('Good Afternoon');
@@ -105,8 +104,7 @@ export default function DashboardHome() {
 
         {/* Quick Stats */}
         <div className="grid grid-rows-2 gap-6">
-           {/* Transaction Count */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
              <div>
                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Transactions</p>
                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{user?._count.requests || 0}</h3>
@@ -116,7 +114,6 @@ export default function DashboardHome() {
              </div>
           </div>
 
-          {/* API Keys Link */}
           <Link href="/dashboard/developers" className="group bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
              <div>
                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Developer Center</p>
@@ -139,6 +136,14 @@ export default function DashboardHome() {
             href="/dashboard/services/nin-verification" 
             color="text-blue-600 bg-blue-50 dark:bg-blue-900/20"
           />
+          {/* --- NEW CARD ADDED HERE --- */}
+          <ServiceCard 
+            title="NIN Slips History" 
+            icon={Printer} 
+            href="/dashboard/services/nin-slips" 
+            color="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
+          />
+          {/* --------------------------- */}
           <ServiceCard 
             title="VNIN Slip" 
             icon={FileText} 
@@ -168,12 +173,6 @@ export default function DashboardHome() {
             icon={Building2} 
             href="/dashboard/services/cac" 
             color="text-orange-600 bg-orange-50 dark:bg-orange-900/20"
-          />
-           <ServiceCard 
-            title="JAMB / WAEC" 
-            icon={GraduationCap} 
-            href="/dashboard/services/jamb" 
-            color="text-purple-600 bg-purple-50 dark:bg-purple-900/20"
           />
            <ServiceCard 
             title="Transactions" 
