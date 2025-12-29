@@ -44,21 +44,21 @@ async function main() {
       name: 'NIN Slip (Premium)', 
       price: 1000.00, 
       description: 'Generate Premium Design PDF.',
-      serviceCode: null 
+      serviceCode: 401 
     },
     { 
       code: ServiceType.NIN_SLIP_STANDARD, 
       name: 'NIN Slip (Standard)', 
       price: 700.00, 
       description: 'Generate Standard Design PDF.',
-      serviceCode: null 
+      serviceCode: 402
     },
     { 
       code: ServiceType.NIN_SLIP_REGULAR, 
       name: 'NIN Slip (Regular)', 
       price: 500.00, 
       description: 'Generate Regular Design PDF.',
-      serviceCode: null 
+      serviceCode: 403 
     },
 
     // --- VALIDATION SERVICES (Codes REQUIRED here) ---
