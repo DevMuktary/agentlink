@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Get Request ID from URL
+    // 2. Get Params
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
@@ -17,16 +17,28 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // 3. Find the Transaction
-    const request = await prisma.serviceRequest.findFirst({
-      where: {
+    // 3. Construct Query (Fixing the Prisma Error)
+    // We build the 'where' clause dynamically instead of using 'OR'
+    let whereQuery: any = {
         userId: user.id,
-        serviceType: 'IPE_CLEARANCE',
-        OR: [
-          { id: requestId || undefined },
-          { requestData: { path: ['clientReference'], equals: clientRef || undefined } } // JSON filter
-        ]
-      },
+        serviceType: 'IPE_CLEARANCE'
+    };
+
+    if (requestId) {
+        // Priority 1: Search by ID (Faster)
+        whereQuery.id = requestId;
+    } else {
+        // Priority 2: Search by Reference (JSON Filter)
+        // Only applies if no ID is provided
+        whereQuery.requestData = {
+            path: ['clientReference'],
+            equals: clientRef
+        };
+    }
+
+    // 4. Find the Request
+    const request = await prisma.serviceRequest.findFirst({
+      where: whereQuery,
       select: {
         id: true,
         status: true,
@@ -40,22 +52,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // 4. Construct the Reply
-    // If COMPLETED, we send the New Data (New Tracking ID).
-    // If FAILED, we send the error reason.
-    // If PROCESSING, we just tell them to wait.
-
+    // 5. Construct Response
     return NextResponse.json({
       status: true,
-      current_status: request.status, // "PROCESSING", "COMPLETED", "FAILED"
+      current_status: request.status,
       original_tracking_id: (request.requestData as any)?.trackingId,
-      
-      // Only show result if completed
       result: request.status === 'COMPLETED' ? request.responseData : null,
-      
-      // Show error if failed
       error_reason: request.status === 'FAILED' ? (request.responseData as any)?.error : null,
-      
       last_updated: request.updatedAt
     });
 
