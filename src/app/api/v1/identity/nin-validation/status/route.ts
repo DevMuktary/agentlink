@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Get Params (Allow checking by YOUR ID or THEIR reference)
+    // 2. Get Params
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // 3. Build Query
+    // 3. Find Request
     let whereQuery: any = {
         userId: user.id,
         serviceType: { in: ['NIN_VALIDATION_NO_RECORD', 'NIN_VALIDATION_UPDATE_RECORD', 'NIN_VALIDATION_VNIN'] }
@@ -29,14 +29,13 @@ export async function GET(req: Request) {
         whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
     }
 
-    // 4. Find Request
     const request = await prisma.serviceRequest.findFirst({
       where: whereQuery,
       select: {
         id: true,
         status: true,
-        adminNote: true, // Important: This is where you write rejection reasons
-        responseData: true, // This is where you upload the result/file
+        adminNote: true,
+        responseData: true,
         updatedAt: true
       }
     });
@@ -45,12 +44,26 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // 5. Return Status
+    // 4. Custom Logic for "Simple" Response
+    let finalResult = request.responseData;
+
+    // If COMPLETED but admin uploaded nothing, show standard success message
+    if (request.status === 'COMPLETED' && !finalResult) {
+        finalResult = { message: "Validation Successful" };
+    }
+
+    // If FAILED, try to show the Admin's Note or a default message
+    let failureReason = null;
+    if (request.status === 'FAILED') {
+        failureReason = request.adminNote || (request.responseData as any)?.error || "Validation Failed";
+    }
+
+    // 5. Return Response
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      result: request.status === 'COMPLETED' ? request.responseData : null,
-      admin_note: request.adminNote, // Show them the note (e.g., "Invalid Details" or "Done")
+      result: request.status === 'COMPLETED' ? finalResult : null,
+      reason: failureReason, // Will be null unless FAILED
       last_updated: request.updatedAt
     });
 
