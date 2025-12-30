@@ -4,9 +4,9 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   try {
-    // 1. Authenticate
+    // 1. Authenticate (Checks Bearer Secret Key)
     const user = await validateApiKey(req);
-    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
 
     // 2. Get Params
     const { searchParams } = new URL(req.url);
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // 3. Find Request
+    // 3. Find the Request
     let whereQuery: any = {
         userId: user.id,
         serviceType: { in: ['NIN_VALIDATION_NO_RECORD', 'NIN_VALIDATION_UPDATE_RECORD', 'NIN_VALIDATION_VNIN'] }
@@ -34,8 +34,7 @@ export async function GET(req: Request) {
       select: {
         id: true,
         status: true,
-        adminNote: true,
-        responseData: true,
+        adminNote: true, 
         updatedAt: true
       }
     });
@@ -44,30 +43,34 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // 4. Custom Logic for "Simple" Response
-    let finalResult = request.responseData;
+    // 4. Construct Simple Result
+    let resultPayload = null;
 
-    // If COMPLETED but admin uploaded nothing, show standard success message
-    if (request.status === 'COMPLETED' && !finalResult) {
-        finalResult = { message: "Validation Successful" };
-    }
-
-    // If FAILED, try to show the Admin's Note or a default message
-    let failureReason = null;
-    if (request.status === 'FAILED') {
-        failureReason = request.adminNote || (request.responseData as any)?.error || "Validation Failed";
+    if (request.status === 'COMPLETED') {
+        // AUTOMATIC SUCCESS MESSAGE
+        resultPayload = {
+            valid: true,
+            message: "Validation Successful"
+        };
+    } else if (request.status === 'FAILED') {
+        // FAILURE REASON
+        resultPayload = {
+            valid: false,
+            message: "Validation Failed",
+            reason: request.adminNote || "Details did not match" // Fallback if admin left it empty
+        };
     }
 
     // 5. Return Response
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      result: request.status === 'COMPLETED' ? finalResult : null,
-      reason: failureReason, // Will be null unless FAILED
+      result: resultPayload,
       last_updated: request.updatedAt
     });
 
   } catch (error) {
+    console.error("Status Check Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
