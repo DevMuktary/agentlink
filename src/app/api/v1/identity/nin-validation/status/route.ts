@@ -43,21 +43,24 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // 4. Construct Simple Result
+    // 4. Construct Clean Result (No "Admin" mentions)
     let resultPayload = null;
+    let message = "Validation in progress";
 
     if (request.status === 'COMPLETED') {
-        // AUTOMATIC SUCCESS MESSAGE
+        message = "Transaction Completed";
         resultPayload = {
             valid: true,
             message: "Validation Successful"
         };
     } else if (request.status === 'FAILED') {
-        // FAILURE REASON
+        message = "Transaction Failed";
         resultPayload = {
             valid: false,
             message: "Validation Failed",
-            reason: request.adminNote || "Details did not match" // Fallback if admin left it empty
+            // We use the adminNote as the specific reason (e.g. "Details mismatch"), 
+            // but we display it as a generic system reason.
+            reason: request.adminNote || "Verification could not be completed" 
         };
     }
 
@@ -65,6 +68,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       status: true,
       current_status: request.status,
+      message: message,
       result: resultPayload,
       last_updated: request.updatedAt
     });
