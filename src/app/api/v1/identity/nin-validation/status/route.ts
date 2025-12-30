@@ -54,7 +54,7 @@ export async function GET(req: Request) {
             message: "Validation Successful"
         };
     } else if (request.status === 'FAILED') {
-        message = "Transaction Failed";
+        message = "Validation Failed";
         resultPayload = {
             valid: false,
             message: "Validation Failed",
