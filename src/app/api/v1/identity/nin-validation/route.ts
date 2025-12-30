@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { ServiceType } from '@prisma/client';
+// import { ServiceType } from '@prisma/client'; // Optional if not strict on types
 
 export async function POST(req: Request) {
   try {
@@ -26,11 +26,11 @@ export async function POST(req: Request) {
         where: { serviceCode: Number(service_code) } 
     });
 
-    // 4. Verify it is a VALIDATION service (Manual)
+    // 4. Verify it is a VALIDATION service
     const validCodes = [
       'NIN_VALIDATION_NO_RECORD', 
       'NIN_VALIDATION_UPDATE_RECORD', 
-      'NIN_VALIDATION_VNIN' // <--- Code 331 is strictly handled here
+      'NIN_VALIDATION_VNIN'
     ];
 
     if (!service || !service.isActive || !validCodes.includes(service.code)) {
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Insufficient wallet balance' }, { status: 402 });
     }
 
-    // 6. Deduct Money & Create Request (Manual Service)
+    // 6. Deduct Money & Create Request
     const requestLog = await prisma.$transaction(async (tx) => {
       // Deduct
       await tx.user.update({
@@ -57,22 +57,24 @@ export async function POST(req: Request) {
         data: {
           userId: user.id,
           serviceType: service.code,
-          status: 'PROCESSING', // Always PROCESSING because it's manual
+          status: 'PROCESSING', 
           cost: cost,
           requestData: { nin, clientReference: reference, service_code }, 
-          adminNote: 'Waiting for Admin Validation'
+          adminNote: 'Pending Validation' // Internal note for you, user won't see this yet
         }
       });
     });
 
+    // 7. Return Clean Response (No "Manual" mentions)
     return NextResponse.json({
       status: true,
       message: 'Validation Request Submitted Successfully',
       data: {
-        reference: requestLog.id,
+        request_id: requestLog.id, // This is the "cmjsif..." ID
+        reference: reference || null, // This is their own reference
         service: service.name,
         status: 'PROCESSING',
-        note: 'This is a manual service. Status will be updated by Admin.'
+        charged_amount: cost
       }
     });
 
