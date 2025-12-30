@@ -48,7 +48,7 @@ export async function GET(req: Request) {
     let message = "Validation in progress";
 
     if (request.status === 'COMPLETED') {
-        message = "Transaction Completed";
+        message = "Validation Completed";
         resultPayload = {
             valid: true,
             message: "Validation Successful"
