@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Wallet, Code2, LogOut, Menu, X,
   ShieldCheck, FileText, FileDigit, FileBadge, UserCheck, 
-  Wifi, Building2, GraduationCap, Users
+  Wifi, Building2, GraduationCap, Users, FileCog, 
+  Smartphone, Search, Zap, BookOpen
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,35 +23,43 @@ const menuItems = [
     category: "Identity (NIN)",
     items: [
       { name: "NIN Verification", href: "/dashboard/services/nin-verification", icon: UserCheck },
-      // --- NEW LINK ADDED HERE ---
-      { name: "NIN Slips History", href: "/dashboard/services/nin-slips", icon: FileText }, 
-      // ---------------------------
-      { name: "VNIN Slip", href: "/dashboard/services/vnin", icon: FileBadge },
-      { name: "VNIN to NIBSS", href: "/dashboard/services/vnin-nibss", icon: FileDigit },
+      { name: "NIN Slips History", href: "/dashboard/services/nin-slips", icon: FileText },
       { name: "IPE Clearance", href: "/dashboard/services/nin/ipe-clearance", icon: ShieldCheck },
-      { name: "NIN Personalization", href: "/dashboard/services/nin/personalization", icon: Users },
       { name: "NIN Validation", href: "/dashboard/services/nin/validation", icon: FileBadge },
+      { name: "NIN Personalization", href: "/dashboard/services/nin/personalization", icon: Users },
+      { name: "NIN Modification", href: "/dashboard/services/nin/modification", icon: FileCog }, // NEW
+      { name: "VNIN Slip", href: "/dashboard/services/vnin", icon: FileBadge },
     ]
   },
   {
     category: "Identity (BVN)",
     items: [
-      { name: "BVN Services", href: "/dashboard/services/bvn", icon: UserCheck },
+      { name: "BVN Verification", href: "/dashboard/services/bvn/verification", icon: UserCheck },
+      { name: "BVN Retrieval", href: "/dashboard/services/bvn/retrieval", icon: Search }, // NEW
+      { name: "BVN Modification", href: "/dashboard/services/bvn/modification", icon: FileCog }, // NEW
+      { name: "VNIN to NIBSS", href: "/dashboard/services/bvn/vnin-to-nibss", icon: FileDigit },
+      { name: "Android BVN Enrollment", href: "/dashboard/services/bvn/enrollment", icon: Smartphone }, // NEW
     ]
   },
   {
-    category: "Utility & Education",
+    category: "Education & Exams",
+    items: [
+      { name: "Exam Pins (WAEC/NECO)", href: "/dashboard/services/education/exam-pins", icon: FileText }, // NEW
+      { name: "JAMB Services", href: "/dashboard/services/education/jamb", icon: GraduationCap }, // NEW
+    ]
+  },
+  {
+    category: "Utilities",
     items: [
       { name: "Airtime & Data", href: "/dashboard/services/utilities", icon: Wifi },
-      { name: "JAMB Services", href: "/dashboard/services/jamb", icon: GraduationCap },
-      { name: "Exam Pins", href: "/dashboard/services/education", icon: FileText },
     ]
   },
   {
     category: "Corporate",
     items: [
       { name: "CAC Registration", href: "/dashboard/services/cac", icon: Building2 },
-      { name: "TIN Registration", href: "/dashboard/services/tin", icon: Building2 },
+      { name: "JTB-TIN Registration", href: "/dashboard/services/tin", icon: Building2 },
+      { name: "Fast Track JTB-TIN", href: "/dashboard/services/tin/fast-track", icon: Zap }, // NEW
     ]
   }
 ];
