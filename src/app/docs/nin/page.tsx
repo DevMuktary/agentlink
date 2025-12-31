@@ -2,24 +2,29 @@
 
 import { useState } from 'react';
 import DocsCodeBlock from '@/components/DocsCodeBlock';
-import { ChevronRight, Hash, Key, Code2 } from 'lucide-react';
+import { ChevronRight, Hash, Key, Code2, AlertCircle } from 'lucide-react';
 
 // --- DATA: Full API Reference for NIN ---
 const ninEndpoints = [
+  // 1. NIN VERIFICATION (BY ID)
   {
-    id: 'verify',
-    title: 'Verify NIN',
+    id: 'verify-id',
+    title: 'NIN Verification (By ID)',
     method: 'POST',
     url: '/api/v1/identity/nin-verify',
-    description: 'Instant verification of an 11-digit NIN. Returns the user\'s full details and base64 photo.',
+    description: 'Verify a user identity using their 11-digit NIN Number. This is a synchronous request that returns results immediately.',
     params: [
-      { name: 'nin', type: 'string', required: true, desc: 'The 11-digit NIN Number' }
+      { name: 'nin', type: 'string', required: true, desc: 'The 11-digit NIN Number' },
+      { name: 'reference', type: 'string', required: false, desc: 'Your unique client reference' }
     ],
     codes: null,
-    body: { "nin": "12345678901" },
+    body: { 
+      "nin": "12345678901",
+      "reference": "my-ref-001" 
+    },
     response: {
       "status": true,
-      "message": "Verification Successful",
+      "message": "Success",
       "data": {
         "firstName": "Musa",
         "surname": "Ali",
@@ -32,129 +37,195 @@ const ninEndpoints = [
       }
     }
   },
+
+  // 2. NIN VERIFICATION (BY PHONE)
+  {
+    id: 'verify-phone',
+    title: 'NIN Verification (By Phone)',
+    method: 'POST',
+    url: '/api/v1/identity/phone-verify',
+    description: 'Retrieve NIN details using a linked Phone Number. This is a synchronous request.',
+    params: [
+      { name: 'phone', type: 'string', required: true, desc: 'Phone number (e.g., 08012345678)' },
+      { name: 'reference', type: 'string', required: false, desc: 'Your unique client reference' }
+    ],
+    codes: null,
+    body: { 
+      "phone": "08012345678",
+      "reference": "my-ref-002" 
+    },
+    response: {
+      "status": true,
+      "message": "Success",
+      "data": {
+        "firstName": "Musa",
+        "surname": "Ali",
+        "nin": "12345678901",
+        "dateOfBirth": "1990-01-01",
+        "photo": "/9j/4AAQSkZJRg..."
+      }
+    }
+  },
+
+  // 3. SLIP GENERATION
   {
     id: 'slip',
     title: 'NIN Slip Generation',
     method: 'POST',
     url: '/api/v1/identity/slip',
-    description: 'Generate a PDF Slip for a NIN. You must specify the template using the `service_code`.',
+    description: 'Generate a PDF Slip. Returns a Base64 encoded PDF string. Does not return user text data.',
     params: [
       { name: 'nin', type: 'string', required: true, desc: 'The 11-digit NIN Number' },
-      { name: 'service_code', type: 'integer', required: true, desc: 'Determines the Slip Design (See Codes below)' }
+      { name: 'service_code', type: 'integer', required: true, desc: 'Template Code (401, 402, 403)' },
+      { name: 'reference', type: 'string', required: false, desc: 'Your unique client reference' }
     ],
     codes: [
-      { code: 401, name: 'Premium Slip', desc: 'Full Color, ID Card Style' },
-      { code: 402, name: 'Standard Slip', desc: 'Standard NIMC Layout' },
-      { code: 403, name: 'Regular Slip', desc: 'Black & White / Basic' }
+      { code: 401, name: 'Premium Slip', desc: 'Full Color, ID Card Style (₦1,000)' },
+      { code: 402, name: 'Standard Slip', desc: 'Standard NIMC Layout (₦700)' },
+      { code: 403, name: 'Regular Slip', desc: 'Black & White / Basic (₦500)' }
     ],
     body: { 
       "nin": "12345678901",
-      "service_code": 401
+      "service_code": 401,
+      "reference": "slip-ref-001"
     },
     response: {
       "status": true,
       "message": "Slip Generated Successfully",
-      "data": {
-        "url": "https://agentlink.com/slips/slip-uuid.pdf",
-        "charged_amount": 1000
-      }
+      "pdf_base64": "JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZS..."
     }
   },
+
+  // 4. NIN VALIDATION (SUBMIT)
   {
-    id: 'validation',
-    title: 'NIN Validation',
+    id: 'validation-submit',
+    title: 'NIN Validation (Submit)',
     method: 'POST',
     url: '/api/v1/identity/nin-validation',
-    description: 'Manual validation services. This is an asynchronous request. You will get a `reference` to check status later.',
+    description: 'Submit a Manual Validation request (e.g., No Record Found, VNIN Validation). This is Asynchronous.',
     params: [
-      { name: 'nin', type: 'string', required: true, desc: 'The NIN to validate' },
-      { name: 'service_code', type: 'integer', required: true, desc: 'Type of validation' },
-      { name: 'reference', type: 'string', required: true, desc: 'Your unique transaction ref' }
+      { name: 'nin', type: 'string', required: true, desc: 'The NIN/VNIN to validate' },
+      { name: 'service_code', type: 'integer', required: true, desc: 'Validation Type (329, 330, 331)' },
+      { name: 'reference', type: 'string', required: true, desc: 'Your unique client reference' }
     ],
     codes: [
-      { code: 329, name: 'No Record Found', desc: 'Validates that NIN has no record' },
-      { code: 330, name: 'Update Record', desc: 'Validates updated details' },
-      { code: 331, name: 'VNIN Validation', desc: 'Validates Virtual NIN' }
+      { code: 329, name: 'No Record Found', desc: 'Validate NIN showing No Record' },
+      { code: 330, name: 'Update Record', desc: 'Validate updated details' },
+      { code: 331, name: 'VNIN Validation', desc: 'Validate Virtual NIN' }
     ],
     body: { 
       "nin": "12345678901",
       "service_code": 331,
-      "reference": "my-ref-001"
+      "reference": "val-ref-001"
     },
     response: {
       "status": true,
       "message": "Validation Request Submitted Successfully",
       "data": {
-        "request_id": "clq...",
-        "reference": "my-ref-001",
+        "reference": "req_clq...",
         "service": "V-NIN Validation",
         "status": "PROCESSING",
-        "charged_amount": 450
+        "note": "This is a manual service. Status will be updated by Admin."
       }
     }
   },
+
+  // 5. NIN VALIDATION (CHECK STATUS)
   {
-    id: 'modification',
-    title: 'NIN Modification',
-    method: 'POST',
-    url: '/api/v1/identity/nin-modification',
-    description: 'Submit a request to modify NIN data (Name, Phone, Address). This is a manual service processed by Admin.',
-    params: [
-      { name: 'service_code', type: 'integer', required: true, desc: 'Modification Type' },
-      { name: 'reference', type: 'string', required: true, desc: 'Your unique transaction ref' },
-      { name: 'data', type: 'object', required: true, desc: 'Object containing `nin` and new details' }
-    ],
-    codes: [
-      { code: 501, name: 'Change of Name', desc: 'Requires `new_details: { first_name, surname }`' },
-      { code: 502, name: 'Change of Phone', desc: 'Requires `new_phone_number`' },
-      { code: 503, name: 'Change of Address', desc: 'Requires `new_address`' }
-    ],
-    body: { 
-      "service_code": 501,
-      "reference": "mod_001",
-      "data": {
-        "nin": "12345678901",
-        "phone_number": "08012345678",
-        "new_details": {
-          "first_name": "NewName",
-          "surname": "NewSurname"
-        }
-      }
-    },
-    response: {
-      "status": true,
-      "message": "Modification Request Submitted Successfully",
-      "data": {
-        "request_id": "req_mod_123",
-        "reference": "mod_001",
-        "service": "NIN Modification: Change of Name",
-        "status": "PROCESSING",
-        "charged_amount": 15000
-      }
-    }
-  },
-  {
-    id: 'status',
-    title: 'Check Request Status',
+    id: 'validation-status',
+    title: 'NIN Validation (Check Status)',
     method: 'GET',
     url: '/api/v1/identity/nin-validation/status',
-    description: 'Check the status of any Async request (Validation or Modification).',
+    description: 'Check the status of a submitted Validation or Modification request.',
     params: [
-      { name: 'request_id', type: 'string', required: false, desc: 'The AgentLink Request ID' },
-      { name: 'reference', type: 'string', required: false, desc: 'Your Client Reference (Alternative)' }
+      { name: 'reference', type: 'string', required: true, desc: 'The client reference you submitted' }
     ],
     codes: null,
-    body: undefined, // FIXED: Changed from null to undefined
+    body: undefined,
     response: {
       "status": true,
       "current_status": "COMPLETED",
-      "message": "Modification Successful",
+      "message": "Validation Successful",
       "result": {
-        "success": true,
-        "image_url": "https://agentlink.com/images/mod-proof.jpg",
-        "note": "Changes applied successfully"
+        "valid": true,
+        "message": "Validation Successful"
       },
       "last_updated": "2024-01-01T12:00:00.000Z"
+    }
+  },
+
+  // 6. IPE CLEARANCE (SUBMIT)
+  {
+    id: 'ipe-submit',
+    title: 'IPE Clearance (Submit)',
+    method: 'POST',
+    url: '/api/v1/identity/ipe-clearance',
+    description: 'Submit an IPE Clearance request for a specific Tracking ID.',
+    params: [
+      { name: 'trackingId', type: 'string', required: true, desc: 'NIMC Tracking ID' },
+      { name: 'reference', type: 'string', required: false, desc: 'Your unique client reference' }
+    ],
+    codes: null,
+    body: { 
+      "trackingId": "12345XYZ",
+      "reference": "ipe-ref-001"
+    },
+    response: {
+      "status": true,
+      "message": "IPE Request Submitted Successfully",
+      "requestId": "req_ipe_123",
+      "data": {
+         "status": "success",
+         "message": "Submitted"
+      }
+    }
+  },
+
+  // 7. IPE CLEARANCE (CHECK STATUS)
+  {
+    id: 'ipe-status',
+    title: 'IPE Clearance (Check Status)',
+    method: 'GET',
+    url: '/api/v1/identity/ipe-clearance/status',
+    description: 'Check the live status of an IPE Clearance request.',
+    params: [
+      { name: 'reference', type: 'string', required: true, desc: 'The client reference you submitted' }
+    ],
+    codes: null,
+    body: undefined,
+    response: {
+      "status": true,
+      "current_status": "COMPLETED",
+      "original_tracking_id": "12345XYZ",
+      "result": {
+        "status": "success",
+        "clearance_status": "Successful",
+        "data": { "nin": "123...", "name": "John Doe" }
+      },
+      "last_updated": "2024-01-01T12:00:00.000Z"
+    }
+  },
+
+  // 8. NIN PERSONALIZATION
+  {
+    id: 'personalization',
+    title: 'NIN Personalization',
+    method: 'POST',
+    url: '/api/v1/identity/nin-personalization',
+    description: 'Submit a request to personalize a NIN record.',
+    params: [
+      { name: 'trackingId', type: 'string', required: true, desc: 'NIMC Tracking ID' },
+      { name: 'reference', type: 'string', required: false, desc: 'Your unique client reference' }
+    ],
+    codes: null,
+    body: { 
+      "trackingId": "ABC-12345",
+      "reference": "pers-ref-001"
+    },
+    response: {
+      "status": true,
+      "message": "Request Submitted. Processing started.",
+      "requestId": "req_pers_999"
     }
   }
 ];
@@ -188,6 +259,31 @@ export default function NinDocs() {
       {/* 2. Main Documentation Viewer */}
       <div className="flex-1 min-w-0">
         
+        {/* Error Codes Reference (Top of Page) */}
+        <div className="mb-10 p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500" /> Standard API Response Codes
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-800">
+               <span className="block font-mono font-bold text-green-700">200 OK</span>
+               <span className="text-xs text-gray-600 dark:text-gray-300">Request Successful</span>
+             </div>
+             <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-100 dark:border-yellow-800">
+               <span className="block font-mono font-bold text-yellow-700">400 Bad Request</span>
+               <span className="text-xs text-gray-600 dark:text-gray-300">Invalid Input / Missing Fields</span>
+             </div>
+             <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-100 dark:border-orange-800">
+               <span className="block font-mono font-bold text-orange-700">402 Payment</span>
+               <span className="text-xs text-gray-600 dark:text-gray-300">Insufficient Wallet Balance</span>
+             </div>
+             <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-100 dark:border-red-800">
+               <span className="block font-mono font-bold text-red-700">401 Unauthorized</span>
+               <span className="text-xs text-gray-600 dark:text-gray-300">Invalid API Key</span>
+             </div>
+          </div>
+        </div>
+
         {/* Title Header */}
         <div className="mb-8 border-b border-gray-200 dark:border-gray-800 pb-6">
           <div className="flex items-center gap-3 mb-3">
@@ -198,7 +294,7 @@ export default function NinDocs() {
              </span>
              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{activeDoc.title}</h1>
           </div>
-          <code className="text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded text-gray-600 dark:text-gray-300 font-mono">
+          <code className="text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded text-gray-600 dark:text-gray-300 font-mono break-all">
             {activeDoc.url}
           </code>
           <p className="mt-4 text-gray-600 dark:text-gray-400 text-lg leading-relaxed">
@@ -231,7 +327,7 @@ export default function NinDocs() {
                   <tr>
                     <th className="px-4 py-3">Code</th>
                     <th className="px-4 py-3">Service Name</th>
-                    <th className="px-4 py-3">Description</th>
+                    <th className="px-4 py-3">Description / Price</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
@@ -250,7 +346,7 @@ export default function NinDocs() {
 
         {/* Request Parameters */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Request Parameters</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Request Body Parameters</h3>
           <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 dark:bg-gray-800 text-gray-500 font-medium">
