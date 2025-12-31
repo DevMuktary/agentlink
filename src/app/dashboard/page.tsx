@@ -7,7 +7,8 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Wallet, ShieldCheck, Wifi, Building2, GraduationCap, 
   Activity, ArrowRight, FileText, Users, Eye, EyeOff, 
-  CreditCard, Smartphone, ScrollText, UserCheck, Printer
+  CreditCard, Smartphone, ScrollText, UserCheck, Printer,
+  FileCog, Search, Zap, BookOpen
 } from 'lucide-react';
 
 interface UserData {
@@ -129,56 +130,76 @@ export default function DashboardHome() {
       {/* Services Grid Section */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-5">Quick Access</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          
+          {/* Identity */}
           <ServiceCard 
             title="NIN Verification" 
             icon={ShieldCheck} 
             href="/dashboard/services/nin-verification" 
             color="text-blue-600 bg-blue-50 dark:bg-blue-900/20"
           />
-          {/* --- NEW CARD ADDED HERE --- */}
           <ServiceCard 
-            title="NIN Slips History" 
-            icon={Printer} 
-            href="/dashboard/services/nin-slips" 
-            color="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
-          />
-          {/* --------------------------- */}
-          <ServiceCard 
-            title="VNIN Slip" 
-            icon={FileText} 
-            href="/dashboard/services/vnin" 
-            color="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-          />
-           <ServiceCard 
             title="IPE Clearance" 
             icon={UserCheck} 
             href="/dashboard/services/nin/ipe-clearance" 
             color="text-red-600 bg-red-50 dark:bg-red-900/20"
           />
            <ServiceCard 
-            title="Airtime & Data" 
-            icon={Wifi} 
-            href="/dashboard/services/utilities" 
-            color="text-green-600 bg-green-50 dark:bg-green-900/20"
+            title="NIN Modification" 
+            icon={FileCog} 
+            href="/dashboard/services/nin/modification" 
+            color="text-teal-600 bg-teal-50 dark:bg-teal-900/20"
           />
-           <ServiceCard 
+          <ServiceCard 
+            title="NIN Slips History" 
+            icon={Printer} 
+            href="/dashboard/services/nin-slips" 
+            color="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
+          />
+          
+          {/* BVN */}
+          <ServiceCard 
             title="BVN Services" 
             icon={Smartphone} 
-            href="/dashboard/services/bvn" 
+            href="/dashboard/services/bvn/verification" 
             color="text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20"
           />
-           <ServiceCard 
+
+          {/* Education */}
+          <ServiceCard 
+            title="Exam Pins" 
+            icon={FileText} 
+            href="/dashboard/services/education/exam-pins" 
+            color="text-pink-600 bg-pink-50 dark:bg-pink-900/20"
+          />
+          <ServiceCard 
+            title="JAMB Services" 
+            icon={GraduationCap} 
+            href="/dashboard/services/education/jamb" 
+            color="text-violet-600 bg-violet-50 dark:bg-violet-900/20"
+          />
+
+          {/* Corporate */}
+          <ServiceCard 
             title="CAC Reg" 
             icon={Building2} 
             href="/dashboard/services/cac" 
             color="text-orange-600 bg-orange-50 dark:bg-orange-900/20"
           />
            <ServiceCard 
-            title="Transactions" 
-            icon={ScrollText} 
-            href="/dashboard/history" 
-            color="text-gray-600 bg-gray-50 dark:bg-gray-800"
+            title="TIN Services" 
+            icon={Zap} 
+            href="/dashboard/services/tin" 
+            color="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
+          />
+
+          {/* Utility */}
+          <ServiceCard 
+            title="Airtime & Data" 
+            icon={Wifi} 
+            href="/dashboard/services/utilities" 
+            color="text-green-600 bg-green-50 dark:bg-green-900/20"
           />
         </div>
       </div>
@@ -189,7 +210,7 @@ export default function DashboardHome() {
 // Reusable Service Card Component
 function ServiceCard({ title, icon: Icon, href, color }: { title: string, icon: any, href: string, color: string }) {
   return (
-    <Link href={href} className="flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-500 dark:hover:border-blue-500 transition-all group text-center">
+    <Link href={href} className="flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-500 dark:hover:border-blue-500 transition-all group text-center h-full">
       <div className={`p-3 rounded-full mb-3 ${color} group-hover:scale-110 transition-transform`}>
         <Icon className="w-6 h-6" />
       </div>
