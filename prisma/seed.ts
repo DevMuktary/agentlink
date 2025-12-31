@@ -12,7 +12,7 @@ async function main() {
       name: 'NIN Verification', 
       price: 100.00, 
       description: 'Verify using NIN Number.',
-      serviceCode: null // No code needed
+      serviceCode: null 
     },
     { 
       code: ServiceType.NIN_SEARCH_BY_PHONE, 
@@ -28,7 +28,7 @@ async function main() {
       name: 'VNIN Slip Generation', 
       price: 200.00, 
       description: 'Generate Standard VNIN Slip PDF.',
-      serviceCode: null // Removed code as requested
+      serviceCode: null 
     },
     { 
       code: ServiceType.VNIN_TO_NIBSS, 
@@ -61,27 +61,50 @@ async function main() {
       serviceCode: 403 
     },
 
-    // --- VALIDATION SERVICES (Codes REQUIRED here) ---
+    // --- VALIDATION SERVICES ---
     { 
       code: ServiceType.NIN_VALIDATION_NO_RECORD, 
-      serviceCode: 329, // Required for user option selection
+      serviceCode: 329, 
       name: 'NIN Validation (No Record)', 
       price: 350.00, 
       description: 'Validate NIN showing "No Record Found".' 
     },
     { 
       code: ServiceType.NIN_VALIDATION_UPDATE_RECORD, 
-      serviceCode: 330, // Required for user option selection
+      serviceCode: 330, 
       name: 'NIN Validation (Update Record)', 
       price: 500.00, 
       description: 'Validate NIN after detail updates.' 
     },
     { 
       code: ServiceType.NIN_VALIDATION_VNIN, 
-      serviceCode: 331, // Required for user option selection
+      serviceCode: 331, 
       name: 'V-NIN Validation', 
       price: 450.00, 
       description: 'Validate Virtual NIN.' 
+    },
+
+    // --- NIN MODIFICATION (NEW - CODES 501-503) ---
+    {
+      code: ServiceType.NIN_MODIFICATION_NAME,
+      serviceCode: 501,
+      name: 'NIN Modification: Change of Name',
+      price: 15000.00,
+      description: 'Correction of Name on NIN Database'
+    },
+    {
+      code: ServiceType.NIN_MODIFICATION_PHONE,
+      serviceCode: 502,
+      name: 'NIN Modification: Change of Phone',
+      price: 5000.00,
+      description: 'Update Phone Number on NIN Database'
+    },
+    {
+      code: ServiceType.NIN_MODIFICATION_ADDRESS,
+      serviceCode: 503,
+      name: 'NIN Modification: Change of Address',
+      price: 8000.00,
+      description: 'Update Residential Address on NIN Database'
     },
 
     // --- OTHER IDENTITY ---
