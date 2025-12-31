@@ -18,7 +18,6 @@ model User {
   businessName    String?
   phoneNumber     String?
   websiteUrl      String?
-
   role            Role     @default(AGENT)
   
   walletBalance   Decimal  @default(0.00) @db.Decimal(10, 2)
@@ -40,7 +39,7 @@ model User {
 model Service {
   id          String      @id @default(cuid())
   code        ServiceType @unique
-  serviceCode Int?        @unique // Optional: Only used for Manual Validation options
+  serviceCode Int?        @unique // Used for Manual options
   name        String
   description String?
   price       Decimal     @default(0.00) @db.Decimal(10, 2)
@@ -57,10 +56,9 @@ model ServiceRequest {
   status        Status      @default(PENDING) 
   
   requestData   Json        
-  responseData  Json?       
-  
+  responseData  Json?
   cost          Decimal     @default(0.00) @db.Decimal(10, 2)
-  adminNote     String?     
+  adminNote     String?
 
   user          User        @relation(fields: [userId], references: [id])
   createdAt     DateTime    @default(now())
@@ -78,7 +76,6 @@ model Transaction {
   reference   String          @unique
   status      Status          @default(PENDING)
   description String?
-  
   serviceId   String?
   
   user        User            @relation(fields: [userId], references: [id])
@@ -115,25 +112,26 @@ enum ServiceType {
   
   // NIN SERVICES
   NIN_VERIFICATION       
-  NIN_SEARCH_BY_PHONE    
+  NIN_SEARCH_BY_PHONE 
   
-  // VALIDATION TYPES (Requires Service Code)
+  // VALIDATION TYPES
   NIN_VALIDATION_NO_RECORD
   NIN_VALIDATION_UPDATE_RECORD
   NIN_VALIDATION_VNIN
-
-// MODIFICATION TYPES (NEW)
-  NIN_MODIFICATION_NAME
-  NIN_MODIFICATION_PHONE
-  NIN_MODIFICATION_ADDRESS
   
   // SLIP GENERATION
   NIN_SLIP_PREMIUM
   NIN_SLIP_STANDARD
   NIN_SLIP_REGULAR
   
+  // MODIFICATION TYPES (NEW)
+  NIN_MODIFICATION_NAME
+  NIN_MODIFICATION_PHONE
+  NIN_MODIFICATION_ADDRESS
+
+  // OTHERS
   NIN_PERSONALIZATION
-  VNIN_SLIP            // Automated Service (No code needed)
+  VNIN_SLIP
   VNIN_TO_NIBSS
   IPE_CLEARANCE
   
