@@ -19,6 +19,7 @@ const ninEndpoints = [
     body: { "nin": "12345678901" },
     response: {
       "status": true,
+      "message": "Verification Successful",
       "data": {
         "firstName": "Musa",
         "surname": "Ali",
@@ -26,7 +27,8 @@ const ninEndpoints = [
         "dateOfBirth": "1990-01-01",
         "gender": "m",
         "mobile": "08012345678",
-        "photo": "/9j/4AAQSkZJRg..." 
+        "photo": "/9j/4AAQSkZJRg...",
+        "address": "No 1 Lagos Way"
       }
     }
   },
@@ -41,9 +43,9 @@ const ninEndpoints = [
       { name: 'service_code', type: 'integer', required: true, desc: 'Determines the Slip Design (See Codes below)' }
     ],
     codes: [
-      { code: 401, name: 'Premium Slip', price: '₦1,000' },
-      { code: 402, name: 'Standard Slip', price: '₦700' },
-      { code: 403, name: 'Regular Slip', price: '₦500' }
+      { code: 401, name: 'Premium Slip', desc: 'Full Color, ID Card Style' },
+      { code: 402, name: 'Standard Slip', desc: 'Standard NIMC Layout' },
+      { code: 403, name: 'Regular Slip', desc: 'Black & White / Basic' }
     ],
     body: { 
       "nin": "12345678901",
@@ -53,7 +55,7 @@ const ninEndpoints = [
       "status": true,
       "message": "Slip Generated Successfully",
       "data": {
-        "url": "https://agentlink.com/download/slip-pdf-uuid.pdf",
+        "url": "https://agentlink.com/slips/slip-uuid.pdf",
         "charged_amount": 1000
       }
     }
@@ -81,11 +83,13 @@ const ninEndpoints = [
     },
     response: {
       "status": true,
-      "message": "Validation Request Submitted",
+      "message": "Validation Request Submitted Successfully",
       "data": {
-        "request_id": "req_clq...",
+        "request_id": "clq...",
+        "reference": "my-ref-001",
+        "service": "V-NIN Validation",
         "status": "PROCESSING",
-        "note": "Check status endpoint for result"
+        "charged_amount": 450
       }
     }
   },
@@ -119,10 +123,13 @@ const ninEndpoints = [
     },
     response: {
       "status": true,
+      "message": "Modification Request Submitted Successfully",
       "data": {
         "request_id": "req_mod_123",
+        "reference": "mod_001",
+        "service": "NIN Modification: Change of Name",
         "status": "PROCESSING",
-        "service": "NIN Modification: Change of Name"
+        "charged_amount": 15000
       }
     }
   },
@@ -137,14 +144,17 @@ const ninEndpoints = [
       { name: 'reference', type: 'string', required: false, desc: 'Your Client Reference (Alternative)' }
     ],
     codes: null,
-    body: null, // GET request has no body
+    body: undefined, // FIXED: Changed from null to undefined
     response: {
       "status": true,
       "current_status": "COMPLETED",
+      "message": "Modification Successful",
       "result": {
-        "valid": true,
-        "message": "Validation Successful"
-      }
+        "success": true,
+        "image_url": "https://agentlink.com/images/mod-proof.jpg",
+        "note": "Changes applied successfully"
+      },
+      "last_updated": "2024-01-01T12:00:00.000Z"
     }
   }
 ];
@@ -221,7 +231,7 @@ export default function NinDocs() {
                   <tr>
                     <th className="px-4 py-3">Code</th>
                     <th className="px-4 py-3">Service Name</th>
-                    <th className="px-4 py-3">Description / Price</th>
+                    <th className="px-4 py-3">Description</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
@@ -229,7 +239,7 @@ export default function NinDocs() {
                     <tr key={c.code}>
                       <td className="px-4 py-3 font-mono font-bold text-blue-600">{c.code}</td>
                       <td className="px-4 py-3 font-medium">{c.name}</td>
-                      <td className="px-4 py-3 text-gray-500">{c.desc || c.price}</td>
+                      <td className="px-4 py-3 text-gray-500">{c.desc}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -240,7 +250,7 @@ export default function NinDocs() {
 
         {/* Request Parameters */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Request Body</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Request Parameters</h3>
           <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 dark:bg-gray-800 text-gray-500 font-medium">
