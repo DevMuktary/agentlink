@@ -116,6 +116,7 @@ async function main() {
     { code: ServiceType.BVN_RETRIEVAL, name: 'BVN Retrieval', price: 150.00, description: 'Recover Lost BVN.', serviceCode: null },
     { code: ServiceType.BVN_MODIFICATION, name: 'BVN Modification', price: 2500.00, description: 'Update BVN Details.', serviceCode: null },
     { code: ServiceType.ANDROID_BVN_ENROLLMENT, name: 'Android BVN Enrollment', price: 3000.00, description: 'Enroll via Android Device.', serviceCode: null },
+    { code: ServiceType.BVN_PREMIUM_SLIP, name: 'BVN Premium Slip', price: 1200.00, serviceCode: null },
 
     // --- UTILITIES ---
     { code: ServiceType.AIRTIME, name: 'Airtime VTU', price: 0.00, description: 'Airtime Top-up.', serviceCode: null },
