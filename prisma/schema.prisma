@@ -141,6 +141,25 @@ enum ServiceType {
   BVN_MODIFICATION
   ANDROID_BVN_ENROLLMENT
   BVN_PREMIUM_SLIP
+
+// --- BVN MODIFICATION CATEGORIES (BILLABLE) ---
+  BVN_MOD_NAME           // Change of Name
+  BVN_MOD_DOB            // Change of DOB
+  BVN_MOD_PHONE          // Change of Phone
+  BVN_MOD_NAME_PHONE     // Name + Phone
+  BVN_MOD_DOB_PHONE      // DOB + Phone
+  BVN_MOD_FULL           // Name + DOB + Phone (All)
+
+  // --- BANKS (FOR AVAILABILITY TOGGLING ONLY) ---
+  BANK_AGENCY
+  BANK_HERITAGE
+  BANK_BOA
+  BANK_NIBSS
+  BANK_ENTERPRISE
+  BANK_FIRSTBANK
+  BANK_KEYSTONE
+  BANK_FCMB
+
   
   // CORPORATE
   CAC_REGISTRATION
