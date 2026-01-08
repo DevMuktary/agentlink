@@ -120,7 +120,9 @@ async function main() {
     { code: ServiceType.BVN_VERIFICATION, name: 'BVN Verification', price: 100.00, description: 'Verify BVN Details.', serviceCode: null },
     { code: ServiceType.BVN_RETRIEVAL, name: 'BVN Retrieval', price: 150.00, description: 'Recover Lost BVN.', serviceCode: null },
     { code: ServiceType.ANDROID_BVN_ENROLLMENT, name: 'Android BVN Enrollment', price: 3000.00, description: 'Enroll via Android Device.', serviceCode: null },
-    
+    { code: 'BVN_RETRIEVAL_PHONE', serviceCode: 630, name: 'BVN Retrieval: By Phone', price: 1000.00 },
+    { code: 'BVN_RETRIEVAL_CRM', serviceCode: 631, name: 'BVN Retrieval: CRM (Ticket)', price: 2500.00 },
+  ];
     // BVN Premium Slip
     { 
       code: ServiceType.BVN_PREMIUM_SLIP, 
