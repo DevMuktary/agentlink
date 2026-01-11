@@ -37,9 +37,10 @@ export async function GET(req: Request) {
         result = {
             success: true,
             message: "Company Successfully Registered",
-            // The Admin is expected to upload TWO files into responseData
-            certificate_url: (request.responseData as any)?.certificate_url || null,
-            status_report_url: (request.responseData as any)?.status_report_url || null,
+            // RETURN BASE64 STRINGS
+            // The Admin Dashboard will save these fields when completing the job
+            certificate_base64: (request.responseData as any)?.certificate_base64 || null,
+            status_report_base64: (request.responseData as any)?.status_report_base64 || null,
         };
     } else if (request.status === 'FAILED') {
         message = "Registration Failed";
