@@ -44,6 +44,23 @@ export default function CacHistory() {
     }
   }, [searchQuery, requests]);
 
+  // --- BASE64 DOWNLOAD HELPER ---
+  const handleDownload = (base64: string, filename: string) => {
+    if (!base64) return alert("File data incomplete");
+    
+    // Ensure standard prefix
+    const pdfString = base64.startsWith('data:') 
+      ? base64 
+      : `data:application/pdf;base64,${base64}`;
+      
+    const link = document.createElement('a');
+    link.href = pdfString;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) return <GlobalLoader />;
 
   return (
@@ -84,7 +101,10 @@ export default function CacHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {filteredRequests.map((item) => (
+              {filteredRequests.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">No registrations found.</td></tr>
+              ) : (
+                filteredRequests.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                     <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
                       {new Date(item.createdAt).toLocaleDateString()}
@@ -110,7 +130,8 @@ export default function CacHistory() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -162,16 +183,22 @@ export default function CacHistory() {
                     
                     <div className="grid grid-cols-2 gap-3 mt-2">
                         {/* Download Certificate */}
-                        {selectedItem.responseData?.certificate_url && (
-                           <a href={selectedItem.responseData.certificate_url} target="_blank" className="py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-bold flex flex-col items-center gap-1 text-center">
+                        {selectedItem.responseData?.certificate_base64 && (
+                           <button 
+                             onClick={() => handleDownload(selectedItem.responseData.certificate_base64, 'CAC_Certificate.pdf')}
+                             className="py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-bold flex flex-col items-center gap-1 text-center w-full"
+                           >
                               <Download className="w-4 h-4" /> Download Certificate
-                           </a>
+                           </button>
                         )}
                         {/* Download Status Report */}
-                        {selectedItem.responseData?.status_report_url && (
-                           <a href={selectedItem.responseData.status_report_url} target="_blank" className="py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold flex flex-col items-center gap-1 text-center">
+                        {selectedItem.responseData?.status_report_base64 && (
+                           <button 
+                             onClick={() => handleDownload(selectedItem.responseData.status_report_base64, 'CAC_Status_Report.pdf')}
+                             className="py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold flex flex-col items-center gap-1 text-center w-full"
+                           >
                               <Download className="w-4 h-4" /> Download Status Report
-                           </a>
+                           </button>
                         )}
                     </div>
                  </div>
