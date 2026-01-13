@@ -107,7 +107,10 @@ enum Status {
 
 enum ServiceType {
   // UTILITIES
-  AIRTIME
+  AIRTIME_MTN
+  AIRTIME_GLO
+  AIRTIME_AIRTEL
+  AIRTIME_9MOBILE
   DATA
   
   // NIN SERVICES
