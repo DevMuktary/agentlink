@@ -125,7 +125,24 @@ async function main() {
 
     // --- CORPORATE ---
     { code: ServiceType.CAC_REGISTRATION, name: 'CAC Registration', price: 15000.00, description: 'Business Name Registration.', serviceCode: null },
-    { code: ServiceType.JTB_TIN_REGISTRATION, name: 'TIN Registration', price: 500.00, description: 'Joint Tax Board TIN.', serviceCode: null },
+    // JTB TIN (Legacy/Generic)
+    { code: ServiceType.JTB_TIN_REGISTRATION, name: 'TIN Registration (Generic)', price: 500.00, description: 'Joint Tax Board TIN.', serviceCode: null },
+
+    // --- TAX ID SERVICES (800 Series - NEW) ---
+    { 
+      code: ServiceType.TAX_ID_INDIVIDUAL, 
+      serviceCode: 801, 
+      name: 'Tax ID: Individual', 
+      price: 1000.00, 
+      description: 'Individual Tax Identification Number.' 
+    },
+    { 
+      code: ServiceType.TAX_ID_NON_INDIVIDUAL, 
+      serviceCode: 802, 
+      name: 'Tax ID: Non-Individual', 
+      price: 2500.00, 
+      description: 'Corporate/Business Tax Identification Number.' 
+    },
 
     // --- EDUCATION ---
     { code: ServiceType.JAMB_SERVICES, name: 'JAMB Services', price: 4700.00, description: 'UTME/DE Registration.', serviceCode: null },
