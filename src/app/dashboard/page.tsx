@@ -7,7 +7,7 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Wallet, ShieldCheck, Wifi, Building2, GraduationCap, 
   Activity, ArrowRight, FileText, Users, Eye, EyeOff, 
-  CreditCard, Smartphone, ScrollText, UserCheck, Printer,
+  CreditCard, Smartphone, UserCheck, Printer,
   FileCog, Search, Zap, FileBadge, FileDigit
 } from 'lucide-react';
 
@@ -56,7 +56,7 @@ export default function DashboardHome() {
             {greeting}, {user?.firstName} 👋
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Here is what's happening with your account today.
+            Welcome back to your AgentLink workspace.
           </p>
         </div>
         <div className="flex gap-3">
@@ -69,10 +69,10 @@ export default function DashboardHome() {
       {/* Stats & Wallet Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Modern Wallet Card */}
-        <div className="lg:col-span-2 relative overflow-hidden bg-slate-900 dark:bg-black rounded-2xl p-8 text-white shadow-xl">
+        {/* Wallet Card */}
+        <div className="lg:col-span-2 relative overflow-hidden bg-slate-900 dark:bg-black rounded-2xl p-8 text-white shadow-xl border border-slate-800">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-          <div className="relative z-10 flex flex-col justify-between h-full min-h-[180px]">
+          <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-slate-400 text-sm font-medium tracking-wider uppercase">Wallet Balance</p>
@@ -93,12 +93,10 @@ export default function DashboardHome() {
             </div>
             
             <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between text-sm text-slate-300">
-              <span className="font-mono">{user?.businessName || 'Personal Account'}</span>
-              <div className="flex gap-4">
-                 <span className="flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Active
-                 </span>
-              </div>
+              <span className="font-mono">{user?.businessName || 'Agent Account'}</span>
+              <span className="flex items-center gap-2 text-green-400">
+                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Active
+              </span>
             </div>
           </div>
         </div>
@@ -117,8 +115,8 @@ export default function DashboardHome() {
 
           <Link href="/dashboard/developers" className="group bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
              <div>
-               <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Developer Center</p>
-               <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400">View API Keys</h3>
+               <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Developer API</p>
+               <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400">View Keys</h3>
              </div>
              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors">
                <ArrowRight className="w-6 h-6 text-purple-600 dark:text-purple-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
@@ -135,48 +133,13 @@ export default function DashboardHome() {
           <ShieldCheck className="w-5 h-5 text-blue-600" /> NIN Services
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <ServiceCard 
-            title="NIN Verification" 
-            icon={UserCheck} 
-            href="/dashboard/services/nin-verification" 
-            color="text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-          />
-           <ServiceCard 
-            title="NIN Slips History" 
-            icon={Printer} 
-            href="/dashboard/services/nin-slips" 
-            color="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
-          />
-          <ServiceCard 
-            title="IPE Clearance" 
-            icon={ShieldCheck} 
-            href="/dashboard/services/nin/ipe-clearance" 
-            color="text-red-600 bg-red-50 dark:bg-red-900/20"
-          />
-          <ServiceCard 
-            title="NIN Validation" 
-            icon={FileBadge} 
-            href="/dashboard/services/nin/validation" 
-            color="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-          />
-          <ServiceCard 
-            title="Personalization" 
-            icon={Users} 
-            href="/dashboard/services/nin/personalization" 
-            color="text-pink-600 bg-pink-50 dark:bg-pink-900/20"
-          />
-          <ServiceCard 
-            title="NIN Modification" 
-            icon={FileCog} 
-            href="/dashboard/services/nin/modification" 
-            color="text-teal-600 bg-teal-50 dark:bg-teal-900/20"
-          />
-           <ServiceCard 
-            title="VNIN Slip" 
-            icon={FileText} 
-            href="/dashboard/services/vnin" 
-            color="text-green-600 bg-green-50 dark:bg-green-900/20"
-          />
+          <ServiceCard title="Verification" icon={UserCheck} href="/dashboard/services/nin-verification" color="text-blue-600 bg-blue-50 dark:bg-blue-900/20" />
+          <ServiceCard title="Slip History" icon={Printer} href="/dashboard/services/nin-slips" color="text-amber-600 bg-amber-50 dark:bg-amber-900/20" />
+          <ServiceCard title="IPE Clearance" icon={ShieldCheck} href="/dashboard/services/nin/ipe-clearance" color="text-red-600 bg-red-50 dark:bg-red-900/20" />
+          <ServiceCard title="Validation" icon={FileBadge} href="/dashboard/services/nin/validation" color="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20" />
+          <ServiceCard title="Personalization" icon={Users} href="/dashboard/services/nin/personalization" color="text-pink-600 bg-pink-50 dark:bg-pink-900/20" />
+          <ServiceCard title="Modification" icon={FileCog} href="/dashboard/services/nin/modification" color="text-teal-600 bg-teal-50 dark:bg-teal-900/20" />
+          <ServiceCard title="VNIN Slip" icon={FileDigit} href="/dashboard/services/vnin" color="text-green-600 bg-green-50 dark:bg-green-900/20" />
         </div>
       </div>
 
@@ -186,90 +149,45 @@ export default function DashboardHome() {
           <Smartphone className="w-5 h-5 text-cyan-600" /> BVN Services
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <ServiceCard 
-            title="BVN Verification" 
-            icon={UserCheck} 
-            href="/dashboard/services/bvn/verification" 
-            color="text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20"
-          />
-          <ServiceCard 
-            title="BVN Retrieval" 
-            icon={Search} 
-            href="/dashboard/services/bvn/retrieval" 
-            color="text-sky-600 bg-sky-50 dark:bg-sky-900/20"
-          />
-           <ServiceCard 
-            title="BVN Modification" 
-            icon={FileCog} 
-            href="/dashboard/services/bvn/modification" 
-            color="text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-          />
-          <ServiceCard 
-            title="VNIN to NIBSS" 
-            icon={FileDigit} 
-            href="/dashboard/services/bvn/vnin-to-nibss" 
-            color="text-violet-600 bg-violet-50 dark:bg-violet-900/20"
-          />
-           <ServiceCard 
-            title="Android Enrollment" 
-            icon={Smartphone} 
-            href="/dashboard/services/bvn/enrollment" 
-            color="text-fuchsia-600 bg-fuchsia-50 dark:bg-fuchsia-900/20"
-          />
+          <ServiceCard title="Verification" icon={UserCheck} href="/dashboard/services/bvn/verification" color="text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20" />
+          <ServiceCard title="Premium Slip" icon={FileBadge} href="/dashboard/services/bvn/premium-slip" color="text-amber-600 bg-amber-50 dark:bg-amber-900/20" />
+          <ServiceCard title="Retrieval" icon={Search} href="/dashboard/services/bvn/retrieval" color="text-sky-600 bg-sky-50 dark:bg-sky-900/20" />
+          <ServiceCard title="Modification" icon={FileCog} href="/dashboard/services/bvn/modification" color="text-blue-600 bg-blue-50 dark:bg-blue-900/20" />
+          <ServiceCard title="Android Enroll" icon={Smartphone} href="/dashboard/services/bvn/enrollment" color="text-fuchsia-600 bg-fuchsia-50 dark:bg-fuchsia-900/20" />
         </div>
       </div>
 
-      {/* 3. Education & Exams */}
+      {/* 3. Education */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <GraduationCap className="w-5 h-5 text-purple-600" /> Education
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <ServiceCard 
-            title="Exam Pins" 
-            icon={FileText} 
-            href="/dashboard/services/education/exam-pins" 
-            color="text-purple-600 bg-purple-50 dark:bg-purple-900/20"
-          />
-          <ServiceCard 
-            title="JAMB Services" 
-            icon={GraduationCap} 
-            href="/dashboard/services/education/jamb" 
-            color="text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20"
-          />
+          <ServiceCard title="Exam Pins" icon={FileText} href="/dashboard/services/education/exam-pins" color="text-purple-600 bg-purple-50 dark:bg-purple-900/20" />
+          <ServiceCard title="JAMB Services" icon={GraduationCap} href="/dashboard/services/education/jamb" color="text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20" />
         </div>
       </div>
 
       {/* 4. Corporate & Utilities */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-orange-600" /> Corporate & Utility
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <ServiceCard 
-            title="CAC Registration" 
-            icon={Building2} 
-            href="/dashboard/services/cac" 
-            color="text-orange-600 bg-orange-50 dark:bg-orange-900/20"
-          />
-          <ServiceCard 
-            title="JTB-TIN Reg" 
-            icon={Zap} 
-            href="/dashboard/services/tin" 
-            color="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20"
-          />
-           <ServiceCard 
-            title="Fast Track TIN" 
-            icon={Activity} 
-            href="/dashboard/services/tin/fast-track" 
-            color="text-lime-600 bg-lime-50 dark:bg-lime-900/20"
-          />
-          <ServiceCard 
-            title="Airtime & Data" 
-            icon={Wifi} 
-            href="/dashboard/services/utilities" 
-            color="text-green-600 bg-green-50 dark:bg-green-900/20"
-          />
+      <div className="grid md:grid-cols-2 gap-8">
+        <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-orange-600" /> Corporate
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <ServiceCard title="CAC Reg" icon={Building2} href="/dashboard/services/cac" color="text-orange-600 bg-orange-50 dark:bg-orange-900/20" />
+              <ServiceCard title="Tax ID" icon={CreditCard} href="/dashboard/services/tax-id" color="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20" />
+            </div>
+        </div>
+
+        <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Wifi className="w-5 h-5 text-green-600" /> Utilities
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <ServiceCard title="Airtime" icon={Wifi} href="/dashboard/services/utilities" color="text-green-600 bg-green-50 dark:bg-green-900/20" />
+              <ServiceCard title="Data Bundles" icon={Zap} href="/dashboard/services/utilities/data" color="text-blue-600 bg-blue-50 dark:bg-blue-900/20" />
+            </div>
         </div>
       </div>
 
