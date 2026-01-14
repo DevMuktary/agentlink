@@ -193,4 +193,6 @@ enum ServiceType {
   EXAM_PIN_NECO
   EXAM_PIN_NABTEB
   EXAM_PIN_JAMB
+  EXAM_PIN_JAMB_UTME  // New
+  EXAM_PIN_JAMB_DE    // New
 }
