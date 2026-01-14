@@ -6,7 +6,8 @@ import {
   LayoutDashboard, Wallet, Code2, LogOut, Menu, X,
   ShieldCheck, FileText, UserCheck, 
   Wifi, Building2, GraduationCap, Users, FileCog, 
-  Smartphone, Search, Zap, FileDigit, FileBadge, CreditCard
+  Smartphone, Search, Zap, FileDigit, FileBadge, CreditCard,
+  ArrowRightLeft
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -35,6 +36,7 @@ const menuItems = [
     category: "Identity (BVN)",
     items: [
       { name: "BVN Verification", href: "/dashboard/services/bvn/verification", icon: UserCheck },
+      { name: "VNIN to NIBSS", href: "/dashboard/services/bvn/vnin-to-nibss", icon: ArrowRightLeft }, // ADDED HERE
       { name: "BVN Premium Slip", href: "/dashboard/services/bvn/premium-slip", icon: FileBadge },
       { name: "BVN Retrieval", href: "/dashboard/services/bvn/retrieval", icon: Search },
       { name: "BVN Modification", href: "/dashboard/services/bvn/modification", icon: FileCog },
