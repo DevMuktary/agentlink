@@ -11,14 +11,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { request_id, action, response_data, rejection_reason } = body;
+    const { request_id, action, response_data, rejection_reason, refund_amount } = body;
 
     if (!request_id || !action) return NextResponse.json({ status: false, error: 'Missing request_id or action' }, { status: 400 });
 
     // 2. Fetch Request
     const request = await prisma.serviceRequest.findUnique({
         where: { id: request_id },
-        include: { user: true } // Need user to refund
+        include: { user: true }
     });
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
             where: { id: request_id },
             data: {
                 status: 'COMPLETED',
-                responseData: response_data, // Save the result (image/text)
+                responseData: response_data,
                 adminNote: 'Processed by Admin'
             }
         });
@@ -39,37 +39,58 @@ export async function POST(req: Request) {
         return NextResponse.json({ status: true, message: 'Request Approved & Completed' });
 
     } else if (action === 'REJECT') {
-        // --- REJECT LOGIC (WITH REFUND) ---
+        // --- REJECT LOGIC (Flexible Refund) ---
         if (!rejection_reason) return NextResponse.json({ status: false, error: 'Rejection reason is required' }, { status: 400 });
 
-        await prisma.$transaction([
-            // 1. Refund Wallet
-            prisma.user.update({
-                where: { id: request.userId },
-                data: { walletBalance: { increment: request.cost } }
-            }),
-            // 2. Log Refund Transaction (Optional but good for history)
-            prisma.transaction.create({
-                data: {
-                    userId: request.userId,
-                    amount: request.cost,
-                    type: 'REFUND',
-                    status: 'COMPLETED',
-                    reference: `REF-${request.id.slice(0,8)}`,
-                    description: `Refund for ${request.serviceType}: ${rejection_reason}`
-                }
-            }),
-            // 3. Mark Request Failed
+        const amountToRefund = Number(refund_amount);
+        const originalCost = Number(request.cost);
+
+        // Validation: Cannot refund more than they paid
+        if (amountToRefund > originalCost) {
+            return NextResponse.json({ status: false, error: `Refund amount (₦${amountToRefund}) cannot exceed original cost (₦${originalCost})` }, { status: 400 });
+        }
+
+        const transactionOps = [];
+
+        // 1. Process Refund if amount > 0
+        if (amountToRefund > 0) {
+            transactionOps.push(
+                prisma.user.update({
+                    where: { id: request.userId },
+                    data: { walletBalance: { increment: amountToRefund } }
+                })
+            );
+            transactionOps.push(
+                prisma.transaction.create({
+                    data: {
+                        userId: request.userId,
+                        amount: amountToRefund,
+                        type: 'REFUND',
+                        status: 'COMPLETED',
+                        reference: `REF-${request.id.slice(0,8)}`,
+                        description: `Refund for ${request.serviceType}: ${rejection_reason}`
+                    }
+                })
+            );
+        }
+
+        // 2. Mark Request Failed
+        transactionOps.push(
             prisma.serviceRequest.update({
                 where: { id: request_id },
                 data: {
                     status: 'FAILED',
-                    adminNote: rejection_reason // Save the reason for user to see
+                    adminNote: rejection_reason // User sees this reason
                 }
             })
-        ]);
+        );
 
-        return NextResponse.json({ status: true, message: 'Request Rejected & Refunded' });
+        await prisma.$transaction(transactionOps);
+
+        return NextResponse.json({ 
+            status: true, 
+            message: amountToRefund > 0 ? `Rejected & Refunded ₦${amountToRefund}` : 'Rejected (No Refund)' 
+        });
     }
 
     return NextResponse.json({ status: false, error: 'Invalid Action' }, { status: 400 });
