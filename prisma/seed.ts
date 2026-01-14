@@ -106,7 +106,31 @@ async function main() {
       create: { code: b.code as any, serviceCode: b.serviceCode, name: b.name, price: 0, isActive: true }
     });
   }
+  // ============================================================
+  // 3. JAMB SERVICES (900 Series)
+  // ============================================================
+  const jambServices = [
+    { code: 'JAMB_ORIGINAL_RESULT', serviceCode: 901, name: 'JAMB Original Result', price: 2500.00 },
+    { code: 'JAMB_ADMISSION_LETTER', serviceCode: 902, name: 'JAMB Admission Letter', price: 2500.00 },
+    { code: 'JAMB_REGISTRATION_SLIP', serviceCode: 903, name: 'JAMB Registration Slip', price: 2000.00 },
+    { code: 'JAMB_PROFILE_CODE_RETRIEVAL', serviceCode: 904, name: 'JAMB Profile Code Retrieval', price: 1000.00 },
+  ];
 
+  for (const s of jambServices) {
+    await prisma.service.upsert({
+      where: { code: s.code as any },
+      update: { serviceCode: s.serviceCode, name: s.name, price: s.price },
+      create: { 
+        code: s.code as any, 
+        serviceCode: s.serviceCode, 
+        name: s.name, 
+        price: s.price, 
+        description: 'Manual JAMB Service',
+        isActive: true 
+      }
+    });
+  }
+  
   // ============================================================
   // 3. DATA PLANS (The Big List)
   // ============================================================
