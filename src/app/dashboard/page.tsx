@@ -8,7 +8,7 @@ import {
   Wallet, ShieldCheck, Wifi, Building2, GraduationCap, 
   Activity, ArrowRight, FileText, Users, Eye, EyeOff, 
   CreditCard, Smartphone, UserCheck, Printer,
-  FileCog, Search, Zap, FileBadge, FileDigit
+  FileCog, Search, Zap, FileBadge, FileDigit, ArrowRightLeft
 } from 'lucide-react';
 
 interface UserData {
@@ -150,6 +150,7 @@ export default function DashboardHome() {
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
           <ServiceCard title="Verification" icon={UserCheck} href="/dashboard/services/bvn/verification" color="text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20" />
+          <ServiceCard title="VNIN to NIBSS" icon={ArrowRightLeft} href="/dashboard/services/bvn/vnin-to-nibss" color="text-violet-600 bg-violet-50 dark:bg-violet-900/20" />
           <ServiceCard title="Premium Slip" icon={FileBadge} href="/dashboard/services/bvn/premium-slip" color="text-amber-600 bg-amber-50 dark:bg-amber-900/20" />
           <ServiceCard title="Retrieval" icon={Search} href="/dashboard/services/bvn/retrieval" color="text-sky-600 bg-sky-50 dark:bg-sky-900/20" />
           <ServiceCard title="Modification" icon={FileCog} href="/dashboard/services/bvn/modification" color="text-blue-600 bg-blue-50 dark:bg-blue-900/20" />
