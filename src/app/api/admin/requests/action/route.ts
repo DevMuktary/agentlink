@@ -6,7 +6,15 @@ export async function POST(req: Request) {
   try {
     // 1. Admin Security Check
     const user = await validateApiKey(req);
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+    
+    // Explicitly check if user exists first to satisfy TypeScript
+    if (!user) {
+        return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Now TypeScript knows 'user' is not null, but we must ensure 'role' is accessible.
+    // The update to api-auth.ts guarantees 'role' is in the returned object.
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
         return NextResponse.json({ status: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -26,7 +34,6 @@ export async function POST(req: Request) {
 
     // 3. EXECUTE ACTION
     if (action === 'APPROVE') {
-        // --- APPROVE LOGIC ---
         await prisma.serviceRequest.update({
             where: { id: request_id },
             data: {
@@ -35,24 +42,20 @@ export async function POST(req: Request) {
                 adminNote: 'Processed by Admin'
             }
         });
-
         return NextResponse.json({ status: true, message: 'Request Approved & Completed' });
 
     } else if (action === 'REJECT') {
-        // --- REJECT LOGIC (Flexible Refund) ---
         if (!rejection_reason) return NextResponse.json({ status: false, error: 'Rejection reason is required' }, { status: 400 });
 
         const amountToRefund = Number(refund_amount);
         const originalCost = Number(request.cost);
 
-        // Validation: Cannot refund more than they paid
         if (amountToRefund > originalCost) {
-            return NextResponse.json({ status: false, error: `Refund amount (₦${amountToRefund}) cannot exceed original cost (₦${originalCost})` }, { status: 400 });
+            return NextResponse.json({ status: false, error: `Refund amount (₦${amountToRefund}) cannot exceed original cost` }, { status: 400 });
         }
 
         const transactionOps = [];
 
-        // 1. Process Refund if amount > 0
         if (amountToRefund > 0) {
             transactionOps.push(
                 prisma.user.update({
@@ -74,13 +77,12 @@ export async function POST(req: Request) {
             );
         }
 
-        // 2. Mark Request Failed
         transactionOps.push(
             prisma.serviceRequest.update({
                 where: { id: request_id },
                 data: {
                     status: 'FAILED',
-                    adminNote: rejection_reason // User sees this reason
+                    adminNote: rejection_reason
                 }
             })
         );
