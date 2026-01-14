@@ -40,8 +40,9 @@ async function main() {
     { code: ServiceType.ANDROID_BVN_ENROLLMENT, name: 'Android BVN Enrollment', price: 3000.00 },
     { code: ServiceType.BVN_RETRIEVAL_PHONE, name: 'BVN Retrieval: Phone', price: 1000.00, serviceCode: 630 },
     { code: ServiceType.BVN_RETRIEVAL_CRM, name: 'BVN Retrieval: CRM', price: 2500.00, serviceCode: 631 },
-
-    // BVN MODIFICATION
+    {code: ServiceType.VNIN_TO_NIBSS, name: 'VNIN to NIBSS', price: 500.00 },
+   
+    // BVN MODIFICATION.
     { code: ServiceType.BVN_MOD_NAME, name: 'BVN Mod: Name', price: 3000.00, serviceCode: 620 },
     { code: ServiceType.BVN_MOD_DOB, name: 'BVN Mod: DOB', price: 3000.00, serviceCode: 621 },
     { code: ServiceType.BVN_MOD_PHONE, name: 'BVN Mod: Phone', price: 2500.00, serviceCode: 622 },
