@@ -67,6 +67,8 @@ async function main() {
     { code: ServiceType.EXAM_PIN_NECO, name: 'NECO Pin', price: 1200.00 },
     { code: ServiceType.EXAM_PIN_NABTEB, name: 'NABTEB Pin', price: 1000.00 },
     { code: ServiceType.EXAM_PIN_JAMB, name: 'JAMB Pin', price: 4700.00 },
+    { code: ServiceType.EXAM_PIN_JAMB_UTME, name: 'JAMB UTME Pin', price: 4800.00 }, 
+    { code: ServiceType.EXAM_PIN_JAMB_DE, name: 'JAMB Direct Entry', price: 4800.00 },
   ];
 
   for (const s of coreServices) {
