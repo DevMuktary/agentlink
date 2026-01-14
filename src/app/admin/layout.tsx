@@ -8,33 +8,35 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname(); // Track the current URL
+  const pathname = usePathname();
   const [authorized, setAuthorized] = useState(false);
   
-  // Detect if we are on the login page
+  // Detect if we are currently on the Admin Login page
   const isLoginPage = pathname === '/admin/login';
 
   useEffect(() => {
-    // 1. If on Login Page, SKIP the check (Allow access)
+    // 1. If we are on the Login Page, do not run checks. Just show the page.
     if (isLoginPage) {
         setAuthorized(true);
         return;
     }
 
-    // 2. Otherwise, perform strict Admin Check
+    // 2. Otherwise, check if the user is a valid Admin
     const checkAuth = async () => {
       try {
         const { data } = await axios.get('/api/user/me');
         
-        // Only allow ADMIN or SUPER_ADMIN
+        // Strict Role Check
         if (data.role === 'ADMIN' || data.role === 'SUPER_ADMIN') {
-          setAuthorized(true);
+          setAuthorized(true); // User is an Admin, allow access
         } else {
-          // If a regular user tries to access /admin, send them to user dashboard
+          // User is logged in but is NOT an Admin (e.g. regular Agent)
+          // Kick them back to the User Dashboard
           router.replace('/dashboard'); 
         }
       } catch (error) {
-        // If not logged in at all, force them to Admin Login
+        // User is NOT logged in (401 Unauthorized)
+        // Force them to the Admin Login page
         router.replace('/admin/login');
       }
     };
@@ -42,12 +44,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     checkAuth();
   }, [router, isLoginPage]);
 
-  // Show loader while checking (unless it's login page which renders immediately)
-  if (!authorized) return <GlobalLoader />;
+  // If on a protected page and not yet authorized, show the loader
+  if (!authorized && !isLoginPage) return <GlobalLoader />;
 
   // --- RENDER LOGIC ---
 
-  // SCENARIO A: Admin Login Page (No Sidebar, Full Screen)
+  // SCENARIO A: Admin Login Page (No Sidebar, Full Screen, Dark Background)
   if (isLoginPage) {
       return <div className="min-h-screen bg-slate-900">{children}</div>;
   }
