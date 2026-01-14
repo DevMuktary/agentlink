@@ -340,32 +340,30 @@ async function main() {
     { productCode: 'airtel_10gb30_days_lite', name: 'AIRTEL 10GB/30 DAYS LITE', price: 7790, network: 'AIRTEL', category: 'SME_LITE', validity: '30 Days' },
   ];
 
-  // Batch Upsert Data Plans
-  console.log(`⏳ Seeding ${dataPlans.length} Data Plans...`);
-  
-  for (const plan of dataPlans) {
-    await prisma.dataPlan.upsert({
-      where: { productCode: plan.productCode },
-      update: { 
-        price: plan.price,
-        name: plan.name,
-        category: plan.category,
-        validity: plan.validity
-      },
-      create: {
-        productCode: plan.productCode,
-        network: plan.network,
-        category: plan.category,
-        name: plan.name,
-        price: plan.price,
-        validity: plan.validity,
-        isActive: true
+ // JAMB DIRECT SERVICES
+  const jambServices = [
+    { code: 'JAMB_ORIGINAL_RESULT', serviceCode: 901, name: 'JAMB Original Result', price: 2500.00 },
+    { code: 'JAMB_ADMISSION_LETTER', serviceCode: 902, name: 'JAMB Admission Letter', price: 2500.00 },
+    { code: 'JAMB_REGISTRATION_SLIP', serviceCode: 903, name: 'JAMB Registration Slip', price: 2000.00 },
+    { code: 'JAMB_PROFILE_CODE_RETRIEVAL', serviceCode: 904, name: 'JAMB Profile Code Retrieval', price: 1000.00 },
+  ];
+
+  for (const s of jambServices) {
+    await prisma.service.upsert({
+      where: { code: s.code as any },
+      update: { serviceCode: s.serviceCode, name: s.name, price: s.price },
+      create: { 
+        code: s.code as any, 
+        serviceCode: s.serviceCode, 
+        name: s.name, 
+        price: s.price, 
+        description: 'Manual JAMB Service',
+        isActive: true 
       }
     });
   }
-
-  console.log('✅ Services & Data Plans seeded successfully!');
-}
+  
+  console.log('✅ JAMB Services seeded!');
 
 main()
   .catch((e) => {
