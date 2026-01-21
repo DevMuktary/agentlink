@@ -2,9 +2,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
+  Wallet, 
   ChevronRight,
   ShieldCheck, 
   UserCheck, 
+  Fingerprint, 
   FileBadge, 
   RefreshCcw, 
   Search,
@@ -16,7 +18,7 @@ import {
   Wifi,
   Smartphone,
   History,
-  Activity
+  FileText
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -28,11 +30,11 @@ export default function UserDashboard() {
     async function fetchUser() {
       try {
         const res = await fetch('/api/user/me');
-        // FIX: The API returns the user object directly, not wrapped in { data: ... }
-        const userData = await res.json(); 
+        const data = await res.json();
         
-        if (userData && userData.id) {
-          setUser(userData);
+        // FIX: The API returns the user object directly, not wrapped in { data: ... }
+        if (data && data.id) {
+            setUser(data);
         }
       } catch (error) {
         console.error('Failed to load user', error);
@@ -45,7 +47,7 @@ export default function UserDashboard() {
 
   if (loading) return <GlobalLoader />;
 
-  // Format currency safely
+  // Format currency
   const formattedBalance = Number(user?.walletBalance || 0).toLocaleString('en-NG', {
     style: 'currency',
     currency: 'NGN',
@@ -62,159 +64,166 @@ export default function UserDashboard() {
             <h1 className="text-xl font-bold text-slate-900">
               Overview
             </h1>
-            <p className="text-sm text-slate-500">API Transaction History</p>
+            <p className="text-sm text-slate-500">Monitor your API usage & logs</p>
           </div>
-          <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-700 font-bold border border-blue-100">
-            {user?.email?.[0]?.toUpperCase() || 'A'}
+          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold border border-blue-200">
+            {user?.name?.[0]?.toUpperCase() || 'A'}
           </div>
         </div>
 
         {/* Wallet Card */}
         <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-200">
-          <div className="relative z-10 flex justify-between items-end">
-            <div>
-              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Wallet Balance</p>
-              <h2 className="text-3xl font-bold tracking-tight text-white">{formattedBalance}</h2>
+          <div className="relative z-10">
+            <div className="flex justify-between items-start">
+                <div>
+                    <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Wallet Balance</p>
+                    <h2 className="text-3xl font-bold tracking-tight mb-6 font-mono">{formattedBalance}</h2>
+                </div>
+                <div className="p-2 bg-white/10 rounded-lg">
+                    <Wallet size={20} className="text-blue-400" />
+                </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-md p-2 rounded-lg">
-              <Activity className="text-green-400" size={24} />
-            </div>
-          </div>
-          
-          <div className="mt-6 pt-6 border-t border-white/10">
-             <Link 
+            
+            <div className="grid grid-cols-2 gap-3">
+              <Link 
                 href="/dashboard/wallet"
-                className="flex items-center justify-between text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                className="bg-blue-600 text-white py-3 rounded-lg text-sm font-semibold text-center hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"
               >
-                <span>View Wallet History</span>
-                <ChevronRight size={16} />
+                Fund Wallet
               </Link>
+              <Link 
+                href="/dashboard/wallet"
+                className="bg-slate-800 text-slate-300 py-3 rounded-lg text-sm font-semibold text-center hover:bg-slate-700 transition-colors border border-slate-700"
+              >
+                Transactions
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 2. SERVICES LOGS GRID */}
+      {/* 2. HISTORY / LOGS GRID */}
       <div className="px-5 mt-8 space-y-10">
         
         {/* --- IDENTITY LOGS --- */}
-        <CategorySection title="Identity Services Logs" icon={<History size={16} className="text-blue-600"/>}>
-          <LogItem 
-            title="NIN Verification" 
-            subtitle="View Verification History"
+        <CategorySection title="Identity Logs (NIN)" icon={<Fingerprint size={16} className="text-blue-600"/>}>
+          <HistoryLink 
+            title="Verification History" 
+            subtitle="View NIN verification logs"
             href="/dashboard/services/nin-verification"
-            color="bg-blue-50 text-blue-600"
+            icon={<UserCheck size={18} />}
           />
-          <LogItem 
-            title="NIN Validation" 
-            subtitle="View Validation History"
+          <HistoryLink 
+            title="Validation History" 
+            subtitle="View validation requests"
             href="/dashboard/services/nin/validation"
-            color="bg-blue-50 text-blue-600"
+            icon={<Search size={18} />}
           />
-          <LogItem 
+          <HistoryLink 
             title="VNIN Slips" 
-            subtitle="View Generated Slips"
+            subtitle="Generated slip records"
             href="/dashboard/services/nin-slips"
-            color="bg-indigo-50 text-indigo-600"
+            icon={<FileBadge size={18} />}
           />
-          <LogItem 
-            title="NIN Modification" 
-            subtitle="View Modification Requests"
+          <HistoryLink 
+            title="Modification Requests" 
+            subtitle="Track status of modifications"
             href="/dashboard/services/nin/modification"
-            color="bg-orange-50 text-orange-600"
+            icon={<FileText size={18} />}
           />
-           <LogItem 
+           <HistoryLink 
             title="IPE Clearance" 
-            subtitle="View Clearance Logs"
+            subtitle="Integration clearance logs"
             href="/dashboard/services/nin/ipe-clearance"
-            color="bg-red-50 text-red-600"
+            icon={<ShieldCheck size={18} />}
           />
         </CategorySection>
 
-        {/* --- BANKING LOGS --- */}
-        <CategorySection title="Banking Services Logs" icon={<Landmark size={16} className="text-teal-600"/>}>
-          <LogItem 
-            title="BVN Verification" 
-            subtitle="View Verification History"
+        {/* --- BANKING LOGS (BVN) --- */}
+        <CategorySection title="Banking Logs (BVN)" icon={<Landmark size={16} className="text-teal-600"/>}>
+          <HistoryLink 
+            title="Verification History" 
+            subtitle="View BVN check logs"
             href="/dashboard/services/bvn/verification"
-            color="bg-teal-50 text-teal-600"
+            icon={<ShieldCheck size={18} />}
           />
-          <LogItem 
+          <HistoryLink 
             title="VNIN to NIBSS" 
-            subtitle="View Submission Logs"
+            subtitle="Push records history"
             href="/dashboard/services/bvn/vnin-to-nibss"
-            color="bg-teal-50 text-teal-600"
+            icon={<RefreshCcw size={18} />}
           />
-          <LogItem 
-            title="BVN Enrollment" 
-            subtitle="View Enrollment Status"
+          <HistoryLink 
+            title="Enrollment Requests" 
+            subtitle="Track new enrollments"
             href="/dashboard/services/bvn/enrollment"
-            color="bg-teal-50 text-teal-600"
+            icon={<UserCheck size={18} />}
           />
-          <LogItem 
-            title="BVN Modification" 
-            subtitle="View Modification Requests"
+          <HistoryLink 
+            title="Modification Requests" 
+            subtitle="Track BVN updates"
             href="/dashboard/services/bvn/modification"
-            color="bg-teal-50 text-teal-600"
+            icon={<FileText size={18} />}
           />
-           <LogItem 
-            title="BVN Premium Slip" 
-            subtitle="View Generated Slips"
+           <HistoryLink 
+            title="Premium Slips" 
+            subtitle="Downloaded slip logs"
             href="/dashboard/services/bvn/premium-slip"
-            color="bg-emerald-50 text-emerald-600"
+            icon={<FileBadge size={18} />}
           />
-           <LogItem 
-            title="BVN Retrieval" 
-            subtitle="View Retrieval Logs"
+           <HistoryLink 
+            title="Retrieval History" 
+            subtitle="Lost BVN search logs"
             href="/dashboard/services/bvn/retrieval"
-            color="bg-teal-50 text-teal-600"
+            icon={<Search size={18} />}
           />
         </CategorySection>
 
         {/* --- CORPORATE LOGS --- */}
         <CategorySection title="Corporate Logs" icon={<Building2 size={16} className="text-purple-600"/>}>
-          <LogItem 
-            title="CAC Registration" 
-            subtitle="View Registration Status"
+          <HistoryLink 
+            title="CAC Registrations" 
+            subtitle="Track company formations"
             href="/dashboard/services/cac"
-            color="bg-purple-50 text-purple-600"
+            icon={<Building2 size={18} />}
           />
-          <LogItem 
+          <HistoryLink 
             title="Tax ID (TIN)" 
-            subtitle="View TIN Requests"
+            subtitle="TIN generation history"
             href="/dashboard/services/tax-id"
-            color="bg-purple-50 text-purple-600"
+            icon={<Receipt size={18} />}
           />
         </CategorySection>
 
         {/* --- EDUCATION LOGS --- */}
         <CategorySection title="Education Logs" icon={<GraduationCap size={16} className="text-pink-600"/>}>
-          <LogItem 
-            title="JAMB Services" 
-            subtitle="View Result/Admission Logs"
+          <HistoryLink 
+            title="JAMB Requests" 
+            subtitle="Result & Admission logs"
             href="/dashboard/services/education/jamb"
-            color="bg-pink-50 text-pink-600"
+            icon={<School size={18} />}
           />
-          <LogItem 
+          <HistoryLink 
             title="Exam Pins" 
-            subtitle="View Purchased Pins"
+            subtitle="Pin purchase history"
             href="/dashboard/services/education/exam-pins"
-            color="bg-pink-50 text-pink-600"
+            icon={<FileBadge size={18} />}
           />
         </CategorySection>
 
         {/* --- UTILITY LOGS --- */}
         <CategorySection title="Utility Logs" icon={<Wifi size={16} className="text-cyan-600"/>}>
-          <LogItem 
-            title="Airtime" 
-            subtitle="View Airtime Transactions"
+          <HistoryLink 
+            title="Airtime Transactions" 
+            subtitle="VTU top-up records"
             href="/dashboard/services/utilities"
-            color="bg-cyan-50 text-cyan-600"
+            icon={<Smartphone size={18} />}
           />
-           <LogItem 
-            title="Data Bundles" 
-            subtitle="View Data Transactions"
+           <HistoryLink 
+            title="Data Transactions" 
+            subtitle="Data bundle records"
             href="/dashboard/services/utilities/data"
-            color="bg-cyan-50 text-cyan-600"
+            icon={<Wifi size={18} />}
           />
         </CategorySection>
       </div>
@@ -229,7 +238,7 @@ function CategorySection({ title, icon, children }: { title: string, icon: any, 
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-2 mb-4 ml-1 border-b border-gray-100 pb-2">
         {icon}
-        <h3 className="font-bold text-slate-800 uppercase text-xs tracking-wider">{title}</h3>
+        <h3 className="font-bold text-slate-700 uppercase text-xs tracking-wider">{title}</h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {children}
@@ -238,20 +247,20 @@ function CategorySection({ title, icon, children }: { title: string, icon: any, 
   );
 }
 
-function LogItem({ title, subtitle, href, color }: { title: string, subtitle: string, href: string, color: string }) {
+function HistoryLink({ title, subtitle, href, icon }: { title: string, subtitle: string, href: string, icon: any }) {
   return (
     <Link 
       href={href}
-      className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.99] group"
+      className="group flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all"
     >
-      <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${color} group-hover:scale-110 transition-transform`}>
-        <FileBadge size={18} />
+      <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors">
+        {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-slate-900 truncate text-sm">{title}</h4>
-        <p className="text-xs text-slate-500 truncate">{subtitle}</p>
+        <h4 className="font-medium text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{title}</h4>
+        <p className="text-xs text-slate-400 truncate">{subtitle}</p>
       </div>
-      <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+      <ChevronRight size={16} className="text-gray-300 group-hover:translate-x-1 transition-transform" />
     </Link>
   );
 }
