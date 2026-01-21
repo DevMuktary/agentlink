@@ -1,98 +1,118 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: Request) {
   try {
-    // 1. Admin Security Check
+    // 1. Authenticate (Must be Admin)
     const user = await validateApiKey(req);
-    
-    // Explicitly check if user exists first to satisfy TypeScript
-    if (!user) {
-        return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+      return NextResponse.json({ status: false, error: 'Unauthorized Access' }, { status: 403 });
     }
 
-    // Now TypeScript knows 'user' is not null, but we must ensure 'role' is accessible.
-    // The update to api-auth.ts guarantees 'role' is in the returned object.
-    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-        return NextResponse.json({ status: false, error: 'Forbidden' }, { status: 403 });
+    // 2. Parse FormData
+    const formData = await req.formData();
+    const requestId = formData.get('requestId') as string;
+    const action = formData.get('action') as string; // 'APPROVE' or 'REJECT'
+    const adminNote = formData.get('note') as string;
+    const resultFile = formData.get('file') as File | null;
+
+    if (!requestId || !action) {
+      return NextResponse.json({ status: false, error: 'Missing requestId or action' }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { request_id, action, response_data, rejection_reason, refund_amount } = body;
-
-    if (!request_id || !action) return NextResponse.json({ status: false, error: 'Missing request_id or action' }, { status: 400 });
-
-    // 2. Fetch Request
+    // 3. Fetch Request to check validity & cost (for refunds)
     const request = await prisma.serviceRequest.findUnique({
-        where: { id: request_id },
-        include: { user: true }
+      where: { id: requestId },
+      include: { user: true } // Need user info for refund
     });
 
-    if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
-    if (request.status !== 'PROCESSING') return NextResponse.json({ status: false, error: 'Request is not in PROCESSING state' }, { status: 400 });
+    if (!request) {
+      return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
+    }
 
-    // 3. EXECUTE ACTION
+    if (request.status === 'COMPLETED' || request.status === 'FAILED') {
+      return NextResponse.json({ status: false, error: 'Request already processed' }, { status: 400 });
+    }
+
+    // --- CASE A: APPROVE / COMPLETE ---
     if (action === 'APPROVE') {
-        await prisma.serviceRequest.update({
-            where: { id: request_id },
-            data: {
-                status: 'COMPLETED',
-                responseData: response_data,
-                adminNote: 'Processed by Admin'
-            }
-        });
-        return NextResponse.json({ status: true, message: 'Request Approved & Completed' });
+      let responseData: any = request.responseData || {};
 
-    } else if (action === 'REJECT') {
-        if (!rejection_reason) return NextResponse.json({ status: false, error: 'Rejection reason is required' }, { status: 400 });
+      // If a file was uploaded (e.g., CAC Certificate, NIN Slip), upload it
+      if (resultFile) {
+        const upload = await uploadToCloudinary(resultFile, 'agentlink/admin_replies');
+        
+        // Save the URL in the response data
+        // This is what the User will see in their dashboard
+        responseData.resultUrl = upload.secure_url;
+        responseData.resultPublicId = upload.public_id;
+        responseData.completionDate = new Date().toISOString();
+      }
 
-        const amountToRefund = Number(refund_amount);
-        const originalCost = Number(request.cost);
-
-        if (amountToRefund > originalCost) {
-            return NextResponse.json({ status: false, error: `Refund amount (₦${amountToRefund}) cannot exceed original cost` }, { status: 400 });
+      // Update DB
+      await prisma.serviceRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'COMPLETED',
+          adminNote: adminNote || 'Request Completed Successfully',
+          responseData: responseData // Updates with the file URL
         }
+      });
 
-        const transactionOps = [];
-
-        if (amountToRefund > 0) {
-            transactionOps.push(
-                prisma.user.update({
-                    where: { id: request.userId },
-                    data: { walletBalance: { increment: amountToRefund } }
-                })
-            );
-            transactionOps.push(
-                prisma.transaction.create({
-                    data: {
-                        userId: request.userId,
-                        amount: amountToRefund,
-                        type: 'REFUND',
-                        status: 'COMPLETED',
-                        reference: `REF-${request.id.slice(0,8)}`,
-                        description: `Refund for ${request.serviceType}: ${rejection_reason}`
-                    }
-                })
-            );
+      return NextResponse.json({
+        status: true,
+        message: 'Request Approved & File Sent',
+        data: {
+          status: 'COMPLETED',
+          result_url: responseData.resultUrl || null
         }
+      });
+    }
 
-        transactionOps.push(
-            prisma.serviceRequest.update({
-                where: { id: request_id },
-                data: {
-                    status: 'FAILED',
-                    adminNote: rejection_reason
-                }
-            })
-        );
+    // --- CASE B: REJECT (AUTO-REFUND) ---
+    else if (action === 'REJECT') {
+      const refundAmount = Number(request.cost);
 
-        await prisma.$transaction(transactionOps);
-
-        return NextResponse.json({ 
-            status: true, 
-            message: amountToRefund > 0 ? `Rejected & Refunded ₦${amountToRefund}` : 'Rejected (No Refund)' 
+      await prisma.$transaction(async (tx) => {
+        // 1. Refund User Wallet
+        await tx.user.update({
+          where: { id: request.userId },
+          data: { walletBalance: { increment: refundAmount } }
         });
+
+        // 2. Log Refund Transaction
+        await tx.transaction.create({
+          data: {
+            userId: request.userId,
+            amount: refundAmount,
+            type: 'REFUND',
+            status: 'COMPLETED',
+            reference: `REF-${requestId.slice(-8)}-${Date.now()}`,
+            description: `Refund for Request #${requestId.slice(-6)}`,
+            serviceId: request.serviceType // Optional: link to service
+          }
+        });
+
+        // 3. Mark Request as FAILED
+        await tx.serviceRequest.update({
+          where: { id: requestId },
+          data: {
+            status: 'FAILED',
+            adminNote: adminNote || 'Request Rejected by Admin',
+          }
+        });
+      });
+
+      return NextResponse.json({
+        status: true,
+        message: 'Request Rejected & User Refunded',
+        data: {
+          status: 'FAILED',
+          refunded_amount: refundAmount
+        }
+      });
     }
 
     return NextResponse.json({ status: false, error: 'Invalid Action' }, { status: 400 });
