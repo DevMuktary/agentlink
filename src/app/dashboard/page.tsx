@@ -29,7 +29,6 @@ export default function UserDashboard() {
         const res = await fetch('/api/user/me');
         const data = await res.json();
         
-        // Handle different response structures
         if (data && data.id) {
           setUser(data);
         } else if (data.status && data.data) {
@@ -59,21 +58,14 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-slate-50/50 pb-20 font-sans text-slate-900">
       
       {/* 1. WELCOME & WALLET SECTION */}
-      {/* -mx-4: Pulls the card back to the edge so it looks full-width inside the padded layout if desired, 
-          OR keep it standard. Here we keep it standard inside the layout padding. 
-      */}
       <div className="bg-white px-5 pt-4 pb-8 rounded-b-[2rem] shadow-sm border-b border-gray-100 mb-8">
         
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">
-              Welcome, {firstName} 👋
-            </h1>
-            <p className="text-sm text-slate-500">API Activity Overview</p>
-          </div>
-          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold uppercase border border-blue-200">
-            {firstName[0]}
-          </div>
+        {/* Welcome Text (Avatar removed) */}
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-slate-900">
+            Welcome, {firstName} 👋
+          </h1>
+          <p className="text-sm text-slate-500">API Activity Overview</p>
         </div>
 
         {/* Wallet Card */}
