@@ -3,12 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Wallet, 
-  Copy, 
-  CheckCircle2, 
-  FileText, 
-  Building2, 
-  GraduationCap, 
-  Wifi, 
+  ChevronRight,
   ShieldCheck, 
   UserCheck, 
   Fingerprint, 
@@ -17,14 +12,17 @@ import {
   Search,
   School,
   Landmark,
-  Receipt
+  Receipt,
+  Building2,
+  GraduationCap,
+  Wifi,
+  Smartphone
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -41,319 +39,248 @@ export default function UserDashboard() {
     fetchUser();
   }, []);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   if (loading) return <GlobalLoader />;
 
-  return (
-    <div className="min-h-screen bg-slate-50/50 p-6 md:p-8 font-sans text-slate-900">
-      
-      {/* 1. WELCOME HEADER */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            Welcome back, {user?.name?.split(' ')[0] || 'Partner'}
-          </h1>
-          <p className="mt-1 text-slate-500 text-sm">
-            Here is an overview of your API usage and wallet status.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-           <span className="text-xs font-medium px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
-             {user?.role === 'USER' ? 'Standard Account' : 'Verified Agent'}
-           </span>
-           <span className="text-xs font-medium px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100">
-             Active
-           </span>
-        </div>
-      </div>
+  // Format currency safely to avoid NaN
+  const formattedBalance = Number(user?.walletBalance || 0).toLocaleString('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2
+  });
 
-      {/* 2. HERO STATS ROW */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        
-        {/* Wallet Card - Main */}
-        <div className="md:col-span-2 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 text-white shadow-lg shadow-blue-200 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Wallet size={120} />
+  return (
+    <div className="min-h-screen bg-gray-50/50 pb-20 font-sans text-slate-900">
+      
+      {/* 1. MOBILE HEADER & WALLET SECTION */}
+      <div className="bg-white px-6 pt-6 pb-8 rounded-b-[2rem] shadow-sm border-b border-gray-100">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">
+              Hello, {user?.name?.split(' ')[0] || 'User'} 👋
+            </h1>
+            <p className="text-sm text-slate-500">What would you like to do today?</p>
           </div>
-          
-          <div className="relative z-10 flex flex-col h-full justify-between">
-            <div>
-              <p className="text-blue-100 font-medium mb-1">Available Balance</p>
-              <h2 className="text-4xl font-bold tracking-tight">
-                ₦ {Number(user?.walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </h2>
-            </div>
+          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold">
+            {user?.name?.[0] || 'U'}
+          </div>
+        </div>
+
+        {/* Wallet Card - Premium Gradient */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-[#0F172A] to-[#334155] rounded-2xl p-6 text-white shadow-xl shadow-slate-200">
+          <div className="relative z-10">
+            <p className="text-slate-300 text-sm font-medium mb-1">Total Balance</p>
+            <h2 className="text-3xl font-bold tracking-tight mb-6">{formattedBalance}</h2>
             
-            <div className="mt-6 flex gap-3">
+            <div className="flex gap-3">
               <Link 
                 href="/dashboard/wallet"
-                className="bg-white text-blue-700 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors shadow-sm"
+                className="flex-1 bg-white text-slate-900 py-3 rounded-xl text-sm font-semibold text-center hover:bg-gray-50 transition-colors"
               >
                 Fund Wallet
               </Link>
               <Link 
                 href="/dashboard/wallet"
-                className="bg-blue-700/50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors backdrop-blur-sm"
+                className="flex-1 bg-white/10 backdrop-blur-md text-white py-3 rounded-xl text-sm font-semibold text-center hover:bg-white/20 transition-colors"
               >
-                Transaction History
+                History
               </Link>
             </div>
           </div>
-        </div>
-
-        {/* API Credentials Card */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-           <div className="flex items-center gap-2 mb-4">
-             <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-               <ShieldCheck size={20} />
-             </div>
-             <h3 className="font-semibold text-slate-800">API Credentials</h3>
-           </div>
-           
-           <div className="space-y-4">
-             <div>
-               <label className="text-xs text-slate-500 uppercase font-semibold tracking-wider">Public Key</label>
-               <div className="flex items-center gap-2 mt-1 bg-slate-50 p-2 rounded border border-slate-200">
-                 <code className="text-xs text-slate-600 truncate flex-1 font-mono">
-                   {user?.apiKeyPublic || 'Not Generated'}
-                 </code>
-                 <button 
-                   onClick={() => copyToClipboard(user?.apiKeyPublic)}
-                   className="text-slate-400 hover:text-blue-600 transition-colors"
-                 >
-                   {copied ? <CheckCircle2 size={14} className="text-green-500"/> : <Copy size={14} />}
-                 </button>
-               </div>
-             </div>
-             
-             <div>
-               <Link href="/dashboard/developers" className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline flex items-center gap-1">
-                 View Secret Key & Docs &rarr;
-               </Link>
-             </div>
-           </div>
+          
+          {/* Decorative Circle */}
+          <div className="absolute -right-6 -top-6 h-32 w-32 bg-white/5 rounded-full blur-2xl"></div>
+          <div className="absolute -left-6 -bottom-6 h-24 w-24 bg-blue-500/20 rounded-full blur-xl"></div>
         </div>
       </div>
 
-
-      {/* 3. SERVICES SECTION */}
-      <div className="space-y-12">
+      {/* 2. SERVICES GRID */}
+      <div className="px-5 mt-6 space-y-8">
         
-        {/* --- IDENTITY SERVICES (NIN) --- */}
-        <section>
-          <div className="flex items-center gap-3 mb-5 border-b border-slate-200 pb-2">
-            <Fingerprint className="text-slate-400" size={20} />
-            <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Identity Services (NIN)</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ServiceCard 
-              title="NIN Verification" 
-              desc="Verify identity via NIN number"
-              href="/dashboard/services/nin-verification"
-              icon={<UserCheck size={20} />}
-              color="indigo"
-            />
-            <ServiceCard 
-              title="NIN Validation" 
-              desc="Validate NIN search status"
-              href="/dashboard/services/nin/validation"
-              icon={<Search size={20} />}
-              color="indigo"
-            />
-             <ServiceCard 
-              title="VNIN Slip Generation" 
-              desc="Generate Virtual NIN Slip"
-              href="/dashboard/services/nin-slips"
-              icon={<FileBadge size={20} />}
-              color="indigo"
-            />
-             <ServiceCard 
-              title="VNIN to NIBSS" 
-              desc="Push VNIN to NIBSS database"
-              href="/dashboard/services/bvn/vnin-to-nibss"
-              icon={<RefreshCcw size={20} />}
-              color="indigo"
-            />
-            <ServiceCard 
-              title="IPE Clearance" 
-              desc="Resolve integration issues"
-              href="/dashboard/services/nin/ipe-clearance"
-              icon={<ShieldCheck size={20} />}
-              color="indigo"
-            />
-            <ServiceCard 
-              title="NIN Modification" 
-              desc="Update Name, DOB, Phone"
-              href="/dashboard/services/nin/modification"
-              icon={<FileText size={20} />}
-              color="indigo"
-            />
-          </div>
-        </section>
+        {/* --- IDENTITY (NIN) --- */}
+        <CategorySection title="Identity Verification" icon={<Fingerprint size={18} className="text-blue-600"/>}>
+          <ServiceItem 
+            title="NIN Verification" 
+            subtitle="Verify identity via Number"
+            href="/dashboard/services/nin-verification"
+            icon={<UserCheck size={20} />}
+            color="bg-blue-50 text-blue-600"
+          />
+          <ServiceItem 
+            title="NIN Validation" 
+            subtitle="Validate search status"
+            href="/dashboard/services/nin/validation"
+            icon={<Search size={20} />}
+            color="bg-blue-50 text-blue-600"
+          />
+          <ServiceItem 
+            title="VNIN Slip Generation" 
+            subtitle="Generate Virtual NIN Slip"
+            href="/dashboard/services/nin-slips"
+            icon={<FileBadge size={20} />}
+            color="bg-indigo-50 text-indigo-600"
+          />
+          <ServiceItem 
+            title="NIN Modification" 
+            subtitle="Correct Name, DOB, Phone"
+            href="/dashboard/services/nin/modification"
+            icon={<FileTextIcon />}
+            color="bg-orange-50 text-orange-600"
+          />
+           <ServiceItem 
+            title="IPE Clearance" 
+            subtitle="Resolve integration issues"
+            href="/dashboard/services/nin/ipe-clearance"
+            icon={<ShieldCheck size={20} />}
+            color="bg-red-50 text-red-600"
+          />
+        </CategorySection>
 
-        {/* --- BANKING SERVICES (BVN) --- */}
-        <section>
-           <div className="flex items-center gap-3 mb-5 border-b border-slate-200 pb-2">
-            <Landmark className="text-slate-400" size={20} />
-            <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Banking Services (BVN)</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ServiceCard 
-              title="BVN Verification" 
-              desc="Verify bank details deeply"
-              href="/dashboard/services/bvn/verification"
-              icon={<ShieldCheck size={20} />}
-              color="teal"
-            />
-            <ServiceCard 
-              title="BVN Enrollment" 
-              desc="New BVN Registration"
-              href="/dashboard/services/bvn/enrollment"
-              icon={<UserCheck size={20} />}
-              color="teal"
-            />
-            <ServiceCard 
-              title="BVN Modification" 
-              desc="Update details on BVN"
-              href="/dashboard/services/bvn/modification"
-              icon={<FileText size={20} />}
-              color="teal"
-            />
-             <ServiceCard 
-              title="BVN Premium Slip" 
-              desc="High-res BVN Document"
-              href="/dashboard/services/bvn/premium-slip"
-              icon={<FileBadge size={20} />}
-              color="teal"
-            />
-             <ServiceCard 
-              title="BVN Retrieval" 
-              desc="Recover lost BVN numbers"
-              href="/dashboard/services/bvn/retrieval"
-              icon={<Search size={20} />}
-              color="teal"
-            />
-          </div>
-        </section>
+        {/* --- BANKING (BVN) --- */}
+        <CategorySection title="Banking Services" icon={<Landmark size={18} className="text-teal-600"/>}>
+          <ServiceItem 
+            title="BVN Verification" 
+            subtitle="Deep identity check"
+            href="/dashboard/services/bvn/verification"
+            icon={<ShieldCheck size={20} />}
+            color="bg-teal-50 text-teal-600"
+          />
+          <ServiceItem 
+            title="VNIN to NIBSS" 
+            subtitle="Push VNIN to Bank DB"
+            href="/dashboard/services/bvn/vnin-to-nibss"
+            icon={<RefreshCcw size={20} />}
+            color="bg-teal-50 text-teal-600"
+          />
+          <ServiceItem 
+            title="BVN Enrollment" 
+            subtitle="Register new BVN"
+            href="/dashboard/services/bvn/enrollment"
+            icon={<UserCheck size={20} />}
+            color="bg-teal-50 text-teal-600"
+          />
+          <ServiceItem 
+            title="BVN Modification" 
+            subtitle="Update BVN details"
+            href="/dashboard/services/bvn/modification"
+            icon={<FileTextIcon />}
+            color="bg-teal-50 text-teal-600"
+          />
+           <ServiceItem 
+            title="BVN Premium Slip" 
+            subtitle="High-res Document"
+            href="/dashboard/services/bvn/premium-slip"
+            icon={<FileBadge size={20} />}
+            color="bg-emerald-50 text-emerald-600"
+          />
+           <ServiceItem 
+            title="BVN Retrieval" 
+            subtitle="Recover lost BVN"
+            href="/dashboard/services/bvn/retrieval"
+            icon={<Search size={20} />}
+            color="bg-teal-50 text-teal-600"
+          />
+        </CategorySection>
 
-        {/* --- CORPORATE & UTILITY --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          
-          {/* Corporate */}
-          <section>
-            <div className="flex items-center gap-3 mb-5 border-b border-slate-200 pb-2">
-              <Building2 className="text-slate-400" size={20} />
-              <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Corporate Services</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ServiceCard 
-                title="CAC Registration" 
-                desc="Register Business/Company"
-                href="/dashboard/services/cac"
-                icon={<Building2 size={20} />}
-                color="orange"
-              />
-              <ServiceCard 
-                title="Tax ID (TIN)" 
-                desc="Generate/Retrieve TIN"
-                href="/dashboard/services/tax-id"
-                icon={<Receipt size={20} />}
-                color="orange"
-              />
-            </div>
-          </section>
+        {/* --- CORPORATE --- */}
+        <CategorySection title="Corporate & Business" icon={<Building2 size={18} className="text-purple-600"/>}>
+          <ServiceItem 
+            title="CAC Registration" 
+            subtitle="Register Company/Business"
+            href="/dashboard/services/cac"
+            icon={<Building2 size={20} />}
+            color="bg-purple-50 text-purple-600"
+          />
+          <ServiceItem 
+            title="Tax ID (TIN)" 
+            subtitle="Generate/Retrieve TIN"
+            href="/dashboard/services/tax-id"
+            icon={<Receipt size={20} />}
+            color="bg-purple-50 text-purple-600"
+          />
+        </CategorySection>
 
-           {/* Education */}
-           <section>
-            <div className="flex items-center gap-3 mb-5 border-b border-slate-200 pb-2">
-              <GraduationCap className="text-slate-400" size={20} />
-              <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Education & Exams</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ServiceCard 
-                title="JAMB Services" 
-                desc="Result, Admission Letter"
-                href="/dashboard/services/education/jamb"
-                icon={<School size={20} />}
-                color="purple"
-              />
-              <ServiceCard 
-                title="Exam Pins" 
-                desc="WAEC, NECO Scratch Cards"
-                href="/dashboard/services/education/exam-pins"
-                icon={<FileText size={20} />}
-                color="purple"
-              />
-            </div>
-          </section>
-        </div>
+        {/* --- EDUCATION --- */}
+        <CategorySection title="Education" icon={<GraduationCap size={18} className="text-pink-600"/>}>
+          <ServiceItem 
+            title="JAMB Services" 
+            subtitle="Result, Admission Letter"
+            href="/dashboard/services/education/jamb"
+            icon={<School size={20} />}
+            color="bg-pink-50 text-pink-600"
+          />
+          <ServiceItem 
+            title="Exam Pins" 
+            subtitle="WAEC, NECO Cards"
+            href="/dashboard/services/education/exam-pins"
+            icon={<FileBadge size={20} />}
+            color="bg-pink-50 text-pink-600"
+          />
+        </CategorySection>
 
         {/* --- UTILITIES --- */}
-        <section>
-          <div className="flex items-center gap-3 mb-5 border-b border-slate-200 pb-2">
-            <Wifi className="text-slate-400" size={20} />
-            <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Utilities</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ServiceCard 
-                title="Buy Airtime" 
-                desc="VTU Airtime Topup"
-                href="/dashboard/services/utilities"
-                icon={<Wifi size={20} />}
-                color="blue"
-              />
-               <ServiceCard 
-                title="Buy Data" 
-                desc="SME & Direct Data"
-                href="/dashboard/services/utilities/data"
-                icon={<Wifi size={20} />}
-                color="blue"
-              />
-          </div>
-        </section>
-
+        <CategorySection title="Utilities" icon={<Wifi size={18} className="text-cyan-600"/>}>
+          <ServiceItem 
+            title="Buy Airtime" 
+            subtitle="Instant VTU Topup"
+            href="/dashboard/services/utilities"
+            icon={<Smartphone size={20} />}
+            color="bg-cyan-50 text-cyan-600"
+          />
+           <ServiceItem 
+            title="Buy Data" 
+            subtitle="SME & Direct Bundles"
+            href="/dashboard/services/utilities/data"
+            icon={<Wifi size={20} />}
+            color="bg-cyan-50 text-cyan-600"
+          />
+        </CategorySection>
       </div>
     </div>
   );
 }
 
-// --- HELPER COMPONENT FOR CLEAN CARDS ---
-function ServiceCard({ title, desc, href, icon, color }: { title: string; desc: string; href: string; icon: any; color: string }) {
-  // Map color names to Tailwind classes
-  const colors: any = {
-    indigo: 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white',
-    teal: 'bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white',
-    orange: 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white',
-    purple: 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white',
-    blue: 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white',
-  };
+// --- COMPONENTS ---
 
-  const bgClass = colors[color] || colors.blue;
+function CategorySection({ title, icon, children }: { title: string, icon: any, children: React.ReactNode }) {
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center gap-2 mb-3 ml-1">
+        {icon}
+        <h3 className="font-bold text-slate-800 uppercase text-xs tracking-wider">{title}</h3>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {children}
+      </div>
+    </div>
+  );
+}
 
+function ServiceItem({ title, subtitle, href, icon, color }: { title: string, subtitle: string, href: string, icon: any, color: string }) {
   return (
     <Link 
       href={href}
-      className="group bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 flex flex-col justify-between h-full"
+      className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
     >
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-lg transition-colors duration-200 ${bgClass}`}>
-          {icon}
-        </div>
+      <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${color}`}>
+        {icon}
       </div>
-      
-      <div>
-        <h4 className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">
-          {title}
-        </h4>
-        <p className="text-sm text-slate-500 mt-1 line-clamp-2">
-          {desc}
-        </p>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-semibold text-slate-900 truncate">{title}</h4>
+        <p className="text-xs text-slate-500 truncate">{subtitle}</p>
       </div>
+      <ChevronRight size={16} className="text-gray-300" />
     </Link>
+  );
+}
+
+function FileTextIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" x2="8" y1="13" y2="13"/>
+      <line x1="16" x2="8" y1="17" y2="17"/>
+      <line x1="10" x2="8" y1="9" y2="9"/>
+    </svg>
   );
 }
