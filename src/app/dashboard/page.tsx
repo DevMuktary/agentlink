@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ShieldCheck, 
   UserCheck, 
-  Fingerprint, 
   FileBadge, 
   RefreshCcw, 
   Search,
@@ -16,7 +15,9 @@ import {
   Building2,
   GraduationCap,
   Wifi,
-  Smartphone
+  Smartphone,
+  History,
+  Activity
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -29,7 +30,11 @@ export default function UserDashboard() {
       try {
         const res = await fetch('/api/user/me');
         const data = await res.json();
-        if (data.status) setUser(data.data);
+        
+        // FIX: Your API returns the user object directly, not wrapped in { data: ... }
+        if (data && data.id) {
+          setUser(data);
+        }
       } catch (error) {
         console.error('Failed to load user', error);
       } finally {
@@ -41,7 +46,7 @@ export default function UserDashboard() {
 
   if (loading) return <GlobalLoader />;
 
-  // Format currency safely to avoid NaN
+  // Safely format balance
   const formattedBalance = Number(user?.walletBalance || 0).toLocaleString('en-NG', {
     style: 'currency',
     currency: 'NGN',
@@ -49,238 +54,225 @@ export default function UserDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-20 font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50/50 pb-20 font-sans text-slate-900">
       
-      {/* 1. MOBILE HEADER & WALLET SECTION */}
+      {/* 1. HEADER & WALLET */}
       <div className="bg-white px-6 pt-6 pb-8 rounded-b-[2rem] shadow-sm border-b border-gray-100">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              Hello, {user?.name?.split(' ')[0] || 'User'} 👋
+              Overview
             </h1>
-            <p className="text-sm text-slate-500">What would you like to do today?</p>
+            <p className="text-sm text-slate-500">API Usage & Wallet Statement</p>
           </div>
-          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold">
-            {user?.name?.[0] || 'U'}
+          <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-bold">
+            {user?.name?.[0] || 'A'}
           </div>
         </div>
 
-        {/* Wallet Card - Premium Gradient */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#0F172A] to-[#334155] rounded-2xl p-6 text-white shadow-xl shadow-slate-200">
+        {/* Wallet Card */}
+        <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-200">
           <div className="relative z-10">
-            <p className="text-slate-300 text-sm font-medium mb-1">Total Balance</p>
-            <h2 className="text-3xl font-bold tracking-tight mb-6">{formattedBalance}</h2>
+            <div className="flex items-center gap-2 mb-2 opacity-80">
+              <Wallet size={16} />
+              <p className="text-xs font-medium uppercase tracking-wider">API Wallet Balance</p>
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight mb-6 font-mono">{formattedBalance}</h2>
             
             <div className="flex gap-3">
               <Link 
                 href="/dashboard/wallet"
-                className="flex-1 bg-white text-slate-900 py-3 rounded-xl text-sm font-semibold text-center hover:bg-gray-50 transition-colors"
+                className="flex-1 bg-white text-slate-900 py-3 rounded-xl text-sm font-bold text-center hover:bg-gray-50 transition-colors"
               >
                 Fund Wallet
               </Link>
               <Link 
                 href="/dashboard/wallet"
-                className="flex-1 bg-white/10 backdrop-blur-md text-white py-3 rounded-xl text-sm font-semibold text-center hover:bg-white/20 transition-colors"
+                className="flex-1 bg-white/10 backdrop-blur-md text-white py-3 rounded-xl text-sm font-bold text-center hover:bg-white/20 transition-colors"
               >
-                History
+                Transaction History
               </Link>
             </div>
           </div>
-          
-          {/* Decorative Circle */}
-          <div className="absolute -right-6 -top-6 h-32 w-32 bg-white/5 rounded-full blur-2xl"></div>
-          <div className="absolute -left-6 -bottom-6 h-24 w-24 bg-blue-500/20 rounded-full blur-xl"></div>
         </div>
       </div>
 
-      {/* 2. SERVICES GRID */}
-      <div className="px-5 mt-6 space-y-8">
+      {/* 2. LOGS & HISTORY GRID */}
+      <div className="px-5 mt-8 space-y-10">
         
-        {/* --- IDENTITY (NIN) --- */}
-        <CategorySection title="Identity Verification" icon={<Fingerprint size={18} className="text-blue-600"/>}>
-          <ServiceItem 
-            title="NIN Verification" 
-            subtitle="Verify identity via Number"
-            href="/dashboard/services/nin-verification"
-            icon={<UserCheck size={20} />}
-            color="bg-blue-50 text-blue-600"
+        {/* --- IDENTITY LOGS --- */}
+        <CategorySection title="Identity Services History" icon={<History size={16} className="text-blue-600"/>}>
+          <LogLink 
+            title="NIN Verification Logs" 
+            subtitle="View verification attempts"
+            href="/dashboard/services/nin-verification" // This page should show a TABLE of history
+            icon={<UserCheck size={18} />}
+            color="text-blue-600 bg-blue-50"
           />
-          <ServiceItem 
-            title="NIN Validation" 
-            subtitle="Validate search status"
+          <LogLink 
+            title="NIN Validation Logs" 
+            subtitle="View validation history"
             href="/dashboard/services/nin/validation"
-            icon={<Search size={20} />}
-            color="bg-blue-50 text-blue-600"
+            icon={<Search size={18} />}
+            color="text-blue-600 bg-blue-50"
           />
-          <ServiceItem 
-            title="VNIN Slip Generation" 
-            subtitle="Generate Virtual NIN Slip"
+          <LogLink 
+            title="VNIN Slips History" 
+            subtitle="View generated slips"
             href="/dashboard/services/nin-slips"
-            icon={<FileBadge size={20} />}
-            color="bg-indigo-50 text-indigo-600"
+            icon={<FileBadge size={18} />}
+            color="text-indigo-600 bg-indigo-50"
           />
-          <ServiceItem 
-            title="NIN Modification" 
-            subtitle="Correct Name, DOB, Phone"
+          <LogLink 
+            title="NIN Modification Requests" 
+            subtitle="Track modification status"
             href="/dashboard/services/nin/modification"
-            icon={<FileTextIcon />}
-            color="bg-orange-50 text-orange-600"
+            icon={<RefreshCcw size={18} />}
+            color="text-orange-600 bg-orange-50"
           />
-           <ServiceItem 
-            title="IPE Clearance" 
-            subtitle="Resolve integration issues"
+           <LogLink 
+            title="IPE Clearance Logs" 
+            subtitle="View clearance requests"
             href="/dashboard/services/nin/ipe-clearance"
-            icon={<ShieldCheck size={20} />}
-            color="bg-red-50 text-red-600"
+            icon={<ShieldCheck size={18} />}
+            color="text-red-600 bg-red-50"
           />
         </CategorySection>
 
-        {/* --- BANKING (BVN) --- */}
-        <CategorySection title="Banking Services" icon={<Landmark size={18} className="text-teal-600"/>}>
-          <ServiceItem 
-            title="BVN Verification" 
-            subtitle="Deep identity check"
+        {/* --- BANKING LOGS --- */}
+        <CategorySection title="Banking Services History" icon={<History size={16} className="text-teal-600"/>}>
+          <LogLink 
+            title="BVN Verification Logs" 
+            subtitle="View past checks"
             href="/dashboard/services/bvn/verification"
-            icon={<ShieldCheck size={20} />}
-            color="bg-teal-50 text-teal-600"
+            icon={<ShieldCheck size={18} />}
+            color="text-teal-600 bg-teal-50"
           />
-          <ServiceItem 
-            title="VNIN to NIBSS" 
-            subtitle="Push VNIN to Bank DB"
+          <LogLink 
+            title="VNIN to NIBSS Logs" 
+            subtitle="View submission history"
             href="/dashboard/services/bvn/vnin-to-nibss"
-            icon={<RefreshCcw size={20} />}
-            color="bg-teal-50 text-teal-600"
+            icon={<RefreshCcw size={18} />}
+            color="text-teal-600 bg-teal-50"
           />
-          <ServiceItem 
-            title="BVN Enrollment" 
-            subtitle="Register new BVN"
+          <LogLink 
+            title="BVN Enrollment Requests" 
+            subtitle="Track new enrollments"
             href="/dashboard/services/bvn/enrollment"
-            icon={<UserCheck size={20} />}
-            color="bg-teal-50 text-teal-600"
+            icon={<UserCheck size={18} />}
+            color="text-teal-600 bg-teal-50"
           />
-          <ServiceItem 
-            title="BVN Modification" 
-            subtitle="Update BVN details"
+          <LogLink 
+            title="BVN Modification Requests" 
+            subtitle="Track update status"
             href="/dashboard/services/bvn/modification"
-            icon={<FileTextIcon />}
-            color="bg-teal-50 text-teal-600"
+            icon={<Activity size={18} />}
+            color="text-teal-600 bg-teal-50"
           />
-           <ServiceItem 
-            title="BVN Premium Slip" 
-            subtitle="High-res Document"
+           <LogLink 
+            title="BVN Premium Slip Logs" 
+            subtitle="View generated docs"
             href="/dashboard/services/bvn/premium-slip"
-            icon={<FileBadge size={20} />}
-            color="bg-emerald-50 text-emerald-600"
+            icon={<FileBadge size={18} />}
+            color="text-emerald-600 bg-emerald-50"
           />
-           <ServiceItem 
-            title="BVN Retrieval" 
-            subtitle="Recover lost BVN"
+           <LogLink 
+            title="BVN Retrieval Logs" 
+            subtitle="View retrieval history"
             href="/dashboard/services/bvn/retrieval"
-            icon={<Search size={20} />}
-            color="bg-teal-50 text-teal-600"
+            icon={<Search size={18} />}
+            color="text-teal-600 bg-teal-50"
           />
         </CategorySection>
 
-        {/* --- CORPORATE --- */}
-        <CategorySection title="Corporate & Business" icon={<Building2 size={18} className="text-purple-600"/>}>
-          <ServiceItem 
-            title="CAC Registration" 
-            subtitle="Register Company/Business"
+        {/* --- CORPORATE LOGS --- */}
+        <CategorySection title="Corporate Requests" icon={<History size={16} className="text-purple-600"/>}>
+          <LogLink 
+            title="CAC Registrations" 
+            subtitle="Track company status"
             href="/dashboard/services/cac"
-            icon={<Building2 size={20} />}
-            color="bg-purple-50 text-purple-600"
+            icon={<Building2 size={18} />}
+            color="text-purple-600 bg-purple-50"
           />
-          <ServiceItem 
-            title="Tax ID (TIN)" 
-            subtitle="Generate/Retrieve TIN"
+          <LogLink 
+            title="Tax ID (TIN) Logs" 
+            subtitle="View TIN requests"
             href="/dashboard/services/tax-id"
-            icon={<Receipt size={20} />}
-            color="bg-purple-50 text-purple-600"
+            icon={<Receipt size={18} />}
+            color="text-purple-600 bg-purple-50"
           />
         </CategorySection>
 
-        {/* --- EDUCATION --- */}
-        <CategorySection title="Education" icon={<GraduationCap size={18} className="text-pink-600"/>}>
-          <ServiceItem 
-            title="JAMB Services" 
-            subtitle="Result, Admission Letter"
-            href="/dashboard/services/education/jamb"
-            icon={<School size={20} />}
-            color="bg-pink-50 text-pink-600"
-          />
-          <ServiceItem 
-            title="Exam Pins" 
-            subtitle="WAEC, NECO Cards"
-            href="/dashboard/services/education/exam-pins"
-            icon={<FileBadge size={20} />}
-            color="bg-pink-50 text-pink-600"
-          />
-        </CategorySection>
+        {/* --- EDUCATION & UTILITY LOGS --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <CategorySection title="Education Logs" icon={<History size={16} className="text-pink-600"/>}>
+            <LogLink 
+                title="JAMB Requests" 
+                subtitle="Track results/letters"
+                href="/dashboard/services/education/jamb"
+                icon={<School size={18} />}
+                color="text-pink-600 bg-pink-50"
+            />
+            <LogLink 
+                title="Exam Pins History" 
+                subtitle="View purchased pins"
+                href="/dashboard/services/education/exam-pins"
+                icon={<FileBadge size={18} />}
+                color="text-pink-600 bg-pink-50"
+            />
+            </CategorySection>
 
-        {/* --- UTILITIES --- */}
-        <CategorySection title="Utilities" icon={<Wifi size={18} className="text-cyan-600"/>}>
-          <ServiceItem 
-            title="Buy Airtime" 
-            subtitle="Instant VTU Topup"
-            href="/dashboard/services/utilities"
-            icon={<Smartphone size={20} />}
-            color="bg-cyan-50 text-cyan-600"
-          />
-           <ServiceItem 
-            title="Buy Data" 
-            subtitle="SME & Direct Bundles"
-            href="/dashboard/services/utilities/data"
-            icon={<Wifi size={20} />}
-            color="bg-cyan-50 text-cyan-600"
-          />
-        </CategorySection>
+            <CategorySection title="Utility Logs" icon={<History size={16} className="text-cyan-600"/>}>
+            <LogLink 
+                title="Airtime Transactions" 
+                subtitle="View topup log"
+                href="/dashboard/services/utilities"
+                icon={<Smartphone size={18} />}
+                color="text-cyan-600 bg-cyan-50"
+            />
+            <LogLink 
+                title="Data Transactions" 
+                subtitle="View data bundle log"
+                href="/dashboard/services/utilities/data"
+                icon={<Wifi size={18} />}
+                color="text-cyan-600 bg-cyan-50"
+            />
+            </CategorySection>
+        </div>
       </div>
     </div>
   );
 }
 
-// --- COMPONENTS ---
-
+// --- SUBTLE LIST ITEM COMPONENT ---
 function CategorySection({ title, icon, children }: { title: string, icon: any, children: React.ReactNode }) {
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-2 mb-3 ml-1">
+    <div>
+      <div className="flex items-center gap-2 mb-3 px-1">
         {icon}
-        <h3 className="font-bold text-slate-800 uppercase text-xs tracking-wider">{title}</h3>
+        <h3 className="font-bold text-slate-700 uppercase text-xs tracking-wider">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
         {children}
       </div>
     </div>
   );
 }
 
-function ServiceItem({ title, subtitle, href, icon, color }: { title: string, subtitle: string, href: string, icon: any, color: string }) {
+function LogLink({ title, subtitle, href, icon, color }: { title: string, subtitle: string, href: string, icon: any, color: string }) {
   return (
     <Link 
       href={href}
-      className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+      className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors group"
     >
-      <div className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${color}`}>
+      <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${color}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-slate-900 truncate">{title}</h4>
-        <p className="text-xs text-slate-500 truncate">{subtitle}</p>
+        <h4 className="font-medium text-slate-900 truncate text-sm">{title}</h4>
+        <p className="text-xs text-slate-500 truncate mt-0.5">{subtitle}</p>
       </div>
-      <ChevronRight size={16} className="text-gray-300" />
+      <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
     </Link>
-  );
-}
-
-function FileTextIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" x2="8" y1="13" y2="13"/>
-      <line x1="16" x2="8" y1="17" y2="17"/>
-      <line x1="10" x2="8" y1="9" y2="9"/>
-    </svg>
   );
 }
