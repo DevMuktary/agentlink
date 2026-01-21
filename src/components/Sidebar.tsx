@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Wallet, Code2, LogOut, Menu, X,
-  ShieldCheck, FileText, UserCheck, 
+  ShieldCheck, UserCheck, 
   Wifi, Building2, GraduationCap, Users, FileCog, 
   Smartphone, Search, Zap, FileDigit, FileBadge, CreditCard,
-  ArrowRightLeft
+  ArrowRightLeft, FileText
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -36,7 +36,7 @@ const menuItems = [
     category: "Identity (BVN)",
     items: [
       { name: "BVN Verification", href: "/dashboard/services/bvn/verification", icon: UserCheck },
-      { name: "VNIN to NIBSS", href: "/dashboard/services/bvn/vnin-to-nibss", icon: ArrowRightLeft }, // ADDED HERE
+      { name: "VNIN to NIBSS", href: "/dashboard/services/bvn/vnin-to-nibss", icon: ArrowRightLeft },
       { name: "BVN Premium Slip", href: "/dashboard/services/bvn/premium-slip", icon: FileBadge },
       { name: "BVN Retrieval", href: "/dashboard/services/bvn/retrieval", icon: Search },
       { name: "BVN Modification", href: "/dashboard/services/bvn/modification", icon: FileCog },
@@ -72,31 +72,39 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 w-full bg-white dark:bg-gray-900 border-b dark:border-gray-800 z-50 px-4 py-3 flex items-center justify-between">
-        <span className="font-bold text-xl text-blue-600 dark:text-blue-400">AgentLink</span>
-        <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-md bg-gray-100 dark:bg-gray-800">
-          {isOpen ? <X className="w-6 h-6 dark:text-white" /> : <Menu className="w-6 h-6 dark:text-white" />}
+      {/* Mobile Header - FIXED Z-INDEX to ensure it's clickable */}
+      <div className="lg:hidden fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-[60] px-4 h-14 flex items-center justify-between shadow-sm">
+        <span className="font-bold text-lg text-blue-700">AgentLink</span>
+        <button 
+          onClick={() => setIsOpen(!isOpen)} 
+          className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-md"
+        >
+          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
       {/* Sidebar Container */}
-      <aside className={`fixed top-0 left-0 z-40 h-screen w-64 bg-slate-900 text-white transition-transform duration-300 ease-in-out lg:translate-x-0 pt-20 lg:pt-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 z-[50] h-screen w-64 bg-slate-900 text-white transition-transform duration-300 ease-in-out lg:translate-x-0 pt-16 lg:pt-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col overflow-y-auto no-scrollbar">
-          <div className="hidden lg:flex items-center justify-center h-16 border-b border-gray-800">
-            <h1 className="text-2xl font-bold tracking-wider text-blue-400">AgentLink</h1>
+          <div className="hidden lg:flex items-center justify-center h-16 border-b border-gray-800 bg-slate-950">
+            <h1 className="text-xl font-bold tracking-wider text-blue-400">AgentLink</h1>
           </div>
           
-          <nav className="flex-1 px-4 py-6 space-y-8">
+          <nav className="flex-1 px-3 py-6 space-y-6">
             {menuItems.map((section, idx) => (
               <div key={idx}>
-                <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{section.category}</h3>
-                <div className="space-y-1">
+                <h3 className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{section.category}</h3>
+                <div className="space-y-0.5">
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;
                     return (
-                      <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} className={`flex items-center px-2 py-2.5 text-sm font-medium rounded-md transition-colors ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}>
-                        <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
+                      <Link 
+                        key={item.href} 
+                        href={item.href} 
+                        onClick={() => setIsOpen(false)} 
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                      >
+                        <item.icon className={`mr-3 h-4 w-4 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                         {item.name}
                       </Link>
                     );
@@ -106,16 +114,21 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          <div className="p-4 border-t border-gray-800">
-            <button className="flex items-center w-full px-2 py-2 text-sm font-medium text-red-400 hover:bg-gray-800 rounded-md transition-colors">
-              <LogOut className="mr-3 h-5 w-5" /> Sign Out
+          <div className="p-4 border-t border-gray-800 bg-slate-950">
+            <button className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-colors">
+              <LogOut className="mr-3 h-4 w-4" /> Sign Out
             </button>
           </div>
         </div>
       </aside>
       
       {/* Mobile Overlay */}
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setIsOpen(false)} />}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-[45] lg:hidden backdrop-blur-sm" 
+          onClick={() => setIsOpen(false)} 
+        />
+      )}
     </>
   );
 }
