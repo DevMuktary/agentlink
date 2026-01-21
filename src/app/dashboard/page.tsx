@@ -17,7 +17,8 @@ import {
   GraduationCap,
   Wifi,
   Smartphone,
-  History
+  History,
+  Menu // Added Menu Icon
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -25,17 +26,27 @@ export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to find the sidebar toggle in your DOM
+  const toggleSidebar = () => {
+    // This tries to find a checkbox or button typically used for mobile sidebars
+    // Adjust this ID if your specific sidebar uses a different method
+    const sidebar = document.getElementById('mobile-sidebar'); 
+    if (sidebar) sidebar.classList.toggle('hidden');
+    
+    // OR if you use a drawer-toggle checkbox pattern
+    const drawerToggle = document.getElementById('my-drawer') as HTMLInputElement;
+    if (drawerToggle) drawerToggle.checked = !drawerToggle.checked;
+  };
+
   useEffect(() => {
     async function fetchUser() {
       try {
         const res = await fetch('/api/user/me');
         const data = await res.json();
         
-        // FIX: The API returns the user object directly, not wrapped in 'data'
         if (data && data.id) {
           setUser(data);
         } else if (data.status && data.data) {
-          // Fallback in case the API wrapper changes later
           setUser(data.data);
         }
       } catch (error) {
@@ -49,12 +60,8 @@ export default function UserDashboard() {
 
   if (loading) return <GlobalLoader />;
 
-  // 1. EXTRACT FIRST NAME
-  // "Mukhtar Abdulwaheed" -> "Mukhtar"
   const firstName = user?.name ? user.name.split(' ')[0] : 'Partner';
 
-  // 2. FORMAT BALANCE
-  // Handle string or number balance safely
   const balanceValue = user?.walletBalance ? Number(user.walletBalance) : 0;
   const formattedBalance = balanceValue.toLocaleString('en-NG', {
     style: 'currency',
@@ -67,13 +74,26 @@ export default function UserDashboard() {
       
       {/* 1. MOBILE HEADER & WALLET SECTION */}
       <div className="bg-white px-6 pt-6 pb-8 rounded-b-[2rem] shadow-sm border-b border-gray-100">
+        
+        {/* HEADER ROW WITH HAMBURGER */}
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">
-              Welcome, {firstName} 👋
-            </h1>
-            <p className="text-sm text-slate-500">API Activity Overview</p>
+          <div className="flex items-center gap-3">
+            {/* HAMBURGER BUTTON (Mobile Only) */}
+            <button 
+              onClick={toggleSidebar}
+              className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Menu size={24} />
+            </button>
+            
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">
+                Welcome, {firstName} 👋
+              </h1>
+              <p className="text-sm text-slate-500">API Activity Overview</p>
+            </div>
           </div>
+
           <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold uppercase border border-blue-200">
             {firstName[0]}
           </div>
