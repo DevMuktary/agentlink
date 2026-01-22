@@ -12,7 +12,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // We will create this API next
     async function fetchStats() {
       try {
         const res = await fetch('/api/admin/stats');
@@ -28,6 +27,15 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) return <GlobalLoader />;
+
+  // Formatting Helper
+  const formatCurrency = (amount: any) => {
+    return Number(amount || 0).toLocaleString('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0
+    });
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
@@ -49,7 +57,7 @@ export default function AdminDashboard() {
         
         <MetricCard 
           title="Total Revenue" 
-          value={`₦${Number(stats?.totalRevenue || 0).toLocaleString()}`} 
+          value={formatCurrency(stats?.totalRevenue)} 
           icon={<TrendingUp size={20} />} 
           color="bg-emerald-500"
           sub="Lifetime earnings"
@@ -57,7 +65,7 @@ export default function AdminDashboard() {
         
         <MetricCard 
           title="Wallet Liability" 
-          value={`₦${Number(stats?.walletLiability || 0).toLocaleString()}`} 
+          value={formatCurrency(stats?.walletLiability)} 
           icon={<Wallet size={20} />} 
           color="bg-blue-500"
           sub="User funds held"
@@ -73,7 +81,7 @@ export default function AdminDashboard() {
         />
 
         <MetricCard 
-          title="Total Users" 
+          title="Total Agents" 
           value={stats?.totalUsers || 0} 
           icon={<Users size={20} />} 
           color="bg-purple-500"
@@ -92,6 +100,7 @@ export default function AdminDashboard() {
           </h3>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* CORPORATE */}
             <QueueCard 
               title="CAC Registrations" 
               count={stats?.queues?.cac || 0} 
@@ -99,23 +108,53 @@ export default function AdminDashboard() {
               desc="Business registration filings"
             />
             <QueueCard 
+              title="Tax ID Requests" 
+              count={stats?.queues?.tax || 0} 
+              href="/admin/requests/corporate/tax"
+              desc="TIN generation requests"
+            />
+
+            {/* IDENTITY (BVN) */}
+            <QueueCard 
               title="BVN Enrollments" 
               count={stats?.queues?.bvn_enrollment || 0} 
               href="/admin/requests/bvn/enrollment"
               desc="New BVN applications"
             />
             <QueueCard 
+              title="BVN Modifications" 
+              count={stats?.queues?.bvn_modification || 0} 
+              href="/admin/requests/bvn/modification"
+              desc="BVN Data updates"
+            />
+             <QueueCard 
+              title="BVN Retrievals" 
+              count={stats?.queues?.bvn_retrieval || 0} 
+              href="/admin/requests/bvn/retrieval"
+              desc="Lost BVN recovery"
+            />
+             <QueueCard 
+              title="VNIN to NIBSS" 
+              count={stats?.queues?.vnin_nibss || 0} 
+              href="/admin/requests/bvn/vnin-nibss"
+              desc="Link VNIN to Bank Profile"
+            />
+
+            {/* IDENTITY (NIN) */}
+            <QueueCard 
               title="NIN Modifications" 
               count={stats?.queues?.nin_modification || 0} 
               href="/admin/requests/nin/modification"
-              desc="Data correction requests"
+              desc="NIN Data corrections"
             />
             <QueueCard 
-              title="Tax ID Requests" 
-              count={stats?.queues?.tax || 0} 
-              href="/admin/requests/corporate/tax"
-              desc="TIN generation requests"
+              title="NIN Validations" 
+              count={stats?.queues?.nin_validation || 0} 
+              href="/admin/requests/nin/validation"
+              desc="NIN Search requests"
             />
+
+            {/* EDUCATION */}
              <QueueCard 
               title="JAMB Services" 
               count={stats?.queues?.jamb || 0} 
@@ -152,12 +191,12 @@ export default function AdminDashboard() {
                     <span className="text-emerald-400">Connected</span>
                  </div>
                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>API Gateway</span>
+                    <span>Cloudinary</span>
                     <span className="text-emerald-400">Online</span>
                  </div>
                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Cloudinary</span>
-                    <span className="text-emerald-400">Connected</span>
+                    <span>API Gateway</span>
+                    <span className="text-emerald-400">Active</span>
                  </div>
               </div>
            </div>
