@@ -26,44 +26,60 @@ export async function GET(req: Request) {
         where: { status: 'PROCESSING' }
     });
 
-    // --- 4. Queue Breakdowns (Counts per service category) ---
+    // --- 4. Queue Breakdowns ---
     
-    // A. Corporate
+    // CAC
     const cacCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'CAC_REGISTRATION' }
     });
+
+    // TAX
     const taxCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: { in: ['TAX_ID_INDIVIDUAL', 'TAX_ID_NON_INDIVIDUAL'] } }
     });
 
-    // B. Banking (BVN)
+    // BVN ENROLLMENT
     const bvnEnrollCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }
     });
     
-    // FIX: Use 'in' with exact Enum values instead of 'contains'
+    // BVN MODIFICATION (Fixed to match Schema: BVN_MOD_...)
     const bvnModCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
             serviceType: { 
                 in: [
-                    'BVN_MODIFICATION_NAME', 
-                    'BVN_MODIFICATION_DOB', 
-                    'BVN_MODIFICATION_PHONE'
+                    'BVN_MODIFICATION', // Generic
+                    'BVN_MOD_NAME', 
+                    'BVN_MOD_DOB', 
+                    'BVN_MOD_PHONE', 
+                    'BVN_MOD_NAME_PHONE', 
+                    'BVN_MOD_DOB_PHONE', 
+                    'BVN_MOD_FULL'
                 ] 
             } 
         }
     });
 
+    // BVN RETRIEVAL (Grouped all retrieval types)
     const bvnRetrievalCount = await prisma.serviceRequest.count({ 
-        where: { status: 'PROCESSING', serviceType: 'BVN_RETRIEVAL' }
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: {
+                in: [
+                    'BVN_RETRIEVAL',
+                    'BVN_RETRIEVAL_PHONE',
+                    'BVN_RETRIEVAL_CRM'
+                ]
+            }
+        }
     });
+
     const vninNibssCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'VNIN_TO_NIBSS' }
     });
 
-    // C. Identity (NIN)
-    // FIX: Use 'in' with exact Enum values
+    // NIN MODIFICATION (Removed DOB as it wasn't in the provided schema snippet, kept others)
     const ninModCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
@@ -71,19 +87,27 @@ export async function GET(req: Request) {
                 in: [
                     'NIN_MODIFICATION_NAME', 
                     'NIN_MODIFICATION_PHONE', 
-                    'NIN_MODIFICATION_ADDRESS',
-                    'NIN_MODIFICATION_DOB'
+                    'NIN_MODIFICATION_ADDRESS'
                 ] 
             } 
         }
     });
     
+    // NIN VALIDATION (Grouped specific validation types)
     const ninValidationCount = await prisma.serviceRequest.count({ 
-        where: { status: 'PROCESSING', serviceType: 'NIN_VALIDATION' }
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: {
+                in: [
+                    'NIN_VALIDATION_NO_RECORD',
+                    'NIN_VALIDATION_UPDATE_RECORD',
+                    'NIN_VALIDATION_VNIN'
+                ]
+            }
+        }
     });
 
-    // D. Education
-    // FIX: Use 'in' with exact Enum values
+    // JAMB
     const jambCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
