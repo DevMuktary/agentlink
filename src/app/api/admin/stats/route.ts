@@ -27,9 +27,21 @@ export async function GET(req: Request) {
     });
 
     // 4. Queue Breakdowns (Counts per service type)
-    const cacCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'CAC_REGISTRATION' }});
-    const taxCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'TAX_ID_GENERATION' }}); // Ensure this matches enum or remove if not in enum
-    const bvnEnrollCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }});
+    const cacCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: 'CAC_REGISTRATION' }
+    });
+    
+    // FIX: Use the correct Enums from schema (TAX_ID_INDIVIDUAL & TAX_ID_NON_INDIVIDUAL)
+    const taxCount = await prisma.serviceRequest.count({ 
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: { in: ['TAX_ID_INDIVIDUAL', 'TAX_ID_NON_INDIVIDUAL'] } 
+        }
+    }); 
+
+    const bvnEnrollCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }
+    });
     
     // Group NIN Modifications
     const ninModCount = await prisma.serviceRequest.count({ 
