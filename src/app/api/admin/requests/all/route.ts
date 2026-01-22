@@ -20,13 +20,12 @@ export async function GET(req: Request) {
         query.serviceType = service as ServiceType;
     }
 
-    // FIX: If status is 'ALL', don't filter. If missing, default to PROCESSING.
     if (status === 'ALL') {
-        // No status filter = Fetch everything
+        // Fetch all
     } else if (status) {
         query.status = status;
     } else {
-        query.status = 'PROCESSING'; // Default behavior
+        query.status = 'PROCESSING';
     }
 
     const requests = await prisma.serviceRequest.findMany({
@@ -37,11 +36,13 @@ export async function GET(req: Request) {
         include: {
             user: {
                 select: {
+                    id: true,
                     firstName: true,
                     lastName: true,
                     email: true,
+                    phoneNumber: true,
                     businessName: true,
-                    phoneNumber: true
+                    walletBalance: true // <--- THIS WAS MISSING
                 }
             }
         }
