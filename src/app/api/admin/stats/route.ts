@@ -10,15 +10,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
     }
 
-    // 1. Total Users
+    // 1. Total Users (Using 'AGENT' as the standard user role)
     const totalUsers = await prisma.user.count({
-        where: { role: 'USER' }
+        where: { role: 'AGENT' }
     });
 
-    // 2. Wallet Liability (Sum of all user balances)
+    // 2. Wallet Liability (Sum of all AGENT balances)
     const walletSum = await prisma.user.aggregate({
         _sum: { walletBalance: true },
-        where: { role: 'USER' }
+        where: { role: 'AGENT' }
     });
 
     // 3. Pending Requests (Total)
@@ -27,15 +27,35 @@ export async function GET(req: Request) {
     });
 
     // 4. Queue Breakdowns (Counts per service type)
-    // We can group by serviceType, but for simplicity let's count key categories
     const cacCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'CAC_REGISTRATION' }});
-    const taxCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'TAX_ID_GENERATION' }});
+    const taxCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'TAX_ID_GENERATION' }}); // Ensure this matches enum or remove if not in enum
     const bvnEnrollCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }});
-    const ninModCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: { in: ['NIN_MODIFICATION_NAME', 'NIN_MODIFICATION_PHONE', 'NIN_MODIFICATION_ADDRESS'] } }});
-    const jambCount = await prisma.serviceRequest.count({ where: { status: 'PROCESSING', serviceType: { contains: 'JAMB' } }});
+    
+    // Group NIN Modifications
+    const ninModCount = await prisma.serviceRequest.count({ 
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: { in: ['NIN_MODIFICATION_NAME', 'NIN_MODIFICATION_PHONE', 'NIN_MODIFICATION_ADDRESS'] } 
+        }
+    });
+    
+    // Group JAMB Services
+    const jambCount = await prisma.serviceRequest.count({ 
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: { 
+              in: [
+                'JAMB_SERVICES', 
+                'JAMB_ORIGINAL_RESULT', 
+                'JAMB_ADMISSION_LETTER', 
+                'JAMB_REGISTRATION_SLIP', 
+                'JAMB_PROFILE_CODE_RETRIEVAL'
+              ] 
+            } 
+        }
+    });
 
     // 5. Total Revenue (Sum of COMPLETED transactions)
-    // Assuming 'cost' in ServiceRequest tracks revenue
     const revenueSum = await prisma.serviceRequest.aggregate({
         _sum: { cost: true },
         where: { status: 'COMPLETED' }
