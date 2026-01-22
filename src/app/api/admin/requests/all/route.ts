@@ -5,37 +5,34 @@ import { ServiceType } from '@prisma/client';
 
 export async function GET(req: Request) {
   try {
-    // 1. Admin Security Check
     const user = await validateApiKey(req);
     if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
         return NextResponse.json({ status: false, error: 'Forbidden' }, { status: 403 });
     }
 
-    // 2. Parse Query Params
     const { searchParams } = new URL(req.url);
-    const service = searchParams.get('service'); // e.g. "CAC_REGISTRATION"
-    const status = searchParams.get('status');   // Optional: "PROCESSING", "COMPLETED"
+    const service = searchParams.get('service'); 
+    const status = searchParams.get('status'); 
 
-    // 3. Build Query Object
     const query: any = {};
 
-    // Filter by Service Type if provided
     if (service) {
         query.serviceType = service as ServiceType;
     }
 
-    // Filter by Status (Default to PROCESSING if not specified)
-    if (status) {
+    // FIX: If status is 'ALL', don't filter. If missing, default to PROCESSING.
+    if (status === 'ALL') {
+        // No status filter = Fetch everything
+    } else if (status) {
         query.status = status;
     } else {
-        query.status = 'PROCESSING';
+        query.status = 'PROCESSING'; // Default behavior
     }
 
-    // 4. Fetch Requests
     const requests = await prisma.serviceRequest.findMany({
         where: query,
         orderBy: {
-            createdAt: 'desc' // Newest first
+            createdAt: 'desc'
         },
         include: {
             user: {
@@ -50,7 +47,6 @@ export async function GET(req: Request) {
         }
     });
 
-    // 5. Standardized Response
     return NextResponse.json({
         status: true,
         data: requests
