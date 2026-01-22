@@ -40,9 +40,21 @@ export async function GET(req: Request) {
     const bvnEnrollCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }
     });
+    
+    // FIX: Use 'in' with exact Enum values instead of 'contains'
     const bvnModCount = await prisma.serviceRequest.count({ 
-        where: { status: 'PROCESSING', serviceType: { contains: 'BVN_MODIFICATION' } }
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: { 
+                in: [
+                    'BVN_MODIFICATION_NAME', 
+                    'BVN_MODIFICATION_DOB', 
+                    'BVN_MODIFICATION_PHONE'
+                ] 
+            } 
+        }
     });
+
     const bvnRetrievalCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'BVN_RETRIEVAL' }
     });
@@ -51,16 +63,40 @@ export async function GET(req: Request) {
     });
 
     // C. Identity (NIN)
+    // FIX: Use 'in' with exact Enum values
     const ninModCount = await prisma.serviceRequest.count({ 
-        where: { status: 'PROCESSING', serviceType: { contains: 'NIN_MODIFICATION' } }
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: { 
+                in: [
+                    'NIN_MODIFICATION_NAME', 
+                    'NIN_MODIFICATION_PHONE', 
+                    'NIN_MODIFICATION_ADDRESS',
+                    'NIN_MODIFICATION_DOB'
+                ] 
+            } 
+        }
     });
+    
     const ninValidationCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'NIN_VALIDATION' }
     });
 
     // D. Education
+    // FIX: Use 'in' with exact Enum values
     const jambCount = await prisma.serviceRequest.count({ 
-        where: { status: 'PROCESSING', serviceType: { contains: 'JAMB' } }
+        where: { 
+            status: 'PROCESSING', 
+            serviceType: { 
+                in: [
+                    'JAMB_SERVICES',
+                    'JAMB_ORIGINAL_RESULT', 
+                    'JAMB_ADMISSION_LETTER', 
+                    'JAMB_REGISTRATION_SLIP', 
+                    'JAMB_PROFILE_CODE_RETRIEVAL'
+                ] 
+            } 
+        }
     });
 
     // 5. Total Revenue (Sum of COMPLETED transactions)
