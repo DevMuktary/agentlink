@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Building2, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, Eye, FileText, User, MapPin, Phone, Mail
+  AlertTriangle, Eye, FileText, User, MapPin, Phone, Mail, Download // Added Download import
 } from 'lucide-react';
 
 export default function AdminCacQueue() {
