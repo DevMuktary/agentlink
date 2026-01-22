@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+import { ServiceType } from '@prisma/client';
 
 export async function GET(req: Request) {
   try {
@@ -10,11 +11,29 @@ export async function GET(req: Request) {
         return NextResponse.json({ status: false, error: 'Forbidden' }, { status: 403 });
     }
 
-    // 2. Fetch Pending Requests
+    // 2. Parse Query Params
+    const { searchParams } = new URL(req.url);
+    const service = searchParams.get('service'); // e.g. "CAC_REGISTRATION"
+    const status = searchParams.get('status');   // Optional: "PROCESSING", "COMPLETED"
+
+    // 3. Build Query Object
+    const query: any = {};
+
+    // Filter by Service Type if provided
+    if (service) {
+        query.serviceType = service as ServiceType;
+    }
+
+    // Filter by Status (Default to PROCESSING if not specified)
+    if (status) {
+        query.status = status;
+    } else {
+        query.status = 'PROCESSING';
+    }
+
+    // 4. Fetch Requests
     const requests = await prisma.serviceRequest.findMany({
-        where: {
-            status: 'PROCESSING'
-        },
+        where: query,
         orderBy: {
             createdAt: 'desc' // Newest first
         },
@@ -24,13 +43,18 @@ export async function GET(req: Request) {
                     firstName: true,
                     lastName: true,
                     email: true,
-                    businessName: true
+                    businessName: true,
+                    phoneNumber: true
                 }
             }
         }
     });
 
-    return NextResponse.json(requests);
+    // 5. Standardized Response
+    return NextResponse.json({
+        status: true,
+        data: requests
+    });
 
   } catch (error) {
     console.error("Admin Fetch Error:", error);
