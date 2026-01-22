@@ -26,45 +26,41 @@ export async function GET(req: Request) {
         where: { status: 'PROCESSING' }
     });
 
-    // 4. Queue Breakdowns (Counts per service type)
+    // --- 4. Queue Breakdowns (Counts per service category) ---
+    
+    // A. Corporate
     const cacCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'CAC_REGISTRATION' }
     });
-    
-    // FIX: Use the correct Enums from schema (TAX_ID_INDIVIDUAL & TAX_ID_NON_INDIVIDUAL)
     const taxCount = await prisma.serviceRequest.count({ 
-        where: { 
-            status: 'PROCESSING', 
-            serviceType: { in: ['TAX_ID_INDIVIDUAL', 'TAX_ID_NON_INDIVIDUAL'] } 
-        }
-    }); 
+        where: { status: 'PROCESSING', serviceType: { in: ['TAX_ID_INDIVIDUAL', 'TAX_ID_NON_INDIVIDUAL'] } }
+    });
 
+    // B. Banking (BVN)
     const bvnEnrollCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }
     });
-    
-    // Group NIN Modifications
-    const ninModCount = await prisma.serviceRequest.count({ 
-        where: { 
-            status: 'PROCESSING', 
-            serviceType: { in: ['NIN_MODIFICATION_NAME', 'NIN_MODIFICATION_PHONE', 'NIN_MODIFICATION_ADDRESS'] } 
-        }
+    const bvnModCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: { contains: 'BVN_MODIFICATION' } }
     });
-    
-    // Group JAMB Services
+    const bvnRetrievalCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: 'BVN_RETRIEVAL' }
+    });
+    const vninNibssCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: 'VNIN_TO_NIBSS' }
+    });
+
+    // C. Identity (NIN)
+    const ninModCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: { contains: 'NIN_MODIFICATION' } }
+    });
+    const ninValidationCount = await prisma.serviceRequest.count({ 
+        where: { status: 'PROCESSING', serviceType: 'NIN_VALIDATION' }
+    });
+
+    // D. Education
     const jambCount = await prisma.serviceRequest.count({ 
-        where: { 
-            status: 'PROCESSING', 
-            serviceType: { 
-              in: [
-                'JAMB_SERVICES', 
-                'JAMB_ORIGINAL_RESULT', 
-                'JAMB_ADMISSION_LETTER', 
-                'JAMB_REGISTRATION_SLIP', 
-                'JAMB_PROFILE_CODE_RETRIEVAL'
-              ] 
-            } 
-        }
+        where: { status: 'PROCESSING', serviceType: { contains: 'JAMB' } }
     });
 
     // 5. Total Revenue (Sum of COMPLETED transactions)
@@ -76,15 +72,19 @@ export async function GET(req: Request) {
     return NextResponse.json({
         status: true,
         data: {
-            totalUsers,
-            walletLiability: walletSum._sum.walletBalance || 0,
-            pendingRequests,
-            totalRevenue: revenueSum._sum.cost || 0,
+            totalUsers: totalUsers || 0,
+            walletLiability: Number(walletSum._sum.walletBalance) || 0,
+            pendingRequests: pendingRequests || 0,
+            totalRevenue: Number(revenueSum._sum.cost) || 0,
             queues: {
                 cac: cacCount,
                 tax: taxCount,
                 bvn_enrollment: bvnEnrollCount,
+                bvn_modification: bvnModCount,
+                bvn_retrieval: bvnRetrievalCount,
+                vnin_nibss: vninNibssCount,
                 nin_modification: ninModCount,
+                nin_validation: ninValidationCount,
                 jamb: jambCount
             }
         }
