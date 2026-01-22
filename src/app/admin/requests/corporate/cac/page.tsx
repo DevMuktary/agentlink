@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Building2, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, Eye, FileText, User, MapPin, Phone, Mail, Download // Added Download import
+  AlertTriangle, Eye, FileText, User, MapPin, Phone, Mail, Download
 } from 'lucide-react';
 
 export default function AdminCacQueue() {
@@ -22,7 +22,6 @@ export default function AdminCacQueue() {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      // Fetch ALL statuses so they don't disappear after processing
       const res = await axios.get('/api/admin/requests/all?service=CAC_REGISTRATION&status=ALL'); 
       if (res.data.status) {
           setRequests(res.data.data);
@@ -36,7 +35,7 @@ export default function AdminCacQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // 2. Handle Approve/Reject
+  // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
     if (action === 'APPROVE' && !resultFile) return alert("Please upload the CAC Certificate/Result file.");
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
@@ -166,81 +165,84 @@ export default function AdminCacQueue() {
                 {/* LEFT COLUMN: APPLICATION DATA (Scrollable) */}
                 <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
                     
-                    {/* AGENT INFO (NEW) */}
+                    {/* AGENT INFO */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        <div className="flex items-center gap-2 mb-3 text-blue-800 border-b border-blue-200 pb-2">
-                            <User size={16} />
-                            <h4 className="font-bold uppercase text-xs tracking-wider">Agent Information</h4>
+                        <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
+                            <User size={16} className="text-blue-700" />
+                            {/* CHANGED: Text color to slate-900 for visibility */}
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-700">
                             <div>
-                                <span className="text-slate-400 text-[10px] uppercase block">Name</span>
-                                <span className="font-medium">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Name</span>
+                                <span className="font-medium text-slate-900">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span>
                             </div>
                             <div>
-                                <span className="text-slate-400 text-[10px] uppercase block">Email</span>
-                                <span className="font-medium">{selectedItem.user?.email}</span>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Email</span>
+                                <span className="font-medium text-slate-900">{selectedItem.user?.email}</span>
                             </div>
                             <div>
-                                <span className="text-slate-400 text-[10px] uppercase block">Phone</span>
-                                <span className="font-medium">{selectedItem.user?.phoneNumber || 'N/A'}</span>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Phone</span>
+                                <span className="font-medium text-slate-900">{selectedItem.user?.phoneNumber || 'N/A'}</span>
                             </div>
                             <div>
-                                <span className="text-slate-400 text-[10px] uppercase block">Wallet Balance</span>
-                                <span className="font-medium">₦{Number(selectedItem.user?.walletBalance).toLocaleString()}</span>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Wallet Balance</span>
+                                <span className="font-medium text-slate-900">₦{Number(selectedItem.user?.walletBalance).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* BUSINESS INFO (FULL) */}
                     <div className="bg-orange-50 p-5 rounded-xl border border-orange-100">
-                        <div className="flex items-center gap-2 mb-3 text-orange-800 border-b border-orange-200 pb-2">
-                            <Building2 size={16} />
-                            <h4 className="font-bold uppercase text-xs tracking-wider">Business Details</h4>
+                        <div className="flex items-center gap-2 mb-3 border-b border-orange-200 pb-2">
+                            <Building2 size={16} className="text-orange-700" />
+                            {/* CHANGED: Text color to slate-900 for visibility */}
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Business Details</h4>
                         </div>
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <p><span className="text-slate-500 text-xs uppercase block">Proposed Name 1</span> <span className="font-bold text-lg">{selectedItem.requestData?.business_details?.proposed_name_1}</span></p>
-                                <p><span className="text-slate-500 text-xs uppercase block">Proposed Name 2</span> <span className="font-medium">{selectedItem.requestData?.business_details?.proposed_name_2}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Proposed Name 1</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.business_details?.proposed_name_1}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Proposed Name 2</span> <span className="font-medium text-slate-900">{selectedItem.requestData?.business_details?.proposed_name_2}</span></p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <p><span className="text-slate-500 text-xs uppercase block">Nature of Business</span> {selectedItem.requestData?.business_details?.nature_of_business}</p>
-                                <p><span className="text-slate-500 text-xs uppercase block">Description</span> {selectedItem.requestData?.business_details?.description}</p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Nature of Business</span> <span className="text-slate-900">{selectedItem.requestData?.business_details?.nature_of_business}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Description</span> <span className="text-slate-900">{selectedItem.requestData?.business_details?.description}</span></p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-orange-200 pt-2">
-                                <p><span className="text-slate-500 text-xs uppercase block">Address</span> {selectedItem.requestData?.business_details?.address}</p>
-                                <p><span className="text-slate-500 text-xs uppercase block">State</span> {selectedItem.requestData?.business_details?.state}</p>
-                                <p><span className="text-slate-500 text-xs uppercase block">LGA</span> {selectedItem.requestData?.business_details?.lga}</p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Address</span> <span className="text-slate-900">{selectedItem.requestData?.business_details?.address}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">State</span> <span className="text-slate-900">{selectedItem.requestData?.business_details?.state}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">LGA</span> <span className="text-slate-900">{selectedItem.requestData?.business_details?.lga}</span></p>
                             </div>
                         </div>
                     </div>
 
                     {/* PROPRIETOR INFO (FULL) */}
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                        <div className="flex items-center gap-2 mb-3 text-slate-700 border-b border-slate-200 pb-2">
-                            <User size={16} />
-                            <h4 className="font-bold uppercase text-xs tracking-wider">Proprietor Details</h4>
+                        <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
+                            <User size={16} className="text-slate-600" />
+                            {/* CHANGED: Text color to slate-900 for visibility */}
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Proprietor Details</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
-                            <p><span className="text-slate-400 text-xs uppercase block">First Name</span> {selectedItem.requestData?.proprietor_details?.firstname}</p>
-                            <p><span className="text-slate-400 text-xs uppercase block">Surname</span> {selectedItem.requestData?.proprietor_details?.surname}</p>
-                            <p><span className="text-slate-400 text-xs uppercase block">Middle Name</span> {selectedItem.requestData?.proprietor_details?.middle_name || '-'}</p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">First Name</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.firstname}</span></p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Surname</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.surname}</span></p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Middle Name</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.middle_name || '-'}</span></p>
                             
-                            <p><span className="text-slate-400 text-xs uppercase block">NIN</span> {selectedItem.requestData?.proprietor_details?.nin}</p>
-                            <p><span className="text-slate-400 text-xs uppercase block">Phone</span> {selectedItem.requestData?.proprietor_details?.phone}</p>
-                            <p><span className="text-slate-400 text-xs uppercase block">Email</span> {selectedItem.requestData?.proprietor_details?.email}</p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">NIN</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.nin}</span></p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.phone}</span></p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.email}</span></p>
                             
                             <div className="col-span-full grid grid-cols-3 gap-4 border-t border-slate-200 pt-2">
-                                <p><span className="text-slate-400 text-xs uppercase block">Address</span> {selectedItem.requestData?.proprietor_details?.address}</p>
-                                <p><span className="text-slate-400 text-xs uppercase block">State</span> {selectedItem.requestData?.proprietor_details?.state}</p>
-                                <p><span className="text-slate-400 text-xs uppercase block">LGA</span> {selectedItem.requestData?.proprietor_details?.lga}</p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Address</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.address}</span></p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">State</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.state}</span></p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">LGA</span> <span className="text-slate-900">{selectedItem.requestData?.proprietor_details?.lga}</span></p>
                             </div>
                         </div>
                     </div>
 
-                     {/* DOCUMENTS (With correct URLs) */}
+                     {/* DOCUMENTS */}
                      <div>
-                        <h4 className="font-bold text-slate-800 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
+                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {/* Passport */}
                             {selectedItem.requestData?.documents?.passport_url && (
@@ -248,7 +250,7 @@ export default function AdminCacQueue() {
                                     <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-blue-400 overflow-hidden relative">
                                         <img src={selectedItem.requestData.documents.passport_url} className="object-contain w-full h-full" alt="Passport" />
                                     </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-600">Passport</span>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
                                 </a>
                             )}
                             
@@ -258,7 +260,7 @@ export default function AdminCacQueue() {
                                     <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-blue-400 overflow-hidden relative">
                                         <img src={selectedItem.requestData.documents.signature_url} className="object-contain w-full h-full" alt="Signature" />
                                     </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-600">Signature</span>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
                                 </a>
                             )}
 
@@ -271,7 +273,7 @@ export default function AdminCacQueue() {
                                             <Eye className="text-slate-700" />
                                         </div>
                                     </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-600">NIN Slip</span>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">NIN Slip</span>
                                 </a>
                             )}
                         </div>
