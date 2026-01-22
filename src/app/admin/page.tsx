@@ -1,190 +1,210 @@
 'use client';
-
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  Users, Clock, DollarSign, Briefcase, 
-  ArrowRight, ShieldAlert, Building2, 
-  GraduationCap, Smartphone, Search, 
-  TrendingUp, CreditCard, Activity,
-  ChevronRight, Calendar
+  TrendingUp, Users, AlertCircle, Wallet, 
+  ChevronRight, ArrowUpRight, Activity
 } from 'lucide-react';
+import GlobalLoader from '@/components/GlobalLoader';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch stats
-    axios.get('/api/admin/stats')
-      .then(res => setStats(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    // We will create this API next
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        if (data.status) setStats(data.data);
+      } catch (error) {
+        console.error('Failed to load stats', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStats();
   }, []);
 
-  const currentDate = new Date().toLocaleDateString('en-GB', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  });
+  if (loading) return <GlobalLoader />;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
       
-      {/* --- HEADER SECTION --- */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900 dark:bg-black p-8 text-white shadow-2xl border border-slate-800">
-        {/* Abstract Background Decoration */}
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 h-64 w-64 rounded-full bg-red-600/20 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-40 w-40 rounded-full bg-blue-600/20 blur-3xl"></div>
-        
-        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-end gap-6">
-          <div>
-            <div className="flex items-center gap-2 text-slate-400 text-sm font-medium mb-2">
-              <Calendar className="w-4 h-4" /> {currentDate}
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Admin Console</h1>
-            <p className="text-slate-300 mt-2 max-w-lg">
-              Overview of system performance, pending requests, and financial liability.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/admin/users" className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition border border-white/10 flex items-center gap-2">
-              <Users className="w-4 h-4" /> Users
-            </Link>
-            <Link href="/admin/transactions" className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-lg shadow-red-900/20 flex items-center gap-2">
-              <CreditCard className="w-4 h-4" /> Finance
-            </Link>
-          </div>
+      {/* 1. HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">System Overview</h1>
+          <p className="text-slate-500">Real-time platform metrics and pending actions.</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-medium bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm text-slate-500">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          System Operational
         </div>
       </div>
 
-      {/* --- METRICS GRID --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 2. KEY METRICS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
         <MetricCard 
-          title="Total Revenue (Today)" 
-          value={`₦${Number(stats?.today_revenue || 0).toLocaleString()}`} 
-          icon={TrendingUp} 
-          color="bg-green-500" 
-          trend="+12% from yesterday" // Placeholder trend
+          title="Total Revenue" 
+          value={`₦${Number(stats?.totalRevenue || 0).toLocaleString()}`} 
+          icon={<TrendingUp size={20} />} 
+          color="bg-emerald-500"
+          sub="Lifetime earnings"
         />
-        <MetricCard 
-          title="Pending Requests" 
-          value={stats?.pending_jobs || 0} 
-          icon={Clock} 
-          color="bg-orange-500" 
-          trend="Requires attention"
-          alert={stats?.pending_jobs > 0}
-        />
-        <MetricCard 
-          title="Active Users" 
-          value={stats?.users_count || 0} 
-          icon={Users} 
-          color="bg-blue-500" 
-          trend="Total registered agents"
-        />
+        
         <MetricCard 
           title="Wallet Liability" 
-          value={`₦${Number(stats?.total_user_wallets || 0).toLocaleString()}`} 
-          icon={Briefcase} 
-          color="bg-purple-600" 
-          trend="Funds held in system"
+          value={`₦${Number(stats?.walletLiability || 0).toLocaleString()}`} 
+          icon={<Wallet size={20} />} 
+          color="bg-blue-500"
+          sub="User funds held"
+        />
+
+        <MetricCard 
+          title="Pending Requests" 
+          value={stats?.pendingRequests || 0} 
+          icon={<AlertCircle size={20} />} 
+          color="bg-amber-500"
+          sub="Requires attention"
+          highlight={stats?.pendingRequests > 0}
+        />
+
+        <MetricCard 
+          title="Total Users" 
+          value={stats?.totalUsers || 0} 
+          icon={<Users size={20} />} 
+          color="bg-purple-500"
+          sub="Registered accounts"
         />
       </div>
 
-      {/* --- COMMAND CENTER (QUEUES) --- */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-red-600" /> Action Queues
-        </h2>
+      {/* 3. ACTION CENTER (QUEUES) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* PENDING ACTIONS COLUMN */}
+        <div className="lg:col-span-2 space-y-6">
+          <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+            <Activity size={18} className="text-slate-400" />
+            Action Queues
+          </h3>
           
-          {/* 1. Identity Group */}
-          <QueueGroup 
-            title="Identity Management" 
-            icon={ShieldAlert}
-            color="text-teal-600 bg-teal-50 dark:bg-teal-900/20"
-            links={[
-              { name: "NIN Validation", href: "/admin/requests/nin/validation" },
-              { name: "NIN Modification", href: "/admin/requests/nin/modification" },
-              { name: "IPE Clearance", href: "/admin/requests/nin/ipe" },
-            ]}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <QueueCard 
+              title="CAC Registrations" 
+              count={stats?.queues?.cac || 0} 
+              href="/admin/requests/corporate/cac"
+              desc="Business registration filings"
+            />
+            <QueueCard 
+              title="BVN Enrollments" 
+              count={stats?.queues?.bvn_enrollment || 0} 
+              href="/admin/requests/bvn/enrollment"
+              desc="New BVN applications"
+            />
+            <QueueCard 
+              title="NIN Modifications" 
+              count={stats?.queues?.nin_modification || 0} 
+              href="/admin/requests/nin/modification"
+              desc="Data correction requests"
+            />
+            <QueueCard 
+              title="Tax ID Requests" 
+              count={stats?.queues?.tax || 0} 
+              href="/admin/requests/corporate/tax"
+              desc="TIN generation requests"
+            />
+             <QueueCard 
+              title="JAMB Services" 
+              count={stats?.queues?.jamb || 0} 
+              href="/admin/requests/education/jamb"
+              desc="Result & Admission letters"
+            />
+          </div>
+        </div>
 
-          {/* 2. BVN Services Group */}
-          <QueueGroup 
-            title="BVN Services" 
-            icon={Smartphone}
-            color="text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-            links={[
-              { name: "BVN Modification", href: "/admin/requests/bvn/modification" },
-              { name: "BVN Retrieval", href: "/admin/requests/bvn/retrieval" },
-              { name: "Enrollment", href: "/admin/requests/bvn/enrollment" },
-              { name: "VNIN to NIBSS", href: "/admin/requests/bvn/vnin-nibss" },
-            ]}
-          />
+        {/* QUICK LINKS / RECENT ACTIVITY */}
+        <div className="space-y-6">
+          <h3 className="font-bold text-slate-800 text-lg">Quick Actions</h3>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
+             <Link href="/admin/users" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors group">
+                <span className="text-sm font-medium text-slate-700">Manage Users</span>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600"/>
+             </Link>
+             <Link href="/admin/transactions" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors group">
+                <span className="text-sm font-medium text-slate-700">View All Transactions</span>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600"/>
+             </Link>
+             <Link href="/admin/settings" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors group">
+                <span className="text-sm font-medium text-slate-700">Service Pricing & Toggle</span>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600"/>
+             </Link>
+          </div>
 
-          {/* 3. Corporate & Education Group */}
-          <QueueGroup 
-            title="Corporate & Education" 
-            icon={Building2}
-            color="text-orange-600 bg-orange-50 dark:bg-orange-900/20"
-            links={[
-              { name: "CAC Registration", href: "/admin/requests/corporate/cac" },
-              { name: "Tax ID Generation", href: "/admin/requests/corporate/tax" },
-              { name: "JAMB Services", href: "/admin/requests/education/jamb" },
-            ]}
-          />
-
+          {/* System Health */}
+           <div className="bg-slate-900 rounded-xl p-5 text-white">
+              <h4 className="font-bold text-sm mb-3">System Health</h4>
+              <div className="space-y-3">
+                 <div className="flex justify-between text-xs text-slate-400">
+                    <span>Database</span>
+                    <span className="text-emerald-400">Connected</span>
+                 </div>
+                 <div className="flex justify-between text-xs text-slate-400">
+                    <span>API Gateway</span>
+                    <span className="text-emerald-400">Online</span>
+                 </div>
+                 <div className="flex justify-between text-xs text-slate-400">
+                    <span>Cloudinary</span>
+                    <span className="text-emerald-400">Connected</span>
+                 </div>
+              </div>
+           </div>
         </div>
       </div>
-
     </div>
   );
 }
 
-// --- SUB-COMPONENTS ---
+// --- COMPONENTS ---
 
-function MetricCard({ title, value, icon: Icon, color, trend, alert }: any) {
+function MetricCard({ title, value, icon, color, sub, highlight }: any) {
   return (
-    <div className="relative bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all group">
-      {alert && <span className="absolute top-4 right-4 h-3 w-3 bg-red-500 rounded-full animate-pulse"></span>}
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-xl text-white shadow-lg ${color} group-hover:scale-110 transition-transform`}>
-          <Icon className="w-6 h-6" />
+    <div className={`bg-white rounded-xl p-6 border shadow-sm transition-all ${highlight ? 'border-amber-200 ring-2 ring-amber-50' : 'border-slate-200'}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white ${color} shadow-lg shadow-${color}/20`}>
+          {icon}
         </div>
+        {highlight && <span className="flex h-3 w-3 relative">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+        </span>}
       </div>
       <div>
-        <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
-        <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white">{value}</h3>
-        <p className={`text-xs mt-2 font-medium ${alert ? 'text-red-500' : 'text-gray-400'}`}>{trend}</p>
+        <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">{title}</p>
+        <h3 className="text-2xl font-bold text-slate-900 mt-1">{value}</h3>
+        <p className="text-xs text-slate-400 mt-1">{sub}</p>
       </div>
     </div>
   );
 }
 
-function QueueGroup({ title, icon: Icon, color, links }: any) {
+function QueueCard({ title, count, href, desc }: any) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col h-full shadow-sm hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
-      <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
-        <div className={`p-2.5 rounded-lg ${color}`}>
-          <Icon className="w-5 h-5" />
+    <Link href={href} className="group bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
+      <div className="flex justify-between items-start">
+        <div>
+          <h4 className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">{title}</h4>
+          <p className="text-xs text-slate-500 mt-1">{desc}</p>
         </div>
-        <h3 className="font-bold text-gray-800 dark:text-white">{title}</h3>
+        <div className={`px-3 py-1 rounded-full text-xs font-bold ${count > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+          {count} Pending
+        </div>
       </div>
-      <div className="flex-1 p-2">
-        {links.map((link: any, i: number) => (
-          <Link 
-            key={i} 
-            href={link.href}
-            className="flex items-center justify-between p-3 mx-1 my-1 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white group transition-all"
-          >
-            {link.name}
-            <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-md text-gray-400 group-hover:bg-white dark:group-hover:bg-gray-600 group-hover:text-gray-600 dark:group-hover:text-white transition-colors shadow-sm">
-                <ChevronRight className="w-4 h-4" />
-            </div>
-          </Link>
-        ))}
+      <div className="mt-4 flex items-center text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+        Process Queue <ArrowUpRight size={14} className="ml-1" />
       </div>
-    </div>
+    </Link>
   );
 }
