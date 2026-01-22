@@ -88,60 +88,62 @@ export default function AdminCacQueue() {
         </button>
       </div>
 
-      {/* TABLE */}
+      {/* TABLE CONTAINER - FIXED FOR MOBILE SCROLLING */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-            <tr>
-              <th className="px-6 py-4 font-medium">Date</th>
-              <th className="px-6 py-4 font-medium">Business Name</th>
-              <th className="px-6 py-4 font-medium">Agent</th>
-              <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 text-right font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {requests.length === 0 ? (
-                <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                        No CAC requests found.
-                    </td>
-                </tr>
-            ) : (
-                requests.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 font-bold text-slate-800">
-                        {item.requestData?.business_details?.proposed_name_1 || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                        <div className="flex flex-col">
-                            <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
-                            <span className="text-xs text-slate-400">{item.user?.email}</span>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4">
-                        {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Approved</span>}
-                        {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Rejected</span>}
-                        {item.status === 'PROCESSING' && <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                    <button 
-                        onClick={() => setSelectedItem(item)} 
-                        className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
-                            item.status === 'PROCESSING' 
-                            ? 'bg-slate-900 text-white hover:bg-slate-800' 
-                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                    >
-                        {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
-                    </button>
-                    </td>
-                </tr>
-                ))
-            )}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto"> {/* Enable Horizontal Scroll */}
+          <table className="w-full text-left text-sm min-w-[900px]"> {/* Force min width to trigger scroll */}
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
+              <tr>
+                <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium">Business Name</th>
+                <th className="px-6 py-4 font-medium">Agent</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+              {requests.length === 0 ? (
+                  <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                          No CAC requests found.
+                      </td>
+                  </tr>
+              ) : (
+                  requests.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 font-bold text-slate-800">
+                          {item.requestData?.business_details?.proposed_name_1 || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                          <div className="flex flex-col">
+                              <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
+                              <span className="text-xs text-slate-400">{item.user?.email}</span>
+                          </div>
+                      </td>
+                      <td className="px-6 py-4">
+                          {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Approved</span>}
+                          {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Rejected</span>}
+                          {item.status === 'PROCESSING' && <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                      <button 
+                          onClick={() => setSelectedItem(item)} 
+                          className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
+                              item.status === 'PROCESSING' 
+                              ? 'bg-slate-900 text-white hover:bg-slate-800' 
+                              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                      >
+                          {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
+                      </button>
+                      </td>
+                  </tr>
+                  ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* MODAL */}
@@ -169,7 +171,6 @@ export default function AdminCacQueue() {
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
                             <User size={16} className="text-blue-700" />
-                            {/* CHANGED: Text color to slate-900 for visibility */}
                             <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-700">
@@ -187,16 +188,15 @@ export default function AdminCacQueue() {
                             </div>
                             <div>
                                 <span className="text-slate-500 text-[10px] uppercase block font-semibold">Wallet Balance</span>
-                                <span className="font-medium text-slate-900">₦{Number(selectedItem.user?.walletBalance).toLocaleString()}</span>
+                                <span className="font-bold text-green-700">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* BUSINESS INFO (FULL) */}
+                    {/* BUSINESS INFO */}
                     <div className="bg-orange-50 p-5 rounded-xl border border-orange-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-orange-200 pb-2">
                             <Building2 size={16} className="text-orange-700" />
-                            {/* CHANGED: Text color to slate-900 for visibility */}
                             <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Business Details</h4>
                         </div>
                         <div className="space-y-4">
@@ -216,11 +216,10 @@ export default function AdminCacQueue() {
                         </div>
                     </div>
 
-                    {/* PROPRIETOR INFO (FULL) */}
+                    {/* PROPRIETOR INFO */}
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                         <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
                             <User size={16} className="text-slate-600" />
-                            {/* CHANGED: Text color to slate-900 for visibility */}
                             <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Proprietor Details</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
