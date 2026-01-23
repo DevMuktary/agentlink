@@ -5,17 +5,23 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Smartphone, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, MapPin, Download, Briefcase
+  AlertTriangle, Eye, User, MapPin, Calendar, CreditCard
 } from 'lucide-react';
 
-export default function AdminBvnEnrollmentQueue() {
+export default function AdminBvnUserQueue() {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
+  
+  // Action States
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNote, setAdminNote] = useState('');
+  
+  // Refund Control
+  const [refundAmount, setRefundAmount] = useState<string>('');
+  const [shouldRefund, setShouldRefund] = useState(true);
 
   // 1. Fetch Queue
   const fetchQueue = async () => {
@@ -34,19 +40,31 @@ export default function AdminBvnEnrollmentQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // 2. Handle Action (NO FILE UPLOAD for Approval)
+  // Update default refund amount when item selected
+  useEffect(() => {
+    if (selectedItem) {
+        setRefundAmount(selectedItem.cost.toString());
+    }
+  }, [selectedItem]);
+
+  // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
-    if(!confirm(`Confirm ${action} action? This will notify the user.`)) return;
+    if(!confirm(`Confirm ${action} action?`)) return;
 
     setProcessing(true);
     try {
       const formData = new FormData();
       formData.append('requestId', selectedItem.id);
       formData.append('action', action);
-      // For approval, we just send a success message/note
-      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Agent Account Created Successfully'));
+      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Onboarding Successful'));
+      
+      // If Rejecting, handle refund logic
+      if (action === 'REJECT') {
+          const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
+          formData.append('refund_amount', finalRefund.toString());
+      }
 
       await axios.post('/api/admin/requests/action', formData);
       
@@ -64,6 +82,7 @@ export default function AdminBvnEnrollmentQueue() {
     setSelectedItem(null);
     setRejectionReason('');
     setAdminNote('');
+    setShouldRefund(true);
   };
 
   if (loading) return <GlobalLoader />;
@@ -75,7 +94,7 @@ export default function AdminBvnEnrollmentQueue() {
             <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
             <Smartphone className="w-8 h-8 text-teal-600" /> BVN User Enrollment
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Approve new NIBSS Agent access requests</p>
+            <p className="text-slate-500 text-sm mt-1">NIBSS Agent Onboarding Requests</p>
         </div>
         <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
           <RefreshCw className="w-5 h-5 text-slate-600" />
@@ -90,8 +109,8 @@ export default function AdminBvnEnrollmentQueue() {
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Applicant Name</th>
-                <th className="px-6 py-4 font-medium">Phone / Gender</th>
-                <th className="px-6 py-4 font-medium">Submitting Agent</th>
+                <th className="px-6 py-4 font-medium">Gender</th>
+                <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
                 </tr>
@@ -100,7 +119,7 @@ export default function AdminBvnEnrollmentQueue() {
                 {requests.length === 0 ? (
                     <tr>
                         <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                            No enrollment requests found.
+                            No requests found.
                         </td>
                     </tr>
                 ) : (
@@ -111,7 +130,7 @@ export default function AdminBvnEnrollmentQueue() {
                             {item.requestData?.surname} {item.requestData?.firstname}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
-                            {item.requestData?.phone} <span className="text-slate-300 mx-1">|</span> {item.requestData?.gender}
+                            {item.requestData?.gender}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                             <div className="flex flex-col">
@@ -153,7 +172,7 @@ export default function AdminBvnEnrollmentQueue() {
             <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
               <div>
                   <h3 className="font-bold text-xl text-slate-900">
-                      {selectedItem.status === 'PROCESSING' ? 'Process Agent Enrollment' : 'Application Details'}
+                      {selectedItem.status === 'PROCESSING' ? 'Process Agent Onboarding' : 'Request Details'}
                   </h3>
                   <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference || 'N/A'} | ID: {selectedItem.id}</p>
               </div>
@@ -165,7 +184,7 @@ export default function AdminBvnEnrollmentQueue() {
                 {/* LEFT COLUMN: DATA */}
                 <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
                     
-                    {/* SUBMITTING AGENT */}
+                    {/* AGENT INFO */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
                             <User size={16} className="text-blue-700" />
@@ -194,77 +213,79 @@ export default function AdminBvnEnrollmentQueue() {
                     {/* APPLICANT INFO */}
                     <div className="bg-teal-50 p-5 rounded-xl border border-teal-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-teal-200 pb-2">
-                            <Briefcase size={16} className="text-teal-700" />
+                            <User size={16} className="text-teal-700" />
                             <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant Details</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Title</span> <span className="text-slate-900">{selectedItem.requestData?.title}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Surname</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.surname}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">First Name</span> <span className="text-slate-900">{selectedItem.requestData?.firstname}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Middle Name</span> <span className="text-slate-900">{selectedItem.requestData?.middlename || '-'}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Title</span> <span className="text-slate-900">{selectedItem.requestData?.title}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Surname</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.surname}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">First Name</span> <span className="text-slate-900">{selectedItem.requestData?.firstname}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Middle Name</span> <span className="text-slate-900">{selectedItem.requestData?.middlename || '-'}</span></p>
                             
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Gender</span> <span className="text-slate-900">{selectedItem.requestData?.gender}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Marital Status</span> <span className="text-slate-900">{selectedItem.requestData?.maritalStatus}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Date of Birth</span> <span className="text-slate-900">{selectedItem.requestData?.dob}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Gender</span> <span className="text-slate-900">{selectedItem.requestData?.gender}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Marital Status</span> <span className="text-slate-900">{selectedItem.requestData?.maritalStatus}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Date of Birth</span> <span className="text-slate-900">{selectedItem.requestData?.dob}</span></p>
                             
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.email || 'N/A'}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">LGA of Origin</span> <span className="text-slate-900">{selectedItem.requestData?.lgaOfOrigin}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">State of Origin</span> <span className="text-slate-900">{selectedItem.requestData?.stateOfOrigin}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.email || 'N/A'}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">State of Origin</span> <span className="text-slate-900">{selectedItem.requestData?.stateOfOrigin}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">LGA of Origin</span> <span className="text-slate-900">{selectedItem.requestData?.lgaOfOrigin}</span></p>
                         </div>
                     </div>
 
-                    {/* RESIDENTIAL INFO */}
+                    {/* ADDRESS */}
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                         <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
                             <MapPin size={16} className="text-slate-600" />
                             <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Residential Address</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-700">
-                            <p className="md:col-span-2"><span className="text-slate-500 text-xs uppercase block font-semibold">Address Line</span> <span className="text-slate-900">{selectedItem.requestData?.residentialAddress}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">State of Residence</span> <span className="text-slate-900">{selectedItem.requestData?.stateOfResidence}</span></p>
-                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">LGA of Residence</span> <span className="text-slate-900">{selectedItem.requestData?.lgaOfResidence}</span></p>
+                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Address Line</span> <span className="text-slate-900">{selectedItem.requestData?.residentialAddress}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">State</span> <span className="text-slate-900">{selectedItem.requestData?.stateOfResidence}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">LGA</span> <span className="text-slate-900">{selectedItem.requestData?.lgaOfResidence}</span></p>
                         </div>
                     </div>
 
-                     {/* IMAGES (Only if submitted) */}
-                     {(selectedItem.requestData?.passport_photo || selectedItem.requestData?.signature) && (
-                        <div>
-                            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Images</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {selectedItem.requestData?.passport_photo && (
-                                    <a href={selectedItem.requestData.passport_photo} target="_blank" className="block group">
-                                        <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                            <img src={selectedItem.requestData.passport_photo} className="object-contain w-full h-full" alt="Passport" />
-                                        </div>
-                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
-                                    </a>
-                                )}
-                                {selectedItem.requestData?.signature && (
-                                    <a href={selectedItem.requestData.signature} target="_blank" className="block group">
-                                        <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                            <img src={selectedItem.requestData.signature} className="object-contain w-full h-full" alt="Signature" />
-                                        </div>
-                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
-                                    </a>
-                                )}
-                            </div>
+                     {/* IMAGES */}
+                     <div>
+                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Applicant Images</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {/* Passport */}
+                            {selectedItem.requestData?.passport_photo && (
+                                <a href={selectedItem.requestData.passport_photo} target="_blank" className="block group">
+                                    <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
+                                        <img src={selectedItem.requestData.passport_photo} className="object-contain w-full h-full" alt="Passport" />
+                                    </div>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
+                                </a>
+                            )}
+                            
+                            {/* Signature */}
+                            {selectedItem.requestData?.signature && (
+                                <a href={selectedItem.requestData.signature} target="_blank" className="block group">
+                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
+                                        <img src={selectedItem.requestData.signature} className="object-contain w-full h-full" alt="Signature" />
+                                    </div>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
+                                </a>
+                            )}
                         </div>
-                     )}
+                    </div>
                 </div>
 
                 {/* RIGHT COLUMN: ACTIONS */}
                 <div className="space-y-6 flex flex-col h-full">
                     {selectedItem.status === 'PROCESSING' ? (
                         <>
+                            {/* APPROVE BOX (No Upload) */}
                             <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
                                 <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-                                    <CheckCircle2 className="text-green-600" size={20} /> Approve Enrollment
+                                    <CheckCircle2 className="text-green-600" size={20} /> Approve & Onboard
                                 </h4>
                                 <div className="space-y-4">
-                                    <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800">
-                                        Confirming this will mark the user as Enrolled on the system. NIBSS will send login credentials directly to the app.
-                                    </div>
+                                    <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded">
+                                        Confirming this will mark the agent as onboarded. Login details should be sent by NIBSS directly.
+                                    </p>
                                     
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note (Optional)</label>
@@ -272,7 +293,7 @@ export default function AdminBvnEnrollmentQueue() {
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
                                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" 
-                                            placeholder="E.g. Account created successfully..." 
+                                            placeholder="e.g. Account Created Successfully" 
                                             rows={3} 
                                         />
                                     </div>
@@ -282,13 +303,14 @@ export default function AdminBvnEnrollmentQueue() {
                                         disabled={processing} 
                                         className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 shadow-md shadow-green-200"
                                     >
-                                        {processing ? 'Processing...' : 'Approve & Complete'}
+                                        {processing ? 'Processing...' : 'Confirm Approval'}
                                     </button>
                                 </div>
                             </div>
 
+                            {/* REJECT BOX (With Refund Control) */}
                             <div className="bg-red-50 p-6 rounded-xl border border-red-100">
-                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline & Refund</h4>
+                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline Request</h4>
                                 <div className="space-y-3">
                                     <input 
                                         value={rejectionReason} 
@@ -296,14 +318,42 @@ export default function AdminBvnEnrollmentQueue() {
                                         className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
                                         placeholder="Reason for rejection (Required)..." 
                                     />
+                                    
+                                    {/* REFUND CONTROLS */}
+                                    <div className="pt-2 border-t border-red-100">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={shouldRefund} 
+                                                onChange={e => setShouldRefund(e.target.checked)}
+                                                className="accent-red-600" 
+                                            />
+                                            Refund User?
+                                        </label>
+                                        
+                                        {shouldRefund && (
+                                            <div>
+                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={refundAmount} 
+                                                    onChange={e => setRefundAmount(e.target.value)}
+                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                />
+                                                <p className="text-[10px] text-slate-400 mt-1">
+                                                    Original Cost: ₦{Number(selectedItem.cost).toLocaleString()}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button 
                                         onClick={() => handleAction('REJECT')} 
                                         disabled={processing || !rejectionReason} 
                                         className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
                                     >
-                                        Reject Application
+                                        Reject
                                     </button>
-                                    <p className="text-[10px] text-red-400 text-center">User will be refunded ₦{Number(selectedItem.cost).toLocaleString()} automatically.</p>
                                 </div>
                             </div>
                         </>
@@ -313,7 +363,7 @@ export default function AdminBvnEnrollmentQueue() {
                             {selectedItem.status === 'COMPLETED' ? (
                                 <>
                                     <CheckCircle2 size={64} className="text-green-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-green-800">Enrollment Approved</h3>
+                                    <h3 className="text-2xl font-bold text-green-800">Agent Onboarded</h3>
                                     <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     <div className="mt-4 p-3 bg-white/60 rounded border border-green-200 text-xs text-green-800">
                                         <strong>Admin Note:</strong> {selectedItem.adminNote}
@@ -322,9 +372,9 @@ export default function AdminBvnEnrollmentQueue() {
                             ) : (
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-red-800">Enrollment Rejected</h3>
+                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
                                     <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
-                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Refund Processed</div>
+                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
                                 </>
                             )}
                         </div>
