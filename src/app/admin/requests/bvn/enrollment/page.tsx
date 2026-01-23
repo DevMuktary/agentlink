@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Smartphone, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, Eye, User, MapPin, Calendar, CreditCard
+  AlertTriangle, Eye, User, MapPin, CreditCard, Building2, Calendar
 } from 'lucide-react';
 
 export default function AdminBvnUserQueue() {
@@ -40,7 +40,7 @@ export default function AdminBvnUserQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // Update default refund amount when item selected
+  // Set default refund amount when item is opened
   useEffect(() => {
     if (selectedItem) {
         setRefundAmount(selectedItem.cost.toString());
@@ -60,7 +60,6 @@ export default function AdminBvnUserQueue() {
       formData.append('action', action);
       formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Onboarding Successful'));
       
-      // If Rejecting, handle refund logic
       if (action === 'REJECT') {
           const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
           formData.append('refund_amount', finalRefund.toString());
@@ -104,12 +103,12 @@ export default function AdminBvnUserQueue() {
       {/* TABLE */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm min-w-[900px]">
+            <table className="w-full text-left text-sm min-w-[1000px]">
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Applicant Name</th>
-                <th className="px-6 py-4 font-medium">Gender</th>
+                <th className="px-6 py-4 font-medium">Parkway ID</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
@@ -127,10 +126,10 @@ export default function AdminBvnUserQueue() {
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4 font-bold text-slate-800">
-                            {item.requestData?.surname} {item.requestData?.firstname}
+                            {item.requestData?.first_name} {item.requestData?.last_name}
                         </td>
-                        <td className="px-6 py-4 text-slate-600">
-                            {item.requestData?.gender}
+                        <td className="px-6 py-4 text-slate-600 font-mono">
+                            {item.requestData?.parkway_wallet_id || '-'}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                             <div className="flex flex-col">
@@ -174,7 +173,7 @@ export default function AdminBvnUserQueue() {
                   <h3 className="font-bold text-xl text-slate-900">
                       {selectedItem.status === 'PROCESSING' ? 'Process Agent Onboarding' : 'Request Details'}
                   </h3>
-                  <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference || 'N/A'} | ID: {selectedItem.id}</p>
+                  <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.reference || 'N/A'} | ID: {selectedItem.id}</p>
               </div>
               <button onClick={closeModal}><XCircle className="w-8 h-8 text-slate-300 hover:text-slate-500 transition-colors" /></button>
             </div>
@@ -184,7 +183,7 @@ export default function AdminBvnUserQueue() {
                 {/* LEFT COLUMN: DATA */}
                 <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
                     
-                    {/* AGENT INFO */}
+                    {/* 1. AGENT INFO */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
                             <User size={16} className="text-blue-700" />
@@ -210,61 +209,71 @@ export default function AdminBvnUserQueue() {
                         </div>
                     </div>
 
-                    {/* APPLICANT INFO */}
+                    {/* 2. APPLICANT DETAILS */}
                     <div className="bg-teal-50 p-5 rounded-xl border border-teal-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-teal-200 pb-2">
                             <User size={16} className="text-teal-700" />
                             <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant Details</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Title</span> <span className="text-slate-900">{selectedItem.requestData?.title}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Surname</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.surname}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">First Name</span> <span className="text-slate-900">{selectedItem.requestData?.firstname}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Middle Name</span> <span className="text-slate-900">{selectedItem.requestData?.middlename || '-'}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">First Name</span> <span className="text-slate-900">{selectedItem.requestData?.first_name}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Last Name</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.last_name}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Date of Birth</span> <span className="text-slate-900">{selectedItem.requestData?.date_of_birth}</span></p>
                             
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Gender</span> <span className="text-slate-900">{selectedItem.requestData?.gender}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Marital Status</span> <span className="text-slate-900">{selectedItem.requestData?.maritalStatus}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Date of Birth</span> <span className="text-slate-900">{selectedItem.requestData?.dob}</span></p>
-                            
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.email || 'N/A'}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">State of Origin</span> <span className="text-slate-900">{selectedItem.requestData?.stateOfOrigin}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">LGA of Origin</span> <span className="text-slate-900">{selectedItem.requestData?.lgaOfOrigin}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone_number}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.email}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">BVN</span> <span className="text-slate-900 font-mono bg-teal-100 px-2 rounded">{selectedItem.requestData?.bvn}</span></p>
                         </div>
                     </div>
 
-                    {/* ADDRESS */}
+                    {/* 3. PARKWAY & BANKING */}
+                    <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-purple-200 pb-2">
+                            <CreditCard size={16} className="text-purple-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Banking & Wallet</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-700">
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Parkway Wallet ID</span> <span className="text-slate-900 font-bold font-mono">{selectedItem.requestData?.parkway_wallet_id}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Bank Name</span> <span className="text-slate-900">{selectedItem.requestData?.bank_name}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Account Number</span> <span className="text-slate-900 font-mono">{selectedItem.requestData?.account_number}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Account Name</span> <span className="text-slate-900">{selectedItem.requestData?.account_name}</span></p>
+                        </div>
+                    </div>
+
+                    {/* 4. ADDRESS & LOCATION */}
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                         <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
                             <MapPin size={16} className="text-slate-600" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Residential Address</h4>
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Location Details</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-700">
-                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Address Line</span> <span className="text-slate-900">{selectedItem.requestData?.residentialAddress}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">State</span> <span className="text-slate-900">{selectedItem.requestData?.stateOfResidence}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">LGA</span> <span className="text-slate-900">{selectedItem.requestData?.lgaOfResidence}</span></p>
+                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Home Address</span> <span className="text-slate-900">{selectedItem.requestData?.home_address}</span></p>
+                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Agent Location</span> <span className="text-slate-900">{selectedItem.requestData?.agent_location}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">State of Residence</span> <span className="text-slate-900">{selectedItem.requestData?.state_of_residence}</span></p>
+                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Local Govt</span> <span className="text-slate-900">{selectedItem.requestData?.local_government}</span></p>
+                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Senatorial District</span> <span className="text-slate-900">{selectedItem.requestData?.senatorial_district}</span></p>
                         </div>
                     </div>
 
-                     {/* IMAGES */}
+                     {/* 5. IMAGES */}
                      <div>
-                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Applicant Images</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Uploaded Images</h4>
+                        <div className="grid grid-cols-2 gap-4">
                             {/* Passport */}
-                            {selectedItem.requestData?.passport_photo && (
-                                <a href={selectedItem.requestData.passport_photo} target="_blank" className="block group">
-                                    <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                        <img src={selectedItem.requestData.passport_photo} className="object-contain w-full h-full" alt="Passport" />
+                            {selectedItem.requestData?.passport_url && (
+                                <a href={selectedItem.requestData.passport_url} target="_blank" className="block group">
+                                    <div className="bg-slate-100 rounded-lg h-40 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
+                                        <img src={selectedItem.requestData.passport_url} className="object-contain w-full h-full" alt="Passport" />
                                     </div>
                                     <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
                                 </a>
                             )}
                             
                             {/* Signature */}
-                            {selectedItem.requestData?.signature && (
-                                <a href={selectedItem.requestData.signature} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                        <img src={selectedItem.requestData.signature} className="object-contain w-full h-full" alt="Signature" />
+                            {selectedItem.requestData?.signature_url && (
+                                <a href={selectedItem.requestData.signature_url} target="_blank" className="block group">
+                                    <div className="bg-white rounded-lg h-40 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
+                                        <img src={selectedItem.requestData.signature_url} className="object-contain w-full h-full" alt="Signature" />
                                     </div>
                                     <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
                                 </a>
@@ -277,14 +286,14 @@ export default function AdminBvnUserQueue() {
                 <div className="space-y-6 flex flex-col h-full">
                     {selectedItem.status === 'PROCESSING' ? (
                         <>
-                            {/* APPROVE BOX (No Upload) */}
+                            {/* APPROVE BOX */}
                             <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
                                 <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
                                     <CheckCircle2 className="text-green-600" size={20} /> Approve & Onboard
                                 </h4>
                                 <div className="space-y-4">
                                     <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded">
-                                        Confirming this will mark the agent as onboarded. Login details should be sent by NIBSS directly.
+                                        Confirming this action marks the agent as successfully onboarded to NIBSS.
                                     </p>
                                     
                                     <div>
@@ -308,7 +317,7 @@ export default function AdminBvnUserQueue() {
                                 </div>
                             </div>
 
-                            {/* REJECT BOX (With Refund Control) */}
+                            {/* REJECT BOX */}
                             <div className="bg-red-50 p-6 rounded-xl border border-red-100">
                                 <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline Request</h4>
                                 <div className="space-y-3">
