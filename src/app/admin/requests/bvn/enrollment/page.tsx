@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Smartphone, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, Eye, User, MapPin, Download, CreditCard, Calendar
+  AlertTriangle, User, MapPin, Download, Briefcase
 } from 'lucide-react';
 
 export default function AdminBvnEnrollmentQueue() {
@@ -14,7 +14,6 @@ export default function AdminBvnEnrollmentQueue() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
-  const [resultFile, setResultFile] = useState<File | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNote, setAdminNote] = useState('');
 
@@ -22,7 +21,6 @@ export default function AdminBvnEnrollmentQueue() {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      // Fetch ALL statuses (History View)
       const res = await axios.get('/api/admin/requests/all?service=ANDROID_BVN_ENROLLMENT&status=ALL'); 
       if (res.data.status) {
           setRequests(res.data.data);
@@ -36,23 +34,19 @@ export default function AdminBvnEnrollmentQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // 2. Handle Action
+  // 2. Handle Action (NO FILE UPLOAD for Approval)
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
-    if (action === 'APPROVE' && !resultFile) return alert("Please upload the Generated BVN Slip (PDF).");
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
-    if(!confirm(`Confirm ${action} action?`)) return;
+    if(!confirm(`Confirm ${action} action? This will notify the user.`)) return;
 
     setProcessing(true);
     try {
       const formData = new FormData();
       formData.append('requestId', selectedItem.id);
       formData.append('action', action);
-      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Enrollment Successful'));
-      
-      if (action === 'APPROVE' && resultFile) {
-        formData.append('file', resultFile);
-      }
+      // For approval, we just send a success message/note
+      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Agent Account Created Successfully'));
 
       await axios.post('/api/admin/requests/action', formData);
       
@@ -68,7 +62,6 @@ export default function AdminBvnEnrollmentQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
     setRejectionReason('');
     setAdminNote('');
   };
@@ -80,9 +73,9 @@ export default function AdminBvnEnrollmentQueue() {
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-            <Smartphone className="w-8 h-8 text-teal-600" /> BVN Enrollments
+            <Smartphone className="w-8 h-8 text-teal-600" /> BVN User Enrollment
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Manage new BVN registration requests</p>
+            <p className="text-slate-500 text-sm mt-1">Approve new NIBSS Agent access requests</p>
         </div>
         <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
           <RefreshCw className="w-5 h-5 text-slate-600" />
@@ -96,9 +89,9 @@ export default function AdminBvnEnrollmentQueue() {
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Candidate Name</th>
-                <th className="px-6 py-4 font-medium">Gender/DOB</th>
-                <th className="px-6 py-4 font-medium">Agent</th>
+                <th className="px-6 py-4 font-medium">Applicant Name</th>
+                <th className="px-6 py-4 font-medium">Phone / Gender</th>
+                <th className="px-6 py-4 font-medium">Submitting Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
                 </tr>
@@ -107,7 +100,7 @@ export default function AdminBvnEnrollmentQueue() {
                 {requests.length === 0 ? (
                     <tr>
                         <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                            No BVN enrollment requests found.
+                            No enrollment requests found.
                         </td>
                     </tr>
                 ) : (
@@ -118,7 +111,7 @@ export default function AdminBvnEnrollmentQueue() {
                             {item.requestData?.surname} {item.requestData?.firstname}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
-                            {item.requestData?.gender} <span className="text-slate-300 mx-1">|</span> {item.requestData?.dob}
+                            {item.requestData?.phone} <span className="text-slate-300 mx-1">|</span> {item.requestData?.gender}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                             <div className="flex flex-col">
@@ -160,7 +153,7 @@ export default function AdminBvnEnrollmentQueue() {
             <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
               <div>
                   <h3 className="font-bold text-xl text-slate-900">
-                      {selectedItem.status === 'PROCESSING' ? 'Process Enrollment' : 'Enrollment Details'}
+                      {selectedItem.status === 'PROCESSING' ? 'Process Agent Enrollment' : 'Application Details'}
                   </h3>
                   <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference || 'N/A'} | ID: {selectedItem.id}</p>
               </div>
@@ -172,11 +165,11 @@ export default function AdminBvnEnrollmentQueue() {
                 {/* LEFT COLUMN: DATA */}
                 <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
                     
-                    {/* AGENT INFO */}
+                    {/* SUBMITTING AGENT */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
                             <User size={16} className="text-blue-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Submitting Agent</h4>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-700">
                             <div>
@@ -198,11 +191,11 @@ export default function AdminBvnEnrollmentQueue() {
                         </div>
                     </div>
 
-                    {/* PERSONAL INFO */}
+                    {/* APPLICANT INFO */}
                     <div className="bg-teal-50 p-5 rounded-xl border border-teal-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-teal-200 pb-2">
-                            <User size={16} className="text-teal-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Candidate Personal Details</h4>
+                            <Briefcase size={16} className="text-teal-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant Details</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
                             <p><span className="text-slate-500 text-xs uppercase block font-semibold">Title</span> <span className="text-slate-900">{selectedItem.requestData?.title}</span></p>
@@ -234,31 +227,30 @@ export default function AdminBvnEnrollmentQueue() {
                         </div>
                     </div>
 
-                     {/* BIOMETRICS / IMAGES */}
-                     <div>
-                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Biometrics & Images</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {/* Passport */}
-                            {selectedItem.requestData?.passport_photo && (
-                                <a href={selectedItem.requestData.passport_photo} target="_blank" className="block group">
-                                    <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                        <img src={selectedItem.requestData.passport_photo} className="object-contain w-full h-full" alt="Passport" />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
-                                </a>
-                            )}
-                            
-                            {/* Signature */}
-                            {selectedItem.requestData?.signature && (
-                                <a href={selectedItem.requestData.signature} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                        <img src={selectedItem.requestData.signature} className="object-contain w-full h-full" alt="Signature" />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
-                                </a>
-                            )}
+                     {/* IMAGES (Only if submitted) */}
+                     {(selectedItem.requestData?.passport_photo || selectedItem.requestData?.signature) && (
+                        <div>
+                            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Images</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {selectedItem.requestData?.passport_photo && (
+                                    <a href={selectedItem.requestData.passport_photo} target="_blank" className="block group">
+                                        <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
+                                            <img src={selectedItem.requestData.passport_photo} className="object-contain w-full h-full" alt="Passport" />
+                                        </div>
+                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
+                                    </a>
+                                )}
+                                {selectedItem.requestData?.signature && (
+                                    <a href={selectedItem.requestData.signature} target="_blank" className="block group">
+                                        <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
+                                            <img src={selectedItem.requestData.signature} className="object-contain w-full h-full" alt="Signature" />
+                                        </div>
+                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
+                                    </a>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                     )}
                 </div>
 
                 {/* RIGHT COLUMN: ACTIONS */}
@@ -267,36 +259,30 @@ export default function AdminBvnEnrollmentQueue() {
                         <>
                             <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
                                 <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-                                    <CheckCircle2 className="text-green-600" size={20} /> Approve & Upload Slip
+                                    <CheckCircle2 className="text-green-600" size={20} /> Approve Enrollment
                                 </h4>
                                 <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload BVN Slip (PDF)</label>
-                                        <input 
-                                            type="file" 
-                                            accept=".pdf,.jpg,.png"
-                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
-                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer" 
-                                        />
+                                    <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800">
+                                        Confirming this will mark the user as Enrolled on the system. NIBSS will send login credentials directly to the app.
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Note / BVN Number</label>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note (Optional)</label>
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
                                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" 
-                                            placeholder="Enter generated BVN here or notes..." 
+                                            placeholder="E.g. Account created successfully..." 
                                             rows={3} 
                                         />
                                     </div>
 
                                     <button 
                                         onClick={() => handleAction('APPROVE')} 
-                                        disabled={processing || !resultFile} 
-                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
+                                        disabled={processing} 
+                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 shadow-md shadow-green-200"
                                     >
-                                        {processing ? 'Processing...' : 'Complete Enrollment'}
+                                        {processing ? 'Processing...' : 'Approve & Complete'}
                                     </button>
                                 </div>
                             </div>
@@ -315,7 +301,7 @@ export default function AdminBvnEnrollmentQueue() {
                                         disabled={processing || !rejectionReason} 
                                         className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
                                     >
-                                        Reject Request
+                                        Reject Application
                                     </button>
                                     <p className="text-[10px] text-red-400 text-center">User will be refunded ₦{Number(selectedItem.cost).toLocaleString()} automatically.</p>
                                 </div>
@@ -327,14 +313,8 @@ export default function AdminBvnEnrollmentQueue() {
                             {selectedItem.status === 'COMPLETED' ? (
                                 <>
                                     <CheckCircle2 size={64} className="text-green-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-green-800">Enrollment Successful</h3>
+                                    <h3 className="text-2xl font-bold text-green-800">Enrollment Approved</h3>
                                     <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
-                                    
-                                    {selectedItem.responseData?.resultUrl && (
-                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
-                                            <Download size={18} /> Download BVN Slip
-                                        </a>
-                                    )}
                                     <div className="mt-4 p-3 bg-white/60 rounded border border-green-200 text-xs text-green-800">
                                         <strong>Admin Note:</strong> {selectedItem.adminNote}
                                     </div>
