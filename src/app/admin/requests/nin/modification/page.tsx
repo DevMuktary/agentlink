@@ -1,219 +1,485 @@
 'use client';
+
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
+import { 
+  FileText, CheckCircle2, XCircle, RefreshCw, 
+  AlertTriangle, User, Calendar, Phone, MapPin, Download, Eye, FileBadge
+} from 'lucide-react';
 
-export default function AdminNINModification() {
-  const [requests, setRequests] = useState<any[]>([]);
+export default function AdminNinModificationQueue() {
   const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  
   const [processing, setProcessing] = useState(false);
-
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [actionType, setActionType] = useState<'APPROVE' | 'REJECT' | null>(null);
-  const [adminNote, setAdminNote] = useState('');
   const [resultFile, setResultFile] = useState<File | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [adminNote, setAdminNote] = useState('');
+  
+  // Refund Control
+  const [refundAmount, setRefundAmount] = useState<string>('');
+  const [shouldRefund, setShouldRefund] = useState(true);
 
-  const fetchRequests = async () => {
+  // 1. Fetch Queue (Merge all Modification Types)
+  const fetchQueue = async () => {
+    setLoading(true);
     try {
-      // Fetch all requests that start with NIN_MODIFICATION
-      const res = await fetch('/api/admin/requests/all?service=NIN_MODIFICATION'); 
-      const data = await res.json();
-      if (data.status) setRequests(data.data);
+      const endpoints = [
+        '/api/admin/requests/all?service=NIN_MODIFICATION_NAME&status=ALL',
+        '/api/admin/requests/all?service=NIN_MODIFICATION_DOB&status=ALL',
+        '/api/admin/requests/all?service=NIN_MODIFICATION_PHONE&status=ALL',
+        '/api/admin/requests/all?service=NIN_MODIFICATION_ADDRESS&status=ALL',
+      ];
+
+      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
+      
+      // Merge all data arrays
+      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      
+      // Sort by newest
+      combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setRequests(combined);
     } catch (error) {
-      console.error('Failed to fetch', error);
-    } finally {
-      setLoading(false);
+        console.error("Failed to fetch queue", error);
+    } finally { 
+        setLoading(false); 
     }
   };
 
-  useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => { fetchQueue(); }, []);
 
-  const handleActionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRequest || !actionType) return;
+  // Update default refund amount
+  useEffect(() => {
+    if (selectedItem) {
+        setRefundAmount(selectedItem.cost.toString());
+        setResultFile(null);
+        setRejectionReason('');
+        setAdminNote('');
+    }
+  }, [selectedItem]);
+
+  // 2. Handle Action
+  const handleAction = async (action: 'APPROVE' | 'REJECT') => {
+    if (action === 'APPROVE' && !resultFile) return alert("Please upload the Modified NIN Slip.");
+    if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
+    
+    if(!confirm(`Confirm ${action} action?`)) return;
 
     setProcessing(true);
     try {
       const formData = new FormData();
-      formData.append('requestId', selectedRequest.id);
-      formData.append('action', actionType);
-      formData.append('note', adminNote);
-
-      if (actionType === 'APPROVE' && resultFile) {
+      formData.append('requestId', selectedItem.id);
+      formData.append('action', action);
+      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Modification Completed'));
+      
+      if (action === 'APPROVE' && resultFile) {
         formData.append('file', resultFile);
       }
 
-      const res = await fetch('/api/admin/requests/action', { method: 'POST', body: formData });
-      const json = await res.json();
-
-      if (json.status) {
-        alert('Action Successful!');
-        closeModal();
-        fetchRequests();
-      } else {
-        alert(json.error || 'Action Failed');
+      if (action === 'REJECT') {
+          const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
+          formData.append('refund_amount', finalRefund.toString());
       }
-    } catch (err) {
-      console.error(err);
-      alert('Network Error');
+
+      await axios.post('/api/admin/requests/action', formData);
+      
+      alert(`Request ${action}D Successfully!`);
+      closeModal();
+      fetchQueue();
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Action Failed");
     } finally {
       setProcessing(false);
     }
   };
 
   const closeModal = () => {
-    setSelectedRequest(null);
-    setActionType(null);
+    setSelectedItem(null);
     setResultFile(null);
+    setRejectionReason('');
     setAdminNote('');
+    setShouldRefund(true);
   };
 
   if (loading) return <GlobalLoader />;
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">NIN Modification Requests</h1>
+  // Helper to render type badge
+  const getTypeBadge = (type: string) => {
+      if (type.includes('NAME')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Name Change</span>;
+      if (type.includes('DOB')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">DOB Correction</span>;
+      if (type.includes('PHONE')) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">Phone Update</span>;
+      if (type.includes('ADDRESS')) return <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-teal-200">Address Change</span>;
+      return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Modification</span>;
+  };
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="min-w-full text-sm text-left">
-          <thead className="bg-gray-100 text-gray-600 uppercase font-medium">
-            <tr>
-              <th className="px-6 py-3">Ref</th>
-              <th className="px-6 py-3">Type</th>
-              <th className="px-6 py-3">NIN</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {requests.map((req) => (
-              <tr key={req.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{req.requestData?.clientReference}</td>
-                <td className="px-6 py-4 text-xs font-mono">{req.serviceType.replace('NIN_MODIFICATION_', '')}</td>
-                <td className="px-6 py-4">{req.requestData?.nin}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    req.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    req.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {req.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">{new Date(req.createdAt).toLocaleDateString()}</td>
-                <td className="px-6 py-4">
-                  {req.status === 'PROCESSING' && (
-                    <button onClick={() => setSelectedRequest(req)} className="text-blue-600 hover:underline">
-                      Process
-                    </button>
-                  )}
-                  {req.status === 'COMPLETED' && req.responseData?.resultUrl && (
-                     <a href={req.responseData.resultUrl} target="_blank" className="text-green-600 underline">Result</a>
-                  )}
-                </td>
-              </tr>
-            ))}
-             {requests.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-8 text-gray-500">No Modification requests found.</td></tr>
-            )}
-          </tbody>
-        </table>
+  return (
+    <div className="space-y-6 animate-in fade-in pb-20">
+      <div className="flex justify-between items-center">
+        <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+            <FileBadge className="w-8 h-8 text-indigo-600" /> NIN Modifications
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">Manage data correction requests</p>
+        </div>
+        <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
+          <RefreshCw className="w-5 h-5 text-slate-600" />
+        </button>
       </div>
 
-      {selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <h3 className="text-lg font-bold mb-4">Process Modification</h3>
+      {/* TABLE */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[1000px]">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                <tr>
+                <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium">Type</th>
+                <th className="px-6 py-4 font-medium">Applicant Name</th>
+                <th className="px-6 py-4 font-medium">NIN</th>
+                <th className="px-6 py-4 font-medium">Agent</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-right font-medium">Action</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+                {requests.length === 0 ? (
+                    <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                            No modification requests found.
+                        </td>
+                    </tr>
+                ) : (
+                    requests.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
+                        <td className="px-6 py-4 font-bold text-slate-800">
+                            {item.requestData?.surname} {item.requestData?.firstname}
+                        </td>
+                        <td className="px-6 py-4 font-mono text-slate-600">
+                            {item.requestData?.nin}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                            <div className="flex flex-col">
+                                <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
+                                <span className="text-xs text-slate-400">{item.user?.email}</span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                            {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Approved</span>}
+                            {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Rejected</span>}
+                            {item.status === 'PROCESSING' && <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                        <button 
+                            onClick={() => setSelectedItem(item)} 
+                            className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
+                                item.status === 'PROCESSING' 
+                                ? 'bg-slate-900 text-white hover:bg-slate-800' 
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
+                        </button>
+                        </td>
+                    </tr>
+                    ))
+                )}
+            </tbody>
+            </table>
+        </div>
+      </div>
+
+      {/* MODAL */}
+      {selectedItem && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-6xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             
-            <div className="bg-gray-50 p-3 rounded mb-4 text-sm space-y-2">
-               <p><strong>Service:</strong> {selectedRequest.serviceType}</p>
-               <p><strong>NIN:</strong> {selectedRequest.requestData?.nin}</p>
-               
-               {/* Display Changed Fields */}
-               {selectedRequest.requestData?.new_details && (
-                 <div className="bg-yellow-50 p-2 border border-yellow-200 rounded text-xs">
-                    <strong>New Name:</strong> {selectedRequest.requestData.new_details.first_name} {selectedRequest.requestData.new_details.surname}
-                 </div>
-               )}
-               {selectedRequest.requestData?.new_phone_number && (
-                 <div className="bg-yellow-50 p-2 border border-yellow-200 rounded text-xs">
-                    <strong>New Phone:</strong> {selectedRequest.requestData.new_phone_number}
-                 </div>
-               )}
-               {selectedRequest.requestData?.new_address && (
-                 <div className="bg-yellow-50 p-2 border border-yellow-200 rounded text-xs">
-                    <strong>New Address:</strong> {selectedRequest.requestData.new_address}
-                 </div>
-               )}
-
-               {/* SHOW SUPPORTING DOCUMENT */}
-               {selectedRequest.requestData?.documentUrl && (
-                 <div className="mt-3">
-                   <p className="font-semibold mb-1">Supporting Document:</p>
-                   <a 
-                    href={selectedRequest.requestData.documentUrl} 
-                    target="_blank" 
-                    className="block w-full text-center bg-blue-50 text-blue-600 py-2 rounded border border-blue-200 hover:bg-blue-100"
-                   >
-                     View Uploaded Document
-                   </a>
-                 </div>
-               )}
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="font-bold text-xl text-slate-900">
+                        {selectedItem.status === 'PROCESSING' ? 'Process Modification' : 'Request Details'}
+                    </h3>
+                    <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference} | ID: {selectedItem.id}</p>
+                  </div>
+                  {getTypeBadge(selectedItem.serviceType)}
+              </div>
+              <button onClick={closeModal}><XCircle className="w-8 h-8 text-slate-300 hover:text-slate-500 transition-colors" /></button>
             </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* LEFT COLUMN: DATA */}
+                <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
+                    
+                    {/* AGENT INFO */}
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
+                            <User size={16} className="text-blue-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-700">
+                            <div>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Name</span>
+                                <span className="font-medium text-slate-900">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span>
+                            </div>
+                            <div>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Email</span>
+                                <span className="font-medium text-slate-900">{selectedItem.user?.email}</span>
+                            </div>
+                            <div>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Phone</span>
+                                <span className="font-medium text-slate-900">{selectedItem.user?.phoneNumber || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Wallet Balance</span>
+                                <span className="font-bold text-green-700">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
 
-            <form onSubmit={handleActionSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setActionType('APPROVE')}
-                  className={`p-3 rounded border text-center font-medium ${
-                    actionType === 'APPROVE' ? 'bg-green-600 text-white' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActionType('REJECT')}
-                  className={`p-3 rounded border text-center font-medium ${
-                    actionType === 'REJECT' ? 'bg-red-600 text-white' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  Reject
-                </button>
-              </div>
+                    {/* MODIFICATION DETAILS (Dynamic based on Type) */}
+                    <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-indigo-200 pb-2">
+                            <FileBadge size={16} className="text-indigo-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Modification Data</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-700">
+                            
+                            {/* Common Data */}
+                            <div>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Applicant Name</span> <span className="text-slate-900 font-bold text-lg">{selectedItem.requestData?.surname} {selectedItem.requestData?.firstname}</span></p>
+                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">NIN Number</span> <span className="text-slate-900 font-mono text-lg tracking-widest">{selectedItem.requestData?.nin}</span></p>
+                            </div>
 
-              {actionType === 'APPROVE' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Upload Modified Slip (Required)</label>
-                  <input 
-                    type="file" 
-                    required 
-                    onChange={(e) => setResultFile(e.target.files?.[0] || null)}
-                    className="block w-full mt-1 text-sm text-gray-500"
-                  />
+                            {/* Specific Data based on Service Type */}
+                            <div className="bg-white/60 p-4 rounded-lg border border-indigo-100">
+                                {selectedItem.serviceType.includes('NAME') && (
+                                    <>
+                                        <h5 className="font-bold text-indigo-800 text-xs uppercase mb-2 border-b border-indigo-100 pb-1">Name Change Request</h5>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <span className="text-[10px] text-slate-400 block uppercase">Previous Name</span>
+                                                <span className="font-medium text-slate-600 block">{selectedItem.requestData?.previous_surname || '-'}</span>
+                                                <span className="font-medium text-slate-600 block">{selectedItem.requestData?.previous_firstname || '-'}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New Name</span>
+                                                <span className="font-bold text-slate-900 block">{selectedItem.requestData?.new_surname || selectedItem.requestData?.surname}</span>
+                                                <span className="font-bold text-slate-900 block">{selectedItem.requestData?.new_firstname || selectedItem.requestData?.firstname}</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {selectedItem.serviceType.includes('DOB') && (
+                                    <>
+                                        <h5 className="font-bold text-purple-800 text-xs uppercase mb-2 border-b border-purple-100 pb-1">DOB Correction</h5>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <span className="text-[10px] text-slate-400 block uppercase">Previous DOB</span>
+                                                <span className="font-medium text-slate-600">{selectedItem.requestData?.previous_dob || 'Not Provided'}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New DOB</span>
+                                                <span className="font-bold text-slate-900 text-lg">{selectedItem.requestData?.new_dob}</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {selectedItem.serviceType.includes('PHONE') && (
+                                    <>
+                                        <h5 className="font-bold text-orange-800 text-xs uppercase mb-2 border-b border-orange-100 pb-1">Phone Update</h5>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <span className="text-[10px] text-slate-400 block uppercase">Previous Phone</span>
+                                                <span className="font-medium text-slate-600">{selectedItem.requestData?.previous_phone || 'Not Provided'}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New Phone</span>
+                                                <span className="font-bold text-slate-900 text-lg">{selectedItem.requestData?.new_phone}</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {selectedItem.serviceType.includes('ADDRESS') && (
+                                    <>
+                                        <h5 className="font-bold text-teal-800 text-xs uppercase mb-2 border-b border-teal-100 pb-1">Address Update</h5>
+                                        <div>
+                                            <span className="text-[10px] text-green-600 block uppercase font-bold">New Address</span>
+                                            <p className="font-medium text-slate-900">{selectedItem.requestData?.new_address}</p>
+                                            <p className="text-slate-600 text-xs">{selectedItem.requestData?.new_lga}, {selectedItem.requestData?.new_state}</p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                     {/* DOCUMENTS */}
+                     <div>
+                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {selectedItem.requestData?.nin_slip_url && (
+                                <a href={selectedItem.requestData.nin_slip_url} target="_blank" className="block group">
+                                    <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
+                                        <FileBadge className="text-slate-400" size={24} />
+                                    </div>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">NIN Slip</span>
+                                </a>
+                            )}
+                            
+                            {selectedItem.requestData?.supporting_doc_url && (
+                                <a href={selectedItem.requestData.supporting_doc_url} target="_blank" className="block group">
+                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
+                                        <FileText className="text-slate-400" size={24} />
+                                    </div>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Supporting Doc</span>
+                                </a>
+                            )}
+
+                            {selectedItem.requestData?.court_affidavit_url && (
+                                <a href={selectedItem.requestData.court_affidavit_url} target="_blank" className="block group">
+                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
+                                        <FileText className="text-slate-400" size={24} />
+                                    </div>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Affidavit</span>
+                                </a>
+                            )}
+
+                            {selectedItem.requestData?.newspaper_url && (
+                                <a href={selectedItem.requestData.newspaper_url} target="_blank" className="block group">
+                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
+                                        <FileText className="text-slate-400" size={24} />
+                                    </div>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Newspaper</span>
+                                </a>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Admin Note</label>
-                <textarea 
-                  value={adminNote}
-                  onChange={(e) => setAdminNote(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
-                  rows={3}
-                  placeholder="Comments..."
-                  required={actionType === 'REJECT'} 
-                />
-              </div>
+                {/* RIGHT COLUMN: ACTIONS */}
+                <div className="space-y-6 flex flex-col h-full">
+                    {selectedItem.status === 'PROCESSING' ? (
+                        <>
+                            {/* APPROVE BOX */}
+                            <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
+                                <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
+                                    <CheckCircle2 className="text-green-600" size={20} /> Approve Request
+                                </h4>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Modified Slip (PDF)</label>
+                                        <input 
+                                            type="file" 
+                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
+                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer" 
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
+                                        <textarea 
+                                            value={adminNote} 
+                                            onChange={e => setAdminNote(e.target.value)} 
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                                            placeholder="Optional comments..." 
+                                            rows={3} 
+                                        />
+                                    </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeModal} className="px-4 py-2 text-sm border rounded">Cancel</button>
-                <button type="submit" disabled={processing} className="px-4 py-2 text-sm text-white bg-blue-600 rounded disabled:opacity-50">
-                  {processing ? 'Processing...' : 'Confirm'}
-                </button>
-              </div>
-            </form>
+                                    <button 
+                                        onClick={() => handleAction('APPROVE')} 
+                                        disabled={processing || !resultFile} 
+                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
+                                    >
+                                        {processing ? 'Processing...' : 'Complete Request'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* REJECT BOX */}
+                            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
+                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline Request</h4>
+                                <div className="space-y-3">
+                                    <input 
+                                        value={rejectionReason} 
+                                        onChange={e => setRejectionReason(e.target.value)} 
+                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
+                                        placeholder="Reason for rejection (Required)..." 
+                                    />
+                                    
+                                    {/* REFUND CONTROLS */}
+                                    <div className="pt-2 border-t border-red-100">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={shouldRefund} 
+                                                onChange={e => setShouldRefund(e.target.checked)}
+                                                className="accent-red-600" 
+                                            />
+                                            Refund User?
+                                        </label>
+                                        
+                                        {shouldRefund && (
+                                            <div>
+                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={refundAmount} 
+                                                    onChange={e => setRefundAmount(e.target.value)}
+                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => handleAction('REJECT')} 
+                                        disabled={processing || !rejectionReason} 
+                                        className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        // READ ONLY VIEW
+                        <div className={`p-8 rounded-xl border flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                            {selectedItem.status === 'COMPLETED' ? (
+                                <>
+                                    <CheckCircle2 size={64} className="text-green-500 mb-4" />
+                                    <h3 className="text-2xl font-bold text-green-800">Modification Successful</h3>
+                                    <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    
+                                    {selectedItem.responseData?.resultUrl && (
+                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
+                                            <Download size={18} /> Download Slip
+                                        </a>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle size={64} className="text-red-500 mb-4" />
+                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
+                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+            </div>
           </div>
         </div>
       )}
