@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  FileText, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Phone, Download, FileBadge, Hash, MapPin, Calendar
+  FileBadge, CheckCircle2, XCircle, RefreshCw, 
+  AlertTriangle, User, Download, FileText, Eye
 } from 'lucide-react';
 
 export default function AdminNinModificationQueue() {
@@ -26,6 +26,7 @@ export default function AdminNinModificationQueue() {
   const fetchQueue = async () => {
     setLoading(true);
     try {
+      // Fetch all service types related to NIN Modification
       const endpoints = [
         '/api/admin/requests/all?service=NIN_MODIFICATION_NAME&status=ALL',
         '/api/admin/requests/all?service=NIN_MODIFICATION_DOB&status=ALL',
@@ -37,7 +38,7 @@ export default function AdminNinModificationQueue() {
       
       const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
       
-      // Sort by newest
+      // Sort by newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       setRequests(combined);
@@ -50,12 +51,14 @@ export default function AdminNinModificationQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
+  // Update default refund amount
   useEffect(() => {
     if (selectedItem) {
         setRefundAmount(selectedItem.cost.toString());
         setResultFile(null);
         setRejectionReason('');
         setAdminNote('');
+        setShouldRefund(true);
     }
   }, [selectedItem]);
 
@@ -102,16 +105,12 @@ export default function AdminNinModificationQueue() {
     setShouldRefund(true);
   };
 
-  // --- SMART DATA HELPER ---
-  // Tries multiple key variations to ensure data shows up
-  const getVal = (data: any, ...keys: string[]) => {
-      if (!data) return '';
-      for (const key of keys) {
-          if (data[key]) return data[key];
-      }
-      return ''; // fallback
+  // Helper to safely get document URL from various key possibilities
+  const getDocUrl = (data: any, keyBase: string) => {
+      return data?.[keyBase] || data?.[`${keyBase}_url`] || data?.[`${keyBase}_image`];
   };
 
+  // Helper for Badges
   const getTypeBadge = (type: string) => {
       if (type.includes('NAME')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Name Change</span>;
       if (type.includes('DOB')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">DOB Correction</span>;
@@ -144,7 +143,7 @@ export default function AdminNinModificationQueue() {
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Applicant Name</th>
+                <th className="px-6 py-4 font-medium">Applicant</th>
                 <th className="px-6 py-4 font-medium">NIN</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
@@ -159,48 +158,41 @@ export default function AdminNinModificationQueue() {
                         </td>
                     </tr>
                 ) : (
-                    requests.map((item) => {
-                        // Use helper to find name regardless of snake_case or camelCase
-                        const firstName = getVal(item.requestData, 'firstname', 'first_name', 'fname');
-                        const surname = getVal(item.requestData, 'surname', 'last_name', 'lname');
-                        const nin = getVal(item.requestData, 'nin', 'nin_number');
-
-                        return (
-                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
-                            <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
-                            <td className="px-6 py-4 font-bold text-slate-800">
-                                {surname} {firstName}
-                            </td>
-                            <td className="px-6 py-4 font-mono text-slate-600">
-                                {nin || '-'}
-                            </td>
-                            <td className="px-6 py-4 text-slate-600">
-                                <div className="flex flex-col">
-                                    <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
-                                    <span className="text-xs text-slate-400">{item.user?.email}</span>
-                                </div>
-                            </td>
-                            <td className="px-6 py-4">
-                                {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Approved</span>}
-                                {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Rejected</span>}
-                                {item.status === 'PROCESSING' && <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                            <button 
-                                onClick={() => setSelectedItem(item)} 
-                                className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
-                                    item.status === 'PROCESSING' 
-                                    ? 'bg-slate-900 text-white hover:bg-slate-800' 
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                                }`}
-                            >
-                                {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
-                            </button>
-                            </td>
-                        </tr>
-                        );
-                    })
+                    requests.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
+                        <td className="px-6 py-4 font-bold text-slate-800">
+                            {item.requestData?.surname} {item.requestData?.firstname}
+                        </td>
+                        <td className="px-6 py-4 font-mono text-slate-600">
+                            {item.requestData?.nin}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                            <div className="flex flex-col">
+                                <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
+                                <span className="text-xs text-slate-400">{item.user?.email}</span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                            {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Approved</span>}
+                            {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Rejected</span>}
+                            {item.status === 'PROCESSING' && <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                        <button 
+                            onClick={() => setSelectedItem(item)} 
+                            className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
+                                item.status === 'PROCESSING' 
+                                ? 'bg-slate-900 text-white hover:bg-slate-800' 
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
+                        </button>
+                        </td>
+                    </tr>
+                    ))
                 )}
             </tbody>
             </table>
@@ -219,7 +211,7 @@ export default function AdminNinModificationQueue() {
                     <h3 className="font-bold text-xl text-slate-900">
                         {selectedItem.status === 'PROCESSING' ? 'Process Modification' : 'Request Details'}
                     </h3>
-                    <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference || 'N/A'} | ID: {selectedItem.id}</p>
+                    <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference} | ID: {selectedItem.id}</p>
                   </div>
                   {getTypeBadge(selectedItem.serviceType)}
               </div>
@@ -257,143 +249,89 @@ export default function AdminNinModificationQueue() {
                         </div>
                     </div>
 
-                    {/* MODIFICATION DETAILS */}
+                    {/* MODIFICATION DATA */}
                     <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-indigo-200 pb-2">
                             <FileBadge size={16} className="text-indigo-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant & Request Data</h4>
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant & Changes</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-700">
                             
-                            {/* General Data */}
-                            <div className="space-y-3">
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold">Applicant Name</span> 
-                                    <span className="text-slate-900 font-bold text-lg">
-                                        {getVal(selectedItem.requestData, 'surname', 'last_name', 'lname')} {getVal(selectedItem.requestData, 'firstname', 'first_name', 'fname')}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold">NIN Number</span> 
-                                    <div className="flex items-center gap-2">
-                                        <Hash size={14} className="text-indigo-400"/>
-                                        <span className="text-slate-900 font-mono text-lg tracking-widest">{getVal(selectedItem.requestData, 'nin', 'nin_number')}</span>
-                                    </div>
-                                </div>
+                            {/* BASE IDENTITY */}
+                            <div>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Current Surname</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.surname}</span></p>
+                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">Current Firstname</span> <span className="text-slate-900">{selectedItem.requestData?.firstname}</span></p>
+                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">NIN</span> <span className="text-slate-900 font-mono text-lg tracking-widest">{selectedItem.requestData?.nin}</span></p>
                             </div>
 
-                            {/* Specific Data based on Service Type */}
-                            <div className="bg-white/60 p-4 rounded-lg border border-indigo-100 shadow-sm">
-                                
-                                {/* NAME MODIFICATION */}
+                            {/* REQUESTED CHANGES */}
+                            <div className="bg-white/60 p-4 rounded-lg border border-indigo-100">
                                 {selectedItem.serviceType.includes('NAME') && (
                                     <>
-                                        <h5 className="font-bold text-indigo-800 text-xs uppercase mb-3 border-b border-indigo-100 pb-1">Name Change Request</h5>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block uppercase font-bold">Previous Name</span>
-                                                <span className="text-slate-500 block font-medium">{getVal(selectedItem.requestData, 'previous_surname', 'surname', 'last_name')}</span>
-                                                <span className="text-slate-500 block font-medium">{getVal(selectedItem.requestData, 'previous_firstname', 'firstname', 'first_name')}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New Name</span>
-                                                <span className="text-slate-900 block font-bold text-lg">{getVal(selectedItem.requestData, 'new_surname', 'new_last_name')}</span>
-                                                <span className="text-slate-900 block font-bold text-lg">{getVal(selectedItem.requestData, 'new_firstname', 'new_first_name')}</span>
-                                            </div>
-                                        </div>
+                                        <h5 className="font-bold text-indigo-800 text-xs uppercase mb-2 border-b border-indigo-100 pb-1">New Name Requested</h5>
+                                        <p><span className="text-[10px] text-slate-400 block uppercase">New Surname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_surname}</span></p>
+                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Firstname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_firstname}</span></p>
+                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Middlename</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_middlename || '-'}</span></p>
                                     </>
                                 )}
 
-                                {/* DOB MODIFICATION */}
                                 {selectedItem.serviceType.includes('DOB') && (
                                     <>
-                                        <h5 className="font-bold text-purple-800 text-xs uppercase mb-3 border-b border-purple-100 pb-1 flex items-center gap-2"><Calendar size={12}/> DOB Correction</h5>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block uppercase font-bold">Previous DOB</span>
-                                                <span className="text-slate-500 block font-medium">{getVal(selectedItem.requestData, 'previous_dob', 'old_dob') || 'Not Provided'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New DOB</span>
-                                                <span className="text-slate-900 block font-bold text-lg">{getVal(selectedItem.requestData, 'new_dob')}</span>
-                                            </div>
-                                        </div>
+                                        <h5 className="font-bold text-purple-800 text-xs uppercase mb-2 border-b border-purple-100 pb-1">New DOB Requested</h5>
+                                        <span className="font-bold text-slate-900 text-2xl">{selectedItem.requestData?.new_date_of_birth || selectedItem.requestData?.new_dob}</span>
                                     </>
                                 )}
 
-                                {/* PHONE MODIFICATION */}
                                 {selectedItem.serviceType.includes('PHONE') && (
                                     <>
-                                        <h5 className="font-bold text-orange-800 text-xs uppercase mb-3 border-b border-orange-100 pb-1 flex items-center gap-2"><Phone size={12}/> Phone Update</h5>
-                                        <div className="space-y-2">
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block uppercase font-bold">Previous Phone</span>
-                                                <span className="text-slate-500 font-medium">{getVal(selectedItem.requestData, 'previous_phone', 'old_phone') || 'Not Provided'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New Phone</span>
-                                                <span className="text-slate-900 font-bold text-lg">{getVal(selectedItem.requestData, 'new_phone', 'new_phone_number')}</span>
-                                            </div>
-                                        </div>
+                                        <h5 className="font-bold text-orange-800 text-xs uppercase mb-2 border-b border-orange-100 pb-1">New Phone Requested</h5>
+                                        <span className="font-bold text-slate-900 text-xl font-mono">{selectedItem.requestData?.new_phone_number || selectedItem.requestData?.new_phone}</span>
                                     </>
                                 )}
 
-                                {/* ADDRESS MODIFICATION */}
                                 {selectedItem.serviceType.includes('ADDRESS') && (
                                     <>
-                                        <h5 className="font-bold text-teal-800 text-xs uppercase mb-3 border-b border-teal-100 pb-1 flex items-center gap-2"><MapPin size={12}/> Address Update</h5>
-                                        <div>
-                                            <span className="text-[10px] text-green-600 block uppercase font-bold">New Address</span>
-                                            <p className="font-medium text-slate-900 mt-1">{getVal(selectedItem.requestData, 'new_address')}</p>
-                                            <p className="text-slate-600 text-xs mt-1">
-                                                {getVal(selectedItem.requestData, 'new_lga')}, {getVal(selectedItem.requestData, 'new_state')}
-                                            </p>
-                                        </div>
+                                        <h5 className="font-bold text-teal-800 text-xs uppercase mb-2 border-b border-teal-100 pb-1">New Address Requested</h5>
+                                        <p className="font-medium text-slate-900">{selectedItem.requestData?.new_address}</p>
+                                        <p className="text-slate-600 text-xs mt-1">{selectedItem.requestData?.new_lga}, {selectedItem.requestData?.new_state}</p>
                                     </>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                     {/* DOCUMENTS GALLERY */}
+                     {/* DOCUMENTS */}
                      <div>
                         <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {getVal(selectedItem.requestData, 'nin_slip_url', 'nin_slip') && (
-                                <a href={getVal(selectedItem.requestData, 'nin_slip_url', 'nin_slip')} target="_blank" className="block group">
-                                    <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileBadge className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">NIN Slip</span>
-                                </a>
-                            )}
-                            
-                            {getVal(selectedItem.requestData, 'supporting_doc_url', 'supporting_doc') && (
-                                <a href={getVal(selectedItem.requestData, 'supporting_doc_url', 'supporting_doc')} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileText className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Supporting Doc</span>
-                                </a>
-                            )}
-
-                            {getVal(selectedItem.requestData, 'court_affidavit_url', 'affidavit_url') && (
-                                <a href={getVal(selectedItem.requestData, 'court_affidavit_url', 'affidavit_url')} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileText className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Affidavit</span>
-                                </a>
-                            )}
-
-                            {getVal(selectedItem.requestData, 'newspaper_url', 'newspaper') && (
-                                <a href={getVal(selectedItem.requestData, 'newspaper_url', 'newspaper')} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileText className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Newspaper</span>
-                                </a>
-                            )}
+                            {/* Generic Document Display Function */}
+                            {[
+                                { key: 'nin_slip', label: 'NIN Slip' },
+                                { key: 'court_affidavit', label: 'Affidavit' },
+                                { key: 'newspaper_publication', label: 'Newspaper' },
+                                { key: 'marriage_certificate', label: 'Marriage Cert' },
+                                { key: 'supporting_doc', label: 'Supporting Doc' },
+                                { key: 'application_letter', label: 'App Letter' },
+                            ].map((doc) => {
+                                const url = getDocUrl(selectedItem.requestData, doc.key);
+                                if (!url) return null;
+                                return (
+                                    <a key={doc.key} href={url} target="_blank" className="block group">
+                                        <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
+                                            {/* Preview if Image, Icon if PDF */}
+                                            {url.match(/\.(jpeg|jpg|png)$/i) ? (
+                                                <img src={url} className="object-contain w-full h-full" alt={doc.label} />
+                                            ) : (
+                                                <FileText className="text-slate-400" size={24} />
+                                            )}
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Eye className="text-slate-700" />
+                                            </div>
+                                        </div>
+                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">{doc.label}</span>
+                                    </a>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -405,7 +343,7 @@ export default function AdminNinModificationQueue() {
                             {/* APPROVE BOX */}
                             <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
                                 <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-                                    <CheckCircle2 className="text-green-600" size={20} /> Approve Request
+                                    <CheckCircle2 className="text-green-600" size={20} /> Approve & Upload Slip
                                 </h4>
                                 <div className="space-y-4">
                                     <div>
@@ -470,6 +408,9 @@ export default function AdminNinModificationQueue() {
                                                     onChange={e => setRefundAmount(e.target.value)}
                                                     className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
                                                 />
+                                                <p className="text-[10px] text-slate-400 mt-1">
+                                                    Original Cost: ₦{Number(selectedItem.cost).toLocaleString()}
+                                                </p>
                                             </div>
                                         )}
                                     </div>
