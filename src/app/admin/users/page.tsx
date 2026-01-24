@@ -3,111 +3,244 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
-import { Users, Search, DollarSign, Wallet } from 'lucide-react';
+import { 
+  Users, Search, Shield, ShieldOff, Ban, Trash2, CheckCircle2, MoreVertical, Wallet
+} from 'lucide-react';
 
-export default function AdminUsers() {
+export default function AdminUserManagement() {
+  const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState<any>(null);
   
-  // Fund State
-  const [fundAmount, setFundAmount] = useState('');
-  const [fundType, setFundType] = useState<'CREDIT' | 'DEBIT'>('CREDIT');
-  const [processing, setProcessing] = useState(false);
+  // Action State
+  const [processing, setProcessing] = useState<string | null>(null); // Stores ID of user being processed
 
   useEffect(() => {
-    axios.get('/api/admin/users').then(res => {
-        setUsers(res.data);
-        setFiltered(res.data);
-    });
+    fetchUsers();
   }, []);
 
   useEffect(() => {
-    const q = search.toLowerCase();
-    setFiltered(users.filter(u => u.email.toLowerCase().includes(q) || u.firstName.toLowerCase().includes(q)));
+    if (!search) {
+        setFilteredUsers(users);
+    } else {
+        const lower = search.toLowerCase();
+        setFilteredUsers(users.filter(u => 
+            u.email.toLowerCase().includes(lower) || 
+            u.firstName?.toLowerCase().includes(lower) || 
+            u.lastName?.toLowerCase().includes(lower) ||
+            u.phoneNumber?.includes(lower)
+        ));
+    }
   }, [search, users]);
 
-  const handleFund = async () => {
-    if (!fundAmount) return;
-    if(!confirm(`${fundType} user wallet by ₦${fundAmount}?`)) return;
-
-    setProcessing(true);
+  const fetchUsers = async () => {
+    setLoading(true);
     try {
-      await axios.post('/api/admin/users/fund', {
-        userId: selectedUser.id,
-        amount: fundAmount,
-        type: fundType,
-        description: 'Manual Admin Adjustment'
-      });
-      alert("Success");
-      setSelectedUser(null);
-      // Refresh list
-      const res = await axios.get('/api/admin/users');
-      setUsers(res.data);
-    } catch(e) { alert("Failed"); }
-    finally { setProcessing(false); }
+      const res = await axios.get('/api/admin/users/list');
+      if (res.data.status) {
+          setUsers(res.data.data);
+          setFilteredUsers(res.data.data);
+      }
+    } catch (error) {
+        console.error("Failed to load users", error);
+    } finally {
+        setLoading(false);
+    }
   };
 
+  const handleAction = async (userId: string, action: string, userName: string) => {
+    const actionText = action === 'DELETE' ? 'PERMANENTLY DELETE' : action;
+    if (!confirm(`Are you sure you want to ${actionText} user: ${userName}?`)) return;
+
+    setProcessing(userId);
+    try {
+      const res = await axios.post('/api/admin/users/action', { userId, action });
+      if (res.data.status) {
+          alert(res.data.message);
+          fetchUsers(); // Refresh list
+      } else {
+          alert(res.data.error);
+      }
+    } catch (e: any) {
+        alert(e.response?.data?.error || "Action Failed");
+    } finally {
+        setProcessing(null);
+    }
+  };
+
+  if (loading) return <GlobalLoader />;
+
   return (
-    <div className="space-y-6 animate-in fade-in">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white"><Users className="w-8 h-8 text-blue-600"/> User Management</h1>
-        <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 pr-4 py-2 border rounded-lg text-sm w-64 bg-white dark:bg-gray-800" />
+    <div className="space-y-6 animate-in fade-in pb-20">
+      
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <Users className="text-blue-600" /> User Management
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">
+                Manage accounts, roles, and access permissions.
+            </p>
+        </div>
+        
+        {/* Search */}
+        <div className="relative w-full md:w-1/3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+                type="text" 
+                placeholder="Search Name, Email, Phone..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            />
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
-        <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500">
-                <tr>
-                    <th className="px-6 py-4">Name</th>
-                    <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Balance</th>
-                    <th className="px-6 py-4 text-right">Action</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filtered.map(user => (
-                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                        <td className="px-6 py-4 font-medium">{user.firstName} {user.lastName}</td>
-                        <td className="px-6 py-4 text-gray-500">{user.email}</td>
-                        <td className="px-6 py-4 font-mono font-bold text-green-600">₦{user.walletBalance}</td>
-                        <td className="px-6 py-4 text-right">
-                            <button onClick={() => setSelectedUser(user)} className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200">Manage</button>
-                        </td>
+      {/* USER TABLE */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[1000px]">
+                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th className="px-6 py-4 font-medium">User Details</th>
+                        <th className="px-6 py-4 font-medium">Role</th>
+                        <th className="px-6 py-4 font-medium">Status</th>
+                        <th className="px-6 py-4 font-medium">Wallet</th>
+                        <th className="px-6 py-4 font-medium">Activity</th>
+                        <th className="px-6 py-4 font-medium text-right">Actions</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {filteredUsers.length === 0 ? (
+                        <tr>
+                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                                No users found.
+                            </td>
+                        </tr>
+                    ) : (
+                        filteredUsers.map((user) => (
+                            <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
+                                
+                                {/* User Info */}
+                                <td className="px-6 py-4">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-slate-900 text-sm">
+                                            {user.firstName} {user.lastName}
+                                        </span>
+                                        <span className="text-xs text-slate-500">{user.email}</span>
+                                        <span className="text-[10px] text-slate-400">{user.phoneNumber}</span>
+                                    </div>
+                                </td>
 
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-xl max-w-sm w-full p-6">
-                <h3 className="font-bold text-lg mb-4">Manage Wallet: {selectedUser.firstName}</h3>
-                
-                <div className="flex gap-2 mb-4">
-                    <button onClick={() => setFundType('CREDIT')} className={`flex-1 py-2 text-sm font-bold rounded ${fundType === 'CREDIT' ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>Credit (+)</button>
-                    <button onClick={() => setFundType('DEBIT')} className={`flex-1 py-2 text-sm font-bold rounded ${fundType === 'DEBIT' ? 'bg-red-600 text-white' : 'bg-gray-100'}`}>Debit (-)</button>
-                </div>
+                                {/* Role */}
+                                <td className="px-6 py-4">
+                                    {user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? (
+                                        <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold border border-purple-200">
+                                            <Shield size={10} /> ADMIN
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold border border-slate-200">
+                                            USER
+                                        </span>
+                                    )}
+                                </td>
 
-                <div className="relative mb-4">
-                    <span className="absolute left-3 top-2.5 text-gray-500">₦</span>
-                    <input type="number" value={fundAmount} onChange={e => setFundAmount(e.target.value)} className="w-full pl-8 pr-4 py-2 border rounded text-lg font-bold" placeholder="0.00" />
-                </div>
+                                {/* Status */}
+                                <td className="px-6 py-4">
+                                    {user.isActive ? (
+                                        <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">
+                                            <CheckCircle2 size={10} /> Active
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-[10px] font-bold">
+                                            <Ban size={10} /> Blocked
+                                        </span>
+                                    )}
+                                </td>
 
-                <div className="flex gap-2">
-                    <button onClick={() => setSelectedUser(null)} className="flex-1 py-2 border rounded text-sm font-bold">Cancel</button>
-                    <button onClick={handleFund} disabled={processing} className="flex-1 py-2 bg-blue-600 text-white rounded text-sm font-bold">
-                        {processing ? 'Processing...' : 'Confirm'}
-                    </button>
-                </div>
-            </div>
+                                {/* Wallet */}
+                                <td className="px-6 py-4 font-mono font-bold text-slate-700">
+                                    ₦{Number(user.walletBalance).toLocaleString()}
+                                </td>
+
+                                {/* Activity */}
+                                <td className="px-6 py-4">
+                                    <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">
+                                        {user._count?.serviceRequests || 0} Requests
+                                    </span>
+                                </td>
+
+                                {/* Actions */}
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2 opacity-100 transition-opacity">
+                                        
+                                        {/* Block / Unblock */}
+                                        {user.isActive ? (
+                                            <button 
+                                                onClick={() => handleAction(user.id, 'BLOCK', user.email)}
+                                                disabled={processing === user.id}
+                                                className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded shadow-sm"
+                                                title="Block User"
+                                            >
+                                                <Ban size={16} />
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handleAction(user.id, 'UNBLOCK', user.email)}
+                                                disabled={processing === user.id}
+                                                className="p-2 bg-white border border-green-200 text-green-600 hover:bg-green-50 rounded shadow-sm"
+                                                title="Unblock User"
+                                            >
+                                                <CheckCircle2 size={16} />
+                                            </button>
+                                        )}
+
+                                        {/* Make Admin / Remove Admin */}
+                                        {user.role === 'USER' ? (
+                                            <button 
+                                                onClick={() => handleAction(user.id, 'MAKE_ADMIN', user.email)}
+                                                disabled={processing === user.id}
+                                                className="p-2 bg-white border border-purple-200 text-purple-600 hover:bg-purple-50 rounded shadow-sm"
+                                                title="Promote to Admin"
+                                            >
+                                                <Shield size={16} />
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handleAction(user.id, 'REMOVE_ADMIN', user.email)}
+                                                disabled={processing === user.id}
+                                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded shadow-sm"
+                                                title="Demote to User"
+                                            >
+                                                <ShieldOff size={16} />
+                                            </button>
+                                        )}
+
+                                        {/* Delete */}
+                                        <button 
+                                            onClick={() => handleAction(user.id, 'DELETE', user.email)}
+                                            disabled={processing === user.id}
+                                            className="p-2 bg-red-600 text-white hover:bg-red-700 rounded shadow-sm"
+                                            title="Delete User"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+
+                                    </div>
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
         </div>
-      )}
+        
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 flex justify-between items-center">
+            <span>Total Users: {filteredUsers.length}</span>
+        </div>
+      </div>
     </div>
   );
 }
