@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  Search, XCircle, RefreshCw, AlertTriangle, 
-  Smartphone, FileText, CheckCircle2 
+  Search, CheckCircle2, XCircle, RefreshCw, 
+  AlertTriangle, User, Hash, Download, Layers
 } from 'lucide-react';
 
 export default function AdminBvnRetrievalQueue() {
@@ -14,91 +14,90 @@ export default function AdminBvnRetrievalQueue() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
-  const [retrievedBvn, setRetrievedBvn] = useState('');
-  
-  // Rejection States
+  const [retrievedBVN, setRetrievedBVN] = useState('');
+  const [resultFile, setResultFile] = useState<File | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [refundMode, setRefundMode] = useState<'FULL' | 'PARTIAL' | 'NONE'>('FULL');
+  const [adminNote, setAdminNote] = useState('');
+  
+  // Refund Control
   const [refundAmount, setRefundAmount] = useState<string>('');
+  const [shouldRefund, setShouldRefund] = useState(true);
 
+  // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/admin/requests/all'); 
-      const logs = res.data.filter((r: any) => 
-        r.serviceType.startsWith('BVN_RETRIEVAL_') && r.status === 'PROCESSING'
-      );
-      setRequests(logs);
+      const endpoints = [
+        '/api/admin/requests/all?service=BVN_RETRIEVAL&status=ALL',
+        '/api/admin/requests/all?service=BVN_RETRIEVAL_PHONE&status=ALL',
+        '/api/admin/requests/all?service=BVN_RETRIEVAL_CRM&status=ALL',
+      ];
+
+      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
+      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      
+      // Sort: Newest first
+      combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setRequests(combined);
     } catch (error) {
-      console.error("Failed to load queue");
-    } finally {
-      setLoading(false);
+        console.error("Failed to fetch queue", error);
+    } finally { 
+        setLoading(false); 
     }
   };
 
-  useEffect(() => {
-    fetchQueue();
-  }, []);
+  useEffect(() => { fetchQueue(); }, []);
 
-  // Update Refund Amount when Mode changes
+  // Set default refund
   useEffect(() => {
     if (selectedItem) {
-        const cost = Number(selectedItem.cost);
-        if (refundMode === 'FULL') setRefundAmount(cost.toString());
-        if (refundMode === 'NONE') setRefundAmount('0');
+        setRefundAmount(selectedItem.cost.toString());
+        setResultFile(null);
+        setRejectionReason('');
+        setAdminNote('');
+        setRetrievedBVN('');
+        setShouldRefund(true);
     }
-  }, [refundMode, selectedItem]);
+  }, [selectedItem]);
 
-  // --- ACTIONS ---
-  const handleApprove = async () => {
-    if (retrievedBvn.length !== 11) return alert("Please enter a valid 11-digit BVN.");
+  // 2. Handle Action
+  const handleAction = async (action: 'APPROVE' | 'REJECT') => {
+    if (action === 'APPROVE') {
+        if (!retrievedBVN && !resultFile) return alert("Please enter the Recovered BVN or upload a slip.");
+        if (retrievedBVN && retrievedBVN.length !== 11) return alert("BVN must be exactly 11 digits.");
+    }
+    if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
-    if(!confirm(`Confirm BVN: ${retrievedBvn}? This will be sent to the user.`)) return;
+    if(!confirm(`Confirm ${action} action?`)) return;
 
     setProcessing(true);
     try {
-      await axios.post('/api/admin/requests/action', {
-        request_id: selectedItem.id,
-        action: 'APPROVE',
-        response_data: { 
-            success: true,
-            bvn: retrievedBvn,
-            message: "BVN Retrieved Successfully"
-        }
-      });
-      alert("Sent Successfully!");
-      closeModal();
-      fetchQueue();
-    } catch (e) {
-      alert("Failed to send BVN.");
-    } finally {
-      setProcessing(false);
-    }
-  };
+      const formData = new FormData();
+      formData.append('requestId', selectedItem.id);
+      formData.append('action', action);
+      
+      if (action === 'APPROVE') {
+          // Combine BVN and Note
+          const finalNote = retrievedBVN ? `Recovered BVN: ${retrievedBVN} | ${adminNote}` : adminNote;
+          formData.append('note', finalNote);
+          
+          if (resultFile) {
+            formData.append('file', resultFile);
+          }
+      } else {
+          formData.append('note', rejectionReason);
+          const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
+          formData.append('refund_amount', finalRefund.toString());
+      }
 
-  const handleReject = async () => {
-    if (!rejectionReason) return alert("Please enter a reason for rejection.");
-    const amount = Number(refundAmount);
-    
-    if (amount > Number(selectedItem.cost)) {
-        return alert(`Refund cannot exceed original cost (₦${selectedItem.cost})`);
-    }
-    
-    if(!confirm(`Reject request? Refund Amount: ₦${amount}`)) return;
-
-    setProcessing(true);
-    try {
-      await axios.post('/api/admin/requests/action', {
-        request_id: selectedItem.id,
-        action: 'REJECT',
-        rejection_reason: rejectionReason,
-        refund_amount: amount
-      });
-      alert("Request Rejected.");
+      await axios.post('/api/admin/requests/action', formData);
+      
+      alert(`Request ${action}D Successfully!`);
       closeModal();
       fetchQueue();
     } catch (e: any) {
-      alert(e.response?.data?.error || "Failed to reject.");
+      alert(e.response?.data?.error || "Action Failed");
     } finally {
       setProcessing(false);
     }
@@ -106,171 +105,325 @@ export default function AdminBvnRetrievalQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setRetrievedBvn('');
+    setResultFile(null);
     setRejectionReason('');
-    setRefundMode('FULL');
-    setRefundAmount('');
+    setAdminNote('');
+    setRetrievedBVN('');
+    setShouldRefund(true);
+  };
+
+  // Helper for Badges
+  const getTypeBadge = (type: string) => {
+      if (type.includes('PHONE')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Phone Retrieval</span>;
+      if (type.includes('CRM')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">CRM Search</span>;
+      return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Retrieval</span>;
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-6 animate-in fade-in pb-20">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
-          <Search className="w-8 h-8 text-sky-600" /> BVN Retrieval Queue
-        </h1>
-        <button onClick={fetchQueue} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition">
-          <RefreshCw className="w-5 h-5 text-gray-600" />
+        <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+            <Search className="w-8 h-8 text-indigo-600" /> BVN Retrieval
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">Process lost BVN recovery requests</p>
+        </div>
+        <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
+          <RefreshCw className="w-5 h-5 text-slate-600" />
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500">
-            <tr>
-              <th className="px-6 py-4">Date</th>
-              <th className="px-6 py-4">Method</th>
-              <th className="px-6 py-4">Input Data</th>
-              <th className="px-6 py-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {requests.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-500">No pending retrieval requests.</td></tr>
-            ) : (
-              requests.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                  <td className="px-6 py-4 text-gray-600">{new Date(item.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">
-                    {item.serviceType === 'BVN_RETRIEVAL_PHONE' ? (
-                      <span className="flex items-center gap-1 text-blue-600 font-medium"><Smartphone className="w-4 h-4" /> By Phone</span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-purple-600 font-medium"><FileText className="w-4 h-4" /> CRM Ticket</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 font-mono text-gray-700 dark:text-gray-300">
-                    {item.requestData?.phone_number || item.requestData?.ticket_id}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => setSelectedItem(item)} className="bg-sky-600 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-sky-700 transition">
-                      Process
-                    </button>
-                  </td>
+      {/* TABLE */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[1000px]">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                <tr>
+                <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium">Type</th>
+                <th className="px-6 py-4 font-medium">Search Criteria</th>
+                <th className="px-6 py-4 font-medium">Agent</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-right font-medium">Action</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+                {requests.length === 0 ? (
+                    <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                            No retrieval requests found.
+                        </td>
+                    </tr>
+                ) : (
+                    requests.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
+                        <td className="px-6 py-4 font-mono text-slate-700 font-bold">
+                            {item.requestData?.phoneNumber || item.requestData?.phone || item.requestData?.name || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                            <div className="flex flex-col">
+                                <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
+                                <span className="text-xs text-slate-400">{item.user?.email}</span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                            {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Found</span>}
+                            {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Not Found</span>}
+                            {item.status === 'PROCESSING' && <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Searching</span>}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                        <button 
+                            onClick={() => setSelectedItem(item)} 
+                            className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
+                                item.status === 'PROCESSING' 
+                                ? 'bg-slate-900 text-white hover:bg-slate-800' 
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
+                        </button>
+                        </td>
+                    </tr>
+                    ))
+                )}
+            </tbody>
+            </table>
+        </div>
       </div>
 
+      {/* MODAL */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-lg w-full p-6 space-y-6 my-10">
-            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
-              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Retrieve BVN</h3>
-              <button onClick={closeModal}><XCircle className="w-6 h-6 text-gray-400 hover:text-red-500" /></button>
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-5xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="font-bold text-xl text-slate-900">
+                        {selectedItem.status === 'PROCESSING' ? 'Process Retrieval' : 'Request Details'}
+                    </h3>
+                    <p className="text-slate-500 text-xs">ID: {selectedItem.id}</p>
+                  </div>
+                  {getTypeBadge(selectedItem.serviceType)}
+              </div>
+              <button onClick={closeModal}><XCircle className="w-8 h-8 text-slate-300 hover:text-slate-500 transition-colors" /></button>
             </div>
             
-            <div className="space-y-4">
-              {/* Request Data Display */}
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg text-sm space-y-2">
-                 {selectedItem.serviceType === 'BVN_RETRIEVAL_PHONE' ? (
-                    <>
-                      <p><span className="text-gray-500 block text-xs uppercase">Phone Number</span> <span className="font-mono text-lg font-bold">{selectedItem.requestData?.phone_number}</span></p>
-                      <p><span className="text-gray-500 block text-xs uppercase">Full Name</span> <span className="font-medium">{selectedItem.requestData?.full_name || 'N/A'}</span></p>
-                    </>
-                 ) : (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <p><span className="text-gray-500 block text-xs uppercase">Ticket ID</span> <span className="font-mono font-bold">{selectedItem.requestData?.ticket_id}</span></p>
-                        <p><span className="text-gray-500 block text-xs uppercase">Agent Code</span> <span className="font-mono font-bold">{selectedItem.requestData?.agent_code}</span></p>
-                        <p><span className="text-gray-500 block text-xs uppercase">BMS Ticket</span> <span className="font-mono font-bold">{selectedItem.requestData?.bms_ticket}</span></p>
-                      </div>
-                      
-                      {/* Screenshot Display */}
-                      {selectedItem.requestData?.screenshot && (
-                        <div className="mt-3">
-                            <p className="text-xs text-gray-500 uppercase mb-1">Enrollment Screenshot</p>
-                            <div className="border rounded-lg overflow-hidden bg-black">
-                                <img 
-                                  src={selectedItem.requestData.screenshot.startsWith('data:') 
-                                        ? selectedItem.requestData.screenshot 
-                                        : `data:image/jpeg;base64,${selectedItem.requestData.screenshot}`} 
-                                  className="w-full h-auto max-h-64 object-contain"
-                                  alt="Screenshot" 
-                                />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* LEFT COLUMN: DATA */}
+                <div className="space-y-6 text-sm h-full overflow-y-auto pr-2">
+                    
+                    {/* AGENT INFO */}
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
+                            <User size={16} className="text-blue-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-slate-700">
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Name</span> <span className="font-medium text-slate-900">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span></p>
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Email</span> <span className="font-medium text-slate-900">{selectedItem.user?.email}</span></p>
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Phone</span> <span className="font-medium text-slate-900">{selectedItem.user?.phoneNumber || 'N/A'}</span></p>
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Wallet Balance</span> <span className="font-bold text-green-700">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span></p>
+                        </div>
+                    </div>
+
+                    {/* SEARCH PARAMETERS */}
+                    <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-indigo-200 pb-2">
+                            <Search size={16} className="text-indigo-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Search Criteria</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4 text-slate-700">
+                            {selectedItem.requestData?.phoneNumber && (
+                                <div>
+                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Phone Number</span>
+                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-indigo-200">
+                                        <span className="font-mono font-bold text-xl text-slate-900 tracking-widest">
+                                            {selectedItem.requestData?.phoneNumber}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedItem.requestData?.name && (
+                                <div>
+                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Full Name</span>
+                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-indigo-200">
+                                        <span className="font-bold text-lg text-slate-900 uppercase">
+                                            {selectedItem.requestData?.name}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Show full raw data if complex */}
+                            <div className="mt-4 pt-4 border-t border-indigo-200">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold mb-2 block">All Submitted Data</span>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
+                                        if (typeof value === 'object' || !value || key === 'phoneNumber' || key === 'name') return null;
+                                        return (
+                                            <div key={key} className="flex justify-between text-xs">
+                                                <span className="text-slate-500 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                                <span className="text-slate-900 font-mono font-medium">{String(value)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
-                      )}
-                    </>
-                 )}
-              </div>
+                    </div>
+                </div>
 
-              <hr className="border-gray-100 dark:border-gray-800" />
+                {/* RIGHT COLUMN: ACTIONS */}
+                <div className="space-y-6 flex flex-col h-full">
+                    {selectedItem.status === 'PROCESSING' ? (
+                        <>
+                            {/* APPROVE BOX */}
+                            <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
+                                <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
+                                    <CheckCircle2 className="text-green-600" size={20} /> Found & Deliver
+                                </h4>
+                                <div className="space-y-4">
+                                    
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Recovered BVN (Required)</label>
+                                        <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500">
+                                            <div className="bg-slate-50 px-3 py-3 border-r border-slate-300 text-slate-500">
+                                                <Hash size={16} />
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                value={retrievedBVN}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                                    setRetrievedBVN(val);
+                                                }}
+                                                className="w-full p-3 text-sm outline-none font-mono tracking-widest font-bold text-slate-900"
+                                                placeholder="Enter 11-digit BVN" 
+                                            />
+                                        </div>
+                                    </div>
 
-              {/* APPROVE: Enter BVN */}
-              <div className="bg-green-50 p-4 rounded border border-green-200">
-                  <h4 className="font-bold text-green-800 mb-2 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4" /> BVN Found
-                  </h4>
-                  <label className="text-xs font-bold text-green-700 block mb-1">Enter Retrieved BVN</label>
-                  <input 
-                    value={retrievedBvn} 
-                    onChange={e => setRetrievedBvn(e.target.value)} 
-                    className="w-full p-3 border border-green-300 rounded font-mono text-xl tracking-[0.2em] text-center bg-white outline-none focus:ring-2 focus:ring-green-500" 
-                    placeholder="12345678901" 
-                    maxLength={11} 
-                  />
-                  <button 
-                    onClick={handleApprove} 
-                    disabled={processing} 
-                    className="w-full mt-3 py-3 bg-green-600 hover:bg-green-700 text-white rounded font-bold transition"
-                  >
-                    {processing ? 'Sending...' : 'Complete & Send to User'}
-                  </button>
-              </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Slip (Optional)</label>
+                                        <input 
+                                            type="file" 
+                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
+                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" 
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
+                                        <textarea 
+                                            value={adminNote} 
+                                            onChange={e => setAdminNote(e.target.value)} 
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                                            placeholder="Optional comments..." 
+                                            rows={2} 
+                                        />
+                                    </div>
 
-              {/* REJECT: Refund Controls */}
-              <div className="bg-red-50 p-4 rounded border border-red-200">
-                  <h4 className="font-bold text-red-800 mb-2 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4" /> Reject Request
-                  </h4>
-                  
-                  <div className="mb-3">
-                      <input 
-                          type="text" 
-                          value={rejectionReason}
-                          onChange={(e) => setRejectionReason(e.target.value)}
-                          placeholder="Reason for rejection..."
-                          className="w-full p-2 text-sm border border-red-200 rounded bg-white outline-none focus:ring-1 focus:ring-red-500"
-                      />
-                  </div>
+                                    <button 
+                                        onClick={() => handleAction('APPROVE')} 
+                                        disabled={processing || (!retrievedBVN && !resultFile)} 
+                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
+                                    >
+                                        {processing ? 'Processing...' : 'Complete & Send'}
+                                    </button>
+                                </div>
+                            </div>
 
-                  <div className="flex items-center gap-2 mb-3">
-                      <button onClick={() => setRefundMode('FULL')} className={`px-2 py-1 text-xs font-bold rounded ${refundMode === 'FULL' ? 'bg-red-600 text-white' : 'bg-white border'}`}>Full</button>
-                      <button onClick={() => setRefundMode('NONE')} className={`px-2 py-1 text-xs font-bold rounded ${refundMode === 'NONE' ? 'bg-gray-600 text-white' : 'bg-white border'}`}>None</button>
-                      
-                      <div className="flex items-center bg-white border rounded px-2 w-full">
-                        <span className="text-xs text-gray-500">₦</span>
-                        <input 
-                            type="number"
-                            value={refundAmount}
-                            onChange={(e) => { setRefundMode('PARTIAL'); setRefundAmount(e.target.value); }}
-                            className="w-full p-1 text-sm outline-none"
-                            placeholder="Partial Amt"
-                        />
-                      </div>
-                  </div>
+                            {/* REJECT BOX */}
+                            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
+                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline (Not Found)</h4>
+                                <div className="space-y-3">
+                                    <input 
+                                        value={rejectionReason} 
+                                        onChange={e => setRejectionReason(e.target.value)} 
+                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
+                                        placeholder="Reason (e.g. Invalid Details)..." 
+                                    />
+                                    
+                                    {/* REFUND CONTROLS */}
+                                    <div className="pt-2 border-t border-red-100">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={shouldRefund} 
+                                                onChange={e => setShouldRefund(e.target.checked)}
+                                                className="accent-red-600" 
+                                            />
+                                            Refund User?
+                                        </label>
+                                        
+                                        {shouldRefund && (
+                                            <div>
+                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={refundAmount} 
+                                                    onChange={e => setRefundAmount(e.target.value)}
+                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
 
-                  <button 
-                    onClick={handleReject} 
-                    disabled={processing} 
-                    className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-sm transition"
-                  >
-                    Reject & Refund
-                  </button>
-              </div>
+                                    <button 
+                                        onClick={() => handleAction('REJECT')} 
+                                        disabled={processing || !rejectionReason} 
+                                        className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        // READ ONLY VIEW
+                        <div className={`p-8 rounded-xl border flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                            {selectedItem.status === 'COMPLETED' ? (
+                                <>
+                                    <CheckCircle2 size={64} className="text-green-500 mb-4" />
+                                    <h3 className="text-2xl font-bold text-green-800">BVN Recovered</h3>
+                                    <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    
+                                    {/* Show extracted BVN from note if available */}
+                                    {selectedItem.adminNote?.includes('Recovered BVN:') && (
+                                        <div className="bg-green-100 p-4 rounded-lg mb-4 w-full">
+                                            <p className="text-xs text-green-600 uppercase font-bold mb-1">BVN Number</p>
+                                            <p className="text-2xl font-mono font-bold text-green-900 tracking-widest">
+                                                {selectedItem.adminNote.match(/Recovered BVN: (\d+)/)?.[1] || '---'}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {selectedItem.responseData?.resultUrl && (
+                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
+                                            <Download size={18} /> Download Slip
+                                        </a>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle size={64} className="text-red-500 mb-4" />
+                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
+                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
 
             </div>
           </div>
