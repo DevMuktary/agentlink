@@ -4,40 +4,32 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function POST(req: Request) {
   try {
-    // 1. Auth Check (Super Admins only for sensitive actions ideally, but Admin is fine here)
     const admin = await validateApiKey(req);
     if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
     }
 
-    // 2. Parse Payload
     const body = await req.json();
     const { userId, action } = body;
 
-    if (!userId || !action) {
-        return NextResponse.json({ status: false, error: 'Missing userId or action' }, { status: 400 });
-    }
+    if (!userId || !action) return NextResponse.json({ status: false, error: 'Missing Data' }, { status: 400 });
+    if (userId === admin.id) return NextResponse.json({ status: false, error: 'Self-action denied' }, { status: 400 });
 
-    // Prevent Admin from banning themselves
-    if (userId === admin.id) {
-        return NextResponse.json({ status: false, error: 'You cannot perform this action on yourself.' }, { status: 400 });
-    }
-
-    // 3. Execute Actions
     let updatedUser;
 
     switch (action) {
         case 'BLOCK':
+            // Ensure you added `isActive Boolean @default(true)` to User model
             updatedUser = await prisma.user.update({
                 where: { id: userId },
-                data: { isActive: false } // Prevents login
+                data: { isActive: false } 
             });
             break;
 
         case 'UNBLOCK':
             updatedUser = await prisma.user.update({
                 where: { id: userId },
-                data: { isActive: true } // Restores login
+                data: { isActive: true }
             });
             break;
 
@@ -51,15 +43,14 @@ export async function POST(req: Request) {
         case 'REMOVE_ADMIN':
             updatedUser = await prisma.user.update({
                 where: { id: userId },
-                data: { role: 'USER' }
+                data: { role: 'AGENT' } // Changed from USER to AGENT (based on your Enum)
             });
             break;
 
         case 'DELETE':
-            // Check for transactions/requests first to prevent database foreign key errors
             const hasHistory = await prisma.serviceRequest.count({ where: { userId } });
             if (hasHistory > 0) {
-                // Soft Delete if they have history (rename email so they can't login, disable account)
+                // Soft Delete: Scramble email + Deactivate
                 updatedUser = await prisma.user.update({
                     where: { id: userId },
                     data: { 
@@ -69,21 +60,20 @@ export async function POST(req: Request) {
                         lastName: '(Removed)'
                     }
                 });
-                return NextResponse.json({ status: true, message: 'User had history. Account Deactivated & Email Scrambled instead of Hard Delete.' });
+                return NextResponse.json({ status: true, message: 'User Deactivated (Has History)' });
             } else {
-                // Hard Delete if fresh account
                 await prisma.user.delete({ where: { id: userId } });
-                return NextResponse.json({ status: true, message: 'User Permanently Deleted' });
+                return NextResponse.json({ status: true, message: 'User Deleted Permanently' });
             }
 
         default:
             return NextResponse.json({ status: false, error: 'Invalid Action' }, { status: 400 });
     }
 
-    return NextResponse.json({ status: true, message: `User ${action} Successful`, data: updatedUser });
+    return NextResponse.json({ status: true, message: 'Success', data: updatedUser });
 
   } catch (error) {
     console.error("User Action Error:", error);
-    return NextResponse.json({ status: false, error: 'Server Action Failed' }, { status: 500 });
+    return NextResponse.json({ status: false, error: 'Action Failed' }, { status: 500 });
   }
 }
