@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   GraduationCap, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, FileText, Download, Hash, Calendar, BookOpen
+  AlertTriangle, User, FileText, Download, Hash, Calendar, BookOpen, Layers
 } from 'lucide-react';
 
 export default function AdminJambQueue() {
@@ -63,9 +63,6 @@ export default function AdminJambQueue() {
 
   // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
-    // Validation
-    const isProfileCode = selectedItem.serviceType.includes('PROFILE_CODE');
-    
     if (action === 'APPROVE') {
         if (!resultFile && !adminNote) return alert("Please upload the Result/Letter OR enter the Profile Code in the notes.");
     }
@@ -118,6 +115,11 @@ export default function AdminJambQueue() {
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">JAMB Service</span>;
   };
 
+  // Helper to extract Key ID
+  const getDisplayId = (data: any) => {
+      return data?.registrationNumber || data?.regNumber || data?.profileCode || data?.nin || data?.phoneNumber || '-';
+  };
+
   if (loading) return <GlobalLoader />;
 
   return (
@@ -142,7 +144,7 @@ export default function AdminJambQueue() {
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Service</th>
-                <th className="px-6 py-4 font-medium">Details (Reg/Phone)</th>
+                <th className="px-6 py-4 font-medium">Identifier</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
@@ -161,7 +163,7 @@ export default function AdminJambQueue() {
                         <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{getServiceBadge(item.serviceType)}</td>
                         <td className="px-6 py-4 font-mono text-slate-700 font-bold">
-                            {item.requestData?.registrationNumber || item.requestData?.regNumber || item.requestData?.phoneNumber || item.requestData?.nin || '-'}
+                            {getDisplayId(item.requestData)}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                             <div className="flex flex-col">
@@ -232,60 +234,28 @@ export default function AdminJambQueue() {
                         </div>
                     </div>
 
-                    {/* JAMB DETAILS */}
+                    {/* ALL SUBMITTED DATA (Dynamic List) */}
                     <div className="bg-green-50 p-5 rounded-xl border border-green-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-green-200 pb-2">
-                            <BookOpen size={16} className="text-green-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Request Data</h4>
+                            <Layers size={16} className="text-green-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Submitted Data (All Fields)</h4>
                         </div>
                         
-                        {/* Dynamic Field Display */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-700">
-                            
-                            {/* REG NUMBER (For Result/Admission) */}
-                            {(selectedItem.requestData?.registrationNumber || selectedItem.requestData?.regNumber) && (
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Registration Number</span>
-                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-green-200">
-                                        <Hash size={14} className="text-slate-400" />
-                                        <span className="font-mono font-bold text-lg text-slate-900">
-                                            {selectedItem.requestData?.registrationNumber || selectedItem.requestData?.regNumber}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="grid grid-cols-1 gap-3">
+                            {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
+                                // Skip complex objects or empty values
+                                if (typeof value === 'object' || !value) return null;
+                                
+                                // Format Key (e.g. registrationNumber -> Registration Number)
+                                const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 
-                            {/* PROFILE CODE / NIN (For Retrieval) */}
-                            {(selectedItem.requestData?.nin || selectedItem.requestData?.profileCode) && (
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">NIN / Profile Code</span>
-                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-green-200">
-                                        <User size={14} className="text-slate-400" />
-                                        <span className="font-mono font-bold text-lg text-slate-900">
-                                            {selectedItem.requestData?.nin || selectedItem.requestData?.profileCode}
-                                        </span>
+                                return (
+                                    <div key={key} className="flex justify-between items-center border-b border-green-100 pb-2 last:border-0">
+                                        <span className="text-slate-500 text-xs font-semibold uppercase">{label}</span>
+                                        <span className="text-slate-900 font-bold text-sm text-right">{String(value)}</span>
                                     </div>
-                                </div>
-                            )}
-
-                            {/* EXAM YEAR */}
-                            {selectedItem.requestData?.examYear && (
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Exam Year</span>
-                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-green-200">
-                                        <Calendar size={14} className="text-slate-400" />
-                                        <span className="font-bold text-slate-900">{selectedItem.requestData?.examYear}</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* PHONE NUMBER */}
-                            {selectedItem.requestData?.phoneNumber && (
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Phone Number</span>
-                                    <span className="font-bold text-slate-900">{selectedItem.requestData?.phoneNumber}</span>
-                                </div>
-                            )}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
