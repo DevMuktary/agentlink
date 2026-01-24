@@ -14,7 +14,7 @@ export default function AdminUserManagement() {
   const [search, setSearch] = useState('');
   
   // Action State
-  const [processing, setProcessing] = useState<string | null>(null); // Stores ID of user being processed
+  const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -26,7 +26,7 @@ export default function AdminUserManagement() {
     } else {
         const lower = search.toLowerCase();
         setFilteredUsers(users.filter(u => 
-            u.email.toLowerCase().includes(lower) || 
+            u.email?.toLowerCase().includes(lower) || 
             u.firstName?.toLowerCase().includes(lower) || 
             u.lastName?.toLowerCase().includes(lower) ||
             u.phoneNumber?.includes(lower)
@@ -165,10 +165,10 @@ export default function AdminUserManagement() {
                                     ₦{Number(user.walletBalance).toLocaleString()}
                                 </td>
 
-                                {/* Activity */}
+                                {/* Activity (FIXED: Changed serviceRequests to requests) */}
                                 <td className="px-6 py-4">
                                     <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">
-                                        {user._count?.serviceRequests || 0} Requests
+                                        {user._count?.requests || 0} Requests
                                     </span>
                                 </td>
 
@@ -198,7 +198,7 @@ export default function AdminUserManagement() {
                                         )}
 
                                         {/* Make Admin / Remove Admin */}
-                                        {user.role === 'USER' ? (
+                                        {user.role === 'AGENT' || user.role === 'USER' ? (
                                             <button 
                                                 onClick={() => handleAction(user.id, 'MAKE_ADMIN', user.email)}
                                                 disabled={processing === user.id}
