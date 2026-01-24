@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Smartphone, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, Eye, User, MapPin, CreditCard, Building2, Calendar
+  AlertTriangle, User, MapPin, CreditCard
 } from 'lucide-react';
 
 export default function AdminBvnUserQueue() {
@@ -252,32 +252,6 @@ export default function AdminBvnUserQueue() {
                             <p><span className="text-slate-600 text-xs uppercase block font-semibold">State of Residence</span> <span className="text-slate-900">{selectedItem.requestData?.state_of_residence}</span></p>
                             <p><span className="text-slate-600 text-xs uppercase block font-semibold">Local Govt</span> <span className="text-slate-900">{selectedItem.requestData?.local_government}</span></p>
                             <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Senatorial District</span> <span className="text-slate-900">{selectedItem.requestData?.senatorial_district}</span></p>
-                        </div>
-                    </div>
-
-                     {/* 5. IMAGES */}
-                     <div>
-                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Uploaded Images</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Passport */}
-                            {selectedItem.requestData?.passport_url && (
-                                <a href={selectedItem.requestData.passport_url} target="_blank" className="block group">
-                                    <div className="bg-slate-100 rounded-lg h-40 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                        <img src={selectedItem.requestData.passport_url} className="object-contain w-full h-full" alt="Passport" />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Passport</span>
-                                </a>
-                            )}
-                            
-                            {/* Signature */}
-                            {selectedItem.requestData?.signature_url && (
-                                <a href={selectedItem.requestData.signature_url} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-40 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                        <img src={selectedItem.requestData.signature_url} className="object-contain w-full h-full" alt="Signature" />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Signature</span>
-                                </a>
-                            )}
                         </div>
                     </div>
                 </div>
