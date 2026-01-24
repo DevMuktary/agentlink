@@ -18,7 +18,7 @@ export async function GET(req: Request) {
             role: true,
             // Assuming you added isActive back to schema, or removed it from here if you are using Role-based blocking
             // For now, I will keep it but if it fails again remove 'isActive: true'
-            // isActive: true, 
+            isActive: true, 
             walletBalance: true,
             createdAt: true,
             _count: {
