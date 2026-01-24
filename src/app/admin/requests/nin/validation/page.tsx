@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  FileBadge, CheckCircle2, XCircle, RefreshCw, AlertTriangle 
+  Search, CheckCircle2, XCircle, RefreshCw, 
+  AlertTriangle, User, FileText, Download, Fingerprint, Layers
 } from 'lucide-react';
 
 export default function AdminNinValidationQueue() {
@@ -12,79 +13,84 @@ export default function AdminNinValidationQueue() {
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
-  // Action States
   const [processing, setProcessing] = useState(false);
-  const [resultText, setResultText] = useState('Validation Successful'); 
+  const [resultFile, setResultFile] = useState<File | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [refundMode, setRefundMode] = useState<'FULL' | 'PARTIAL' | 'NONE'>('FULL');
+  const [adminNote, setAdminNote] = useState('');
+  
+  // Refund Control
   const [refundAmount, setRefundAmount] = useState<string>('');
+  const [shouldRefund, setShouldRefund] = useState(true);
 
+  // 1. Fetch Queue (Merge all Validation Types)
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/admin/requests/all'); 
-      const logs = res.data.filter((r: any) => r.serviceType.startsWith('NIN_VALIDATION_'));
-      setRequests(logs);
+      const endpoints = [
+        '/api/admin/requests/all?service=NIN_VALIDATION_VNIN&status=ALL',
+        '/api/admin/requests/all?service=NIN_VALIDATION_NO_RECORD&status=ALL',
+        '/api/admin/requests/all?service=NIN_VALIDATION_UPDATE_RECORD&status=ALL',
+        // Fallback for generic type if used
+        '/api/admin/requests/all?service=NIN_VALIDATION&status=ALL',
+      ];
+
+      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
+      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      
+      // Sort: Newest first
+      combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setRequests(combined);
     } catch (error) {
-      console.error("Failed to load queue");
-    } finally {
-      setLoading(false);
+        console.error("Failed to fetch queue", error);
+    } finally { 
+        setLoading(false); 
     }
   };
 
-  useEffect(() => {
-    fetchQueue();
-  }, []);
+  useEffect(() => { fetchQueue(); }, []);
 
-  // Update Refund Amount
+  // Set default refund
   useEffect(() => {
     if (selectedItem) {
-        const cost = Number(selectedItem.cost);
-        if (refundMode === 'FULL') setRefundAmount(cost.toString());
-        if (refundMode === 'NONE') setRefundAmount('0');
+        setRefundAmount(selectedItem.cost.toString());
+        setResultFile(null);
+        setRejectionReason('');
+        setAdminNote('');
+        setShouldRefund(true);
     }
-  }, [refundMode, selectedItem]);
+  }, [selectedItem]);
 
-  const handleApprove = async () => {
-    if(!confirm("Mark validation as valid/completed?")) return;
-    setProcessing(true);
-    try {
-      await axios.post('/api/admin/requests/action', {
-        request_id: selectedItem.id,
-        action: 'APPROVE',
-        response_data: { 
-            success: true, 
-            message: resultText // e.g. "Record Validated"
-        }
-      });
-      alert("Completed!");
-      closeModal();
-      fetchQueue();
-    } catch (e) {
-      alert("Failed.");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!rejectionReason) return alert("Enter reason.");
-    const amount = Number(refundAmount);
-    if (amount > Number(selectedItem.cost)) return alert("Refund too high.");
+  // 2. Handle Action
+  const handleAction = async (action: 'APPROVE' | 'REJECT') => {
+    if (action === 'APPROVE' && !resultFile) return alert("Please upload the Validated NIN Slip (PDF/Image).");
+    if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
+    if(!confirm(`Confirm ${action} action?`)) return;
+
     setProcessing(true);
     try {
-      await axios.post('/api/admin/requests/action', {
-        request_id: selectedItem.id,
-        action: 'REJECT',
-        rejection_reason: rejectionReason,
-        refund_amount: amount
-      });
-      alert("Rejected.");
+      const formData = new FormData();
+      formData.append('requestId', selectedItem.id);
+      formData.append('action', action);
+      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Validation Successful'));
+      
+      if (action === 'APPROVE' && resultFile) {
+        formData.append('file', resultFile);
+      }
+
+      if (action === 'REJECT') {
+          const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
+          formData.append('refund_amount', finalRefund.toString());
+      }
+
+      await axios.post('/api/admin/requests/action', formData);
+      
+      alert(`Request ${action}D Successfully!`);
       closeModal();
       fetchQueue();
-    } catch (e) {
-      alert("Failed.");
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Action Failed");
     } finally {
       setProcessing(false);
     }
@@ -92,82 +98,322 @@ export default function AdminNinValidationQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
+    setResultFile(null);
     setRejectionReason('');
-    setRefundMode('FULL');
+    setAdminNote('');
+    setShouldRefund(true);
+  };
+
+  // Helper for Badges
+  const getTypeBadge = (type: string) => {
+      if (type.includes('VNIN')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">vNIN Search</span>;
+      if (type.includes('NO_RECORD')) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">Demographic Search</span>;
+      if (type.includes('UPDATE')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Tracking ID</span>;
+      return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Validation</span>;
+  };
+
+  // Helper to extract Search Key
+  const getSearchTerm = (item: any) => {
+      if (item.serviceType.includes('VNIN')) return item.requestData?.vnin;
+      if (item.serviceType.includes('UPDATE')) return item.requestData?.tracking_id || item.requestData?.trackingId;
+      if (item.serviceType.includes('NO_RECORD')) return `${item.requestData?.surname} ${item.requestData?.firstname}`;
+      return item.requestData?.nin || '-';
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-6 animate-in fade-in pb-20">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <FileBadge className="w-8 h-8 text-indigo-600" /> NIN Validation Queue
-        </h1>
-        <button onClick={fetchQueue} className="p-2 bg-gray-100 rounded-full"><RefreshCw className="w-5 h-5" /></button>
+        <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+            <Fingerprint className="w-8 h-8 text-purple-600" /> NIN Validation
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">Process Validation & Search Requests</p>
+        </div>
+        <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
+          <RefreshCw className="w-5 h-5 text-slate-600" />
+        </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500">
-            <tr>
-              <th className="px-6 py-4">Date</th>
-              <th className="px-6 py-4">Service</th>
-              <th className="px-6 py-4">NIN</th>
-              <th className="px-6 py-4">User</th>
-              <th className="px-6 py-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {requests.map((item) => (
-              <tr key={item.id}>
-                <td className="px-6 py-4">{new Date(item.createdAt).toLocaleDateString()}</td>
-                <td className="px-6 py-4 text-indigo-600 font-medium">{item.serviceType.replace('NIN_VALIDATION_', '')}</td>
-                <td className="px-6 py-4 font-mono">{item.requestData?.nin}</td>
-                <td className="px-6 py-4 text-gray-500">{item.user.firstName} ({item.user.businessName})</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => setSelectedItem(item)} className="bg-indigo-600 text-white px-4 py-1.5 rounded text-xs font-bold">Process</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* TABLE */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[1000px]">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                <tr>
+                <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium">Type</th>
+                <th className="px-6 py-4 font-medium">Search Param</th>
+                <th className="px-6 py-4 font-medium">Agent</th>
+                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-right font-medium">Action</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+                {requests.length === 0 ? (
+                    <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                            No Validation requests found.
+                        </td>
+                    </tr>
+                ) : (
+                    requests.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
+                        <td className="px-6 py-4 font-mono text-slate-700 font-bold">
+                            {getSearchTerm(item)}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">
+                            <div className="flex flex-col">
+                                <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
+                                <span className="text-xs text-slate-400">{item.user?.email}</span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4">
+                            {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Success</span>}
+                            {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Failed</span>}
+                            {item.status === 'PROCESSING' && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                        <button 
+                            onClick={() => setSelectedItem(item)} 
+                            className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
+                                item.status === 'PROCESSING' 
+                                ? 'bg-slate-900 text-white hover:bg-slate-800' 
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
+                        </button>
+                        </td>
+                    </tr>
+                    ))
+                )}
+            </tbody>
+            </table>
+        </div>
       </div>
 
+      {/* MODAL */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-lg w-full p-6 space-y-6">
-            <div className="flex justify-between items-center">
-               <h3 className="font-bold text-lg">Process Validation</h3>
-               <button onClick={closeModal}><XCircle className="w-6 h-6 text-gray-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-5xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="font-bold text-xl text-slate-900">
+                        {selectedItem.status === 'PROCESSING' ? 'Process Validation' : 'Request Details'}
+                    </h3>
+                    <p className="text-slate-500 text-xs">ID: {selectedItem.id}</p>
+                  </div>
+                  {getTypeBadge(selectedItem.serviceType)}
+              </div>
+              <button onClick={closeModal}><XCircle className="w-8 h-8 text-slate-300 hover:text-slate-500 transition-colors" /></button>
             </div>
-
-            <div className="bg-indigo-50 p-4 rounded border border-indigo-100">
-                <p className="text-xs font-bold text-indigo-600 uppercase">NIN to Validate</p>
-                <p className="text-2xl font-mono font-bold">{selectedItem.requestData?.nin}</p>
-                <p className="text-sm mt-1 text-gray-600">Type: {selectedItem.serviceType}</p>
-            </div>
-
-            <div className="space-y-4">
-                {/* Approve */}
-                <div className="border p-4 rounded bg-green-50 border-green-200">
-                    <label className="text-xs font-bold text-green-700 block mb-1">Success Message</label>
-                    <input value={resultText} onChange={e => setResultText(e.target.value)} className="w-full p-2 border rounded text-sm mb-2" />
-                    <button onClick={handleApprove} disabled={processing} className="w-full py-2 bg-green-600 text-white rounded font-bold text-sm">Mark as Validated</button>
-                </div>
-
-                {/* Reject */}
-                <div className="border p-4 rounded bg-red-50 border-red-200">
-                    <label className="text-xs font-bold text-red-700 block mb-1">Rejection Reason</label>
-                    <input value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="w-full p-2 border rounded text-sm mb-2" placeholder="e.g. Invalid NIN" />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* LEFT COLUMN: DATA */}
+                <div className="space-y-6 text-sm h-full overflow-y-auto pr-2">
                     
-                    <div className="flex gap-2 mb-2">
-                        <button onClick={() => setRefundMode('FULL')} className={`flex-1 py-1 text-xs rounded ${refundMode === 'FULL' ? 'bg-red-600 text-white' : 'bg-white border'}`}>Full Refund</button>
-                        <button onClick={() => setRefundMode('NONE')} className={`flex-1 py-1 text-xs rounded ${refundMode === 'NONE' ? 'bg-gray-600 text-white' : 'bg-white border'}`}>No Refund</button>
+                    {/* AGENT INFO */}
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
+                            <User size={16} className="text-blue-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-slate-700">
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Name</span> <span className="font-medium text-slate-900">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span></p>
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Email</span> <span className="font-medium text-slate-900">{selectedItem.user?.email}</span></p>
+                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Phone</span> <span className="font-medium text-slate-900">{selectedItem.user?.phoneNumber || 'N/A'}</span></p>
+                            <p><span className="text-slate-500 text-xs uppercase block font-semibold">Wallet Balance</span> <span className="font-bold text-green-700">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span></p>
+                        </div>
                     </div>
-                    
-                    <button onClick={handleReject} disabled={processing} className="w-full py-2 bg-red-600 text-white rounded font-bold text-sm">Reject Request</button>
+
+                    {/* VALIDATION DATA (Dynamic based on Type) */}
+                    <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
+                        <div className="flex items-center gap-2 mb-3 border-b border-purple-200 pb-2">
+                            <Search size={16} className="text-purple-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Search Parameters</h4>
+                        </div>
+                        
+                        {/* VNIN SEARCH */}
+                        {selectedItem.serviceType.includes('VNIN') && (
+                            <div className="space-y-2">
+                                <span className="text-slate-500 text-xs uppercase block font-semibold">Virtual NIN (vNIN)</span>
+                                <div className="p-3 bg-white border border-purple-200 rounded font-mono text-xl font-bold tracking-widest text-slate-800">
+                                    {selectedItem.requestData?.vnin}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TRACKING ID (UPDATE RECORD) */}
+                        {selectedItem.serviceType.includes('UPDATE') && (
+                            <div className="space-y-2">
+                                <span className="text-slate-500 text-xs uppercase block font-semibold">Tracking ID</span>
+                                <div className="p-3 bg-white border border-purple-200 rounded font-mono text-xl font-bold tracking-widest text-slate-800">
+                                    {selectedItem.requestData?.tracking_id || selectedItem.requestData?.trackingId}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* DEMOGRAPHIC (NO RECORD) */}
+                        {selectedItem.serviceType.includes('NO_RECORD') && (
+                            <div className="grid grid-cols-2 gap-4 text-slate-700">
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Surname</span> <span className="font-bold">{selectedItem.requestData?.surname}</span></p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">First Name</span> <span className="font-bold">{selectedItem.requestData?.firstname}</span></p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">DOB</span> {selectedItem.requestData?.dob}</p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Gender</span> {selectedItem.requestData?.gender}</p>
+                                <p className="col-span-2 border-t border-purple-200 pt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">LGA / State</span> {selectedItem.requestData?.lga}, {selectedItem.requestData?.state}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* RAW DATA DUMP (Safety Net) */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
+                            <Layers size={14} className="text-slate-500" />
+                            <h4 className="font-bold uppercase text-[10px] tracking-wider text-slate-500">Full Raw Data</h4>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                            {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
+                                if (typeof value === 'object' || !value) return null;
+                                return (
+                                    <div key={key} className="flex justify-between text-xs">
+                                        <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                        <span className="text-slate-700 font-mono font-medium truncate ml-2 max-w-[150px] text-right">{String(value)}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
+
+                {/* RIGHT COLUMN: ACTIONS */}
+                <div className="space-y-6 flex flex-col h-full">
+                    {selectedItem.status === 'PROCESSING' ? (
+                        <>
+                            {/* APPROVE BOX */}
+                            <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
+                                <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
+                                    <CheckCircle2 className="text-green-600" size={20} /> Approve & Upload Result
+                                </h4>
+                                <div className="space-y-4">
+                                    
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Validation Slip (PDF/Image)</label>
+                                        <input 
+                                            type="file" 
+                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
+                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer" 
+                                        />
+                                        <p className="text-[10px] text-slate-400 mt-1">Upload the result slip generated from the portal.</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
+                                        <textarea 
+                                            value={adminNote} 
+                                            onChange={e => setAdminNote(e.target.value)} 
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                                            placeholder="Optional comments..." 
+                                            rows={2} 
+                                        />
+                                    </div>
+
+                                    <button 
+                                        onClick={() => handleAction('APPROVE')} 
+                                        disabled={processing || !resultFile} 
+                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
+                                    >
+                                        {processing ? 'Processing...' : 'Complete & Send'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* REJECT BOX */}
+                            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
+                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline Request</h4>
+                                <div className="space-y-3">
+                                    <input 
+                                        value={rejectionReason} 
+                                        onChange={e => setRejectionReason(e.target.value)} 
+                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
+                                        placeholder="Reason for rejection (Required)..." 
+                                    />
+                                    
+                                    {/* REFUND CONTROLS */}
+                                    <div className="pt-2 border-t border-red-100">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={shouldRefund} 
+                                                onChange={e => setShouldRefund(e.target.checked)}
+                                                className="accent-red-600" 
+                                            />
+                                            Refund User?
+                                        </label>
+                                        
+                                        {shouldRefund && (
+                                            <div>
+                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={refundAmount} 
+                                                    onChange={e => setRefundAmount(e.target.value)}
+                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => handleAction('REJECT')} 
+                                        disabled={processing || !rejectionReason} 
+                                        className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        // READ ONLY VIEW
+                        <div className={`p-8 rounded-xl border flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                            {selectedItem.status === 'COMPLETED' ? (
+                                <>
+                                    <CheckCircle2 size={64} className="text-green-500 mb-4" />
+                                    <h3 className="text-2xl font-bold text-green-800">Validation Completed</h3>
+                                    <p className="text-green-600 text-sm mb-6">Finished on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    
+                                    {selectedItem.responseData?.resultUrl && (
+                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
+                                            <Download size={18} /> Download Slip
+                                        </a>
+                                    )}
+
+                                    {selectedItem.adminNote && (
+                                        <div className="mt-4 bg-white/60 p-3 rounded border border-green-200 text-sm text-green-800 max-w-xs break-words">
+                                            <strong>Note:</strong> {selectedItem.adminNote}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle size={64} className="text-red-500 mb-4" />
+                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
+                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+
             </div>
           </div>
         </div>
