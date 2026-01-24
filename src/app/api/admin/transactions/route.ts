@@ -3,33 +3,39 @@ import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
-  const admin = await validateApiKey(req);
-  if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  // 1. Fetch Transactions with User Details
-  const transactions = await prisma.transaction.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 500, // Limit for admin view
-    include: {
-      user: {
-        select: { firstName: true, lastName: true, email: true, businessName: true }
-      }
+  try {
+    // 1. Auth Check
+    const user = await validateApiKey(req);
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+      return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
     }
-  });
 
-  // 2. Calculate Totals (All time)
-  const stats = await prisma.transaction.groupBy({
-    by: ['type'],
-    _sum: { amount: true }
-  });
+    // 2. Fetch Transactions (Latest 1000)
+    // In production, you would add real pagination (skip/take) here.
+    const transactions = await prisma.transaction.findMany({
+        take: 10000, 
+        orderBy: {
+            createdAt: 'desc'
+        },
+        include: {
+            user: {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    businessName: true
+                }
+            }
+        }
+    });
 
-  return NextResponse.json({
-    data: transactions,
-    stats: stats.reduce((acc: any, curr) => {
-      acc[curr.type] = curr._sum.amount;
-      return acc;
-    }, {})
-  });
+    return NextResponse.json({
+        status: true,
+        data: transactions
+    });
+
+  } catch (error) {
+    console.error("Tx Fetch Error:", error);
+    return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
+  }
 }
