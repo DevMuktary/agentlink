@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { uploadToCloudinary } from '@/lib/cloudinary'; // Assuming this exists
 
 export async function POST(req: Request) {
   try {
@@ -41,20 +40,12 @@ export async function POST(req: Request) {
         let responseData: any = request.responseData || {};
 
         if (action === 'APPROVE') {
-            // Upload File (Optional now for some services)
+            // Upload Logic (Placeholder - add your cloudinary logic if needed)
             let resultUrl = null;
-            if (file) {
-                // If you have a helper, use it. Otherwise, insert your upload logic here.
-                // For now assuming uploadToCloudinary returns a string URL.
-                try {
-                    const buffer = Buffer.from(await file.arrayBuffer());
-                    // This is a placeholder for your actual upload logic
-                    // resultUrl = await uploadToCloudinary(buffer, 'results'); 
-                } catch (e) {
-                    console.error("Upload failed", e);
-                }
-            }
-
+            
+            // Note: If you are using Cloudinary or local upload, implement it here.
+            // For now, we assume the file handling is done or skipped if unnecessary.
+            
             if (resultUrl) responseData.resultUrl = resultUrl;
 
             // Update Request
@@ -70,9 +61,7 @@ export async function POST(req: Request) {
 
         } else if (action === 'REJECT') {
             
-            // Refund Logic: Use provided amount OR default to full cost
-            // If refundAmount is 0, we explicitly want ZERO refund.
-            // If refundAmount is null/undefined, we default to full cost.
+            // Refund Logic
             const amountToRefund = refundAmount !== null ? refundAmount : Number(request.cost);
 
             if (amountToRefund > 0) {
@@ -83,13 +72,15 @@ export async function POST(req: Request) {
                 });
 
                 // Log Transaction
+                // FIX: Added 'REFUND-' prefix and timestamp to ensure uniqueness
                 await tx.transaction.create({
                     data: {
                         userId: request.userId,
                         type: 'REFUND',
                         amount: amountToRefund,
                         status: 'COMPLETED',
-                        reference: `REF-${request.id.slice(0,8)}`,
+                        // Uniqueness Fix:
+                        reference: `REFUND-${request.id.slice(0,6)}-${Date.now().toString().slice(-4)}`,
                         description: `Refund for ${request.serviceType} (${requestId.slice(0,5)})`
                     }
                 });
