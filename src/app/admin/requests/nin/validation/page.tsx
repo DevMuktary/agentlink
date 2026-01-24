@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Search, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, FileText, Download, Fingerprint, Layers
+  AlertTriangle, User, Download, Layers
 } from 'lucide-react';
 
 export default function AdminNinValidationQueue() {
@@ -30,7 +30,6 @@ export default function AdminNinValidationQueue() {
         '/api/admin/requests/all?service=NIN_VALIDATION_VNIN&status=ALL',
         '/api/admin/requests/all?service=NIN_VALIDATION_NO_RECORD&status=ALL',
         '/api/admin/requests/all?service=NIN_VALIDATION_UPDATE_RECORD&status=ALL',
-        // Fallback for generic type if used
         '/api/admin/requests/all?service=NIN_VALIDATION&status=ALL',
       ];
 
@@ -116,7 +115,7 @@ export default function AdminNinValidationQueue() {
   const getSearchTerm = (item: any) => {
       if (item.serviceType.includes('VNIN')) return item.requestData?.vnin;
       if (item.serviceType.includes('UPDATE')) return item.requestData?.tracking_id || item.requestData?.trackingId;
-      if (item.serviceType.includes('NO_RECORD')) return `${item.requestData?.surname} ${item.requestData?.firstname}`;
+      if (item.serviceType.includes('NO_RECORD')) return `${item.requestData?.surname || ''} ${item.requestData?.firstname || ''}`;
       return item.requestData?.nin || '-';
   };
 
@@ -127,7 +126,7 @@ export default function AdminNinValidationQueue() {
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-            <Fingerprint className="w-8 h-8 text-purple-600" /> NIN Validation
+            <Search className="w-8 h-8 text-purple-600" /> NIN Validation
             </h1>
             <p className="text-slate-500 text-sm mt-1">Process Validation & Search Requests</p>
         </div>
@@ -234,58 +233,25 @@ export default function AdminNinValidationQueue() {
                         </div>
                     </div>
 
-                    {/* VALIDATION DATA (Dynamic based on Type) */}
+                    {/* SUBMITTED DATA (RAW VIEW) */}
                     <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-purple-200 pb-2">
-                            <Search size={16} className="text-purple-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Search Parameters</h4>
+                            <Layers size={16} className="text-purple-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Submitted Data</h4>
                         </div>
                         
-                        {/* VNIN SEARCH */}
-                        {selectedItem.serviceType.includes('VNIN') && (
-                            <div className="space-y-2">
-                                <span className="text-slate-500 text-xs uppercase block font-semibold">Virtual NIN (vNIN)</span>
-                                <div className="p-3 bg-white border border-purple-200 rounded font-mono text-xl font-bold tracking-widest text-slate-800">
-                                    {selectedItem.requestData?.vnin}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* TRACKING ID (UPDATE RECORD) */}
-                        {selectedItem.serviceType.includes('UPDATE') && (
-                            <div className="space-y-2">
-                                <span className="text-slate-500 text-xs uppercase block font-semibold">Tracking ID</span>
-                                <div className="p-3 bg-white border border-purple-200 rounded font-mono text-xl font-bold tracking-widest text-slate-800">
-                                    {selectedItem.requestData?.tracking_id || selectedItem.requestData?.trackingId}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* DEMOGRAPHIC (NO RECORD) */}
-                        {selectedItem.serviceType.includes('NO_RECORD') && (
-                            <div className="grid grid-cols-2 gap-4 text-slate-700">
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Surname</span> <span className="font-bold">{selectedItem.requestData?.surname}</span></p>
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">First Name</span> <span className="font-bold">{selectedItem.requestData?.firstname}</span></p>
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">DOB</span> {selectedItem.requestData?.dob}</p>
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Gender</span> {selectedItem.requestData?.gender}</p>
-                                <p className="col-span-2 border-t border-purple-200 pt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">LGA / State</span> {selectedItem.requestData?.lga}, {selectedItem.requestData?.state}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* RAW DATA DUMP (Safety Net) */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <div className="flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
-                            <Layers size={14} className="text-slate-500" />
-                            <h4 className="font-bold uppercase text-[10px] tracking-wider text-slate-500">Full Raw Data</h4>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-1 gap-3">
                             {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                if (typeof value === 'object' || !value) return null;
+                                // Skip empty/null values
+                                if (!value || typeof value === 'object') return null;
+                                
+                                // Format Key
+                                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
                                 return (
-                                    <div key={key} className="flex justify-between text-xs">
-                                        <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}:</span>
-                                        <span className="text-slate-700 font-mono font-medium truncate ml-2 max-w-[150px] text-right">{String(value)}</span>
+                                    <div key={key} className="flex justify-between items-center border-b border-purple-200/50 pb-2 last:border-0">
+                                        <span className="text-slate-500 text-xs font-semibold uppercase">{label}</span>
+                                        <span className="text-slate-900 font-mono font-bold text-sm text-right">{String(value)}</span>
                                     </div>
                                 );
                             })}
