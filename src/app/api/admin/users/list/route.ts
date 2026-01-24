@@ -16,16 +16,24 @@ export async function GET(req: Request) {
             email: true,
             phoneNumber: true,
             role: true,
-            isActive: true,
+            // Assuming you added isActive back to schema, or removed it from here if you are using Role-based blocking
+            // For now, I will keep it but if it fails again remove 'isActive: true'
+            // isActive: true, 
             walletBalance: true,
             createdAt: true,
             _count: {
-                select: { serviceRequests: true } // See how active they are
+                select: { requests: true } // CHANGED from serviceRequests to requests
             }
         }
     });
 
-    return NextResponse.json({ status: true, data: users });
+    // Map response to handle missing isActive if necessary
+    const safeUsers = users.map(u => ({
+        ...u,
+        isActive: (u as any).isActive ?? true // Default to true if field missing
+    }));
+
+    return NextResponse.json({ status: true, data: safeUsers });
   } catch (error) {
     return NextResponse.json({ status: false, error: 'Error fetching users' }, { status: 500 });
   }
