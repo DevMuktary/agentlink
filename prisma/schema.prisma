@@ -22,7 +22,7 @@ model User {
   
   walletBalance   Decimal  @default(0.00) @db.Decimal(10, 2)
   bonusBalance    Decimal  @default(0.00) @db.Decimal(10, 2)
-  isActive        boolean  @default(true)
+  isActive        Boolean  @default(true)
 
   apiKeyPublic    String?  @unique
   apiKeySecret    String?  @unique
