@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  FileText, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Calendar, Phone, MapPin, Download, Eye, FileBadge
+  FileBadge, CheckCircle2, XCircle, RefreshCw, 
+  AlertTriangle, User, FileText, Download, Eye, Grid
 } from 'lucide-react';
 
 export default function AdminNinModificationQueue() {
@@ -22,7 +22,7 @@ export default function AdminNinModificationQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
-  // 1. Fetch Queue (Merge all Modification Types)
+  // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
     try {
@@ -34,8 +34,6 @@ export default function AdminNinModificationQueue() {
       ];
 
       const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
-      
-      // Merge all data arrays
       const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
       
       // Sort by newest
@@ -115,6 +113,27 @@ export default function AdminNinModificationQueue() {
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Modification</span>;
   };
 
+  // Helper to get ALL valid data fields dynamically
+  const getDataFields = (data: any) => {
+      if (!data) return [];
+      return Object.entries(data).filter(([key, value]) => {
+          // Exclude URLs and system fields, show everything else
+          return !key.includes('_url') && 
+                 !key.includes('photo') && 
+                 !key.includes('signature') &&
+                 !key.includes('reference') &&
+                 key !== 'serviceType';
+      });
+  };
+
+  // Helper to get ALL document links dynamically
+  const getDocumentFields = (data: any) => {
+      if (!data) return [];
+      return Object.entries(data).filter(([key, value]) => {
+          return key.includes('_url') || key.includes('photo') || key.includes('signature');
+      });
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
       <div className="flex justify-between items-center">
@@ -137,7 +156,6 @@ export default function AdminNinModificationQueue() {
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Applicant Name</th>
                 <th className="px-6 py-4 font-medium">NIN</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
@@ -147,7 +165,7 @@ export default function AdminNinModificationQueue() {
             <tbody className="divide-y divide-slate-100 whitespace-nowrap">
                 {requests.length === 0 ? (
                     <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                             No modification requests found.
                         </td>
                     </tr>
@@ -156,11 +174,8 @@ export default function AdminNinModificationQueue() {
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
-                        <td className="px-6 py-4 font-bold text-slate-800">
-                            {item.requestData?.surname} {item.requestData?.firstname}
-                        </td>
-                        <td className="px-6 py-4 font-mono text-slate-600">
-                            {item.requestData?.nin}
+                        <td className="px-6 py-4 font-mono font-bold text-slate-800">
+                            {item.requestData?.nin || 'N/A'}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                             <div className="flex flex-col">
@@ -243,124 +258,50 @@ export default function AdminNinModificationQueue() {
                         </div>
                     </div>
 
-                    {/* MODIFICATION DETAILS (Dynamic based on Type) */}
+                    {/* DYNAMIC MODIFICATION DATA (SHOWS EVERYTHING) */}
                     <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-indigo-200 pb-2">
-                            <FileBadge size={16} className="text-indigo-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Modification Data</h4>
+                            <Grid size={16} className="text-indigo-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Submitted Data Fields</h4>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-700">
-                            
-                            {/* Common Data */}
-                            <div>
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Applicant Name</span> <span className="text-slate-900 font-bold text-lg">{selectedItem.requestData?.surname} {selectedItem.requestData?.firstname}</span></p>
-                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">NIN Number</span> <span className="text-slate-900 font-mono text-lg tracking-widest">{selectedItem.requestData?.nin}</span></p>
-                            </div>
-
-                            {/* Specific Data based on Service Type */}
-                            <div className="bg-white/60 p-4 rounded-lg border border-indigo-100">
-                                {selectedItem.serviceType.includes('NAME') && (
-                                    <>
-                                        <h5 className="font-bold text-indigo-800 text-xs uppercase mb-2 border-b border-indigo-100 pb-1">Name Change Request</h5>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block uppercase">Previous Name</span>
-                                                <span className="font-medium text-slate-600 block">{selectedItem.requestData?.previous_surname || '-'}</span>
-                                                <span className="font-medium text-slate-600 block">{selectedItem.requestData?.previous_firstname || '-'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New Name</span>
-                                                <span className="font-bold text-slate-900 block">{selectedItem.requestData?.new_surname || selectedItem.requestData?.surname}</span>
-                                                <span className="font-bold text-slate-900 block">{selectedItem.requestData?.new_firstname || selectedItem.requestData?.firstname}</span>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {selectedItem.serviceType.includes('DOB') && (
-                                    <>
-                                        <h5 className="font-bold text-purple-800 text-xs uppercase mb-2 border-b border-purple-100 pb-1">DOB Correction</h5>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block uppercase">Previous DOB</span>
-                                                <span className="font-medium text-slate-600">{selectedItem.requestData?.previous_dob || 'Not Provided'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New DOB</span>
-                                                <span className="font-bold text-slate-900 text-lg">{selectedItem.requestData?.new_dob}</span>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {selectedItem.serviceType.includes('PHONE') && (
-                                    <>
-                                        <h5 className="font-bold text-orange-800 text-xs uppercase mb-2 border-b border-orange-100 pb-1">Phone Update</h5>
-                                        <div className="space-y-2">
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block uppercase">Previous Phone</span>
-                                                <span className="font-medium text-slate-600">{selectedItem.requestData?.previous_phone || 'Not Provided'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-green-600 block uppercase font-bold">New Phone</span>
-                                                <span className="font-bold text-slate-900 text-lg">{selectedItem.requestData?.new_phone}</span>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {selectedItem.serviceType.includes('ADDRESS') && (
-                                    <>
-                                        <h5 className="font-bold text-teal-800 text-xs uppercase mb-2 border-b border-teal-100 pb-1">Address Update</h5>
-                                        <div>
-                                            <span className="text-[10px] text-green-600 block uppercase font-bold">New Address</span>
-                                            <p className="font-medium text-slate-900">{selectedItem.requestData?.new_address}</p>
-                                            <p className="text-slate-600 text-xs">{selectedItem.requestData?.new_lga}, {selectedItem.requestData?.new_state}</p>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {getDataFields(selectedItem.requestData).map(([key, value]: any) => (
+                                <div key={key} className="bg-white/60 p-2 rounded border border-indigo-100">
+                                    <span className="text-[10px] text-indigo-800 uppercase block font-bold mb-1 break-words">
+                                        {key.replace(/_/g, ' ')}
+                                    </span>
+                                    <span className="text-sm font-medium text-slate-800 break-words">
+                                        {value?.toString() || '-'}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                     {/* DOCUMENTS */}
+                     {/* DYNAMIC DOCUMENTS */}
                      <div>
                         <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {selectedItem.requestData?.nin_slip_url && (
-                                <a href={selectedItem.requestData.nin_slip_url} target="_blank" className="block group">
+                            {getDocumentFields(selectedItem.requestData).map(([key, url]: any) => (
+                                <a key={key} href={url} target="_blank" className="block group">
                                     <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileBadge className="text-slate-400" size={24} />
+                                        {key.includes('photo') || key.includes('signature') ? (
+                                            <img src={url} className="object-contain w-full h-full" alt={key} />
+                                        ) : (
+                                            <FileText className="text-slate-400 group-hover:text-indigo-500 transition-colors" size={24} />
+                                        )}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Eye className="text-slate-800" />
+                                        </div>
                                     </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">NIN Slip</span>
+                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700 capitalize">
+                                        {key.replace(/_url|_/g, ' ')}
+                                    </span>
                                 </a>
-                            )}
-                            
-                            {selectedItem.requestData?.supporting_doc_url && (
-                                <a href={selectedItem.requestData.supporting_doc_url} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileText className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Supporting Doc</span>
-                                </a>
-                            )}
-
-                            {selectedItem.requestData?.court_affidavit_url && (
-                                <a href={selectedItem.requestData.court_affidavit_url} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileText className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Affidavit</span>
-                                </a>
-                            )}
-
-                            {selectedItem.requestData?.newspaper_url && (
-                                <a href={selectedItem.requestData.newspaper_url} target="_blank" className="block group">
-                                    <div className="bg-white rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                        <FileText className="text-slate-400" size={24} />
-                                    </div>
-                                    <span className="text-xs text-center block mt-1 font-bold text-slate-700">Newspaper</span>
-                                </a>
+                            ))}
+                            {getDocumentFields(selectedItem.requestData).length === 0 && (
+                                <p className="text-slate-400 text-xs italic col-span-4">No documents found for this request.</p>
                             )}
                         </div>
                     </div>
