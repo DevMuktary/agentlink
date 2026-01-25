@@ -40,13 +40,26 @@ export async function POST(req: Request) {
 
     // 5. Deduct & Log (PROCESSING)
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
 
-      // Create Request
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: cost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `Airtime: ${network} ₦${cost} for ${phone_number}`,
+          serviceId: 'AIRTIME'
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -90,14 +103,33 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // FAILED: Refund & Update DB
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: cost } } }),
-        prisma.serviceRequest.update({ 
+      // FAILED: Refund & Update DB (UPDATED)
+      await prisma.$transaction(async (tx) => {
+        // A. Refund Wallet
+        await tx.user.update({ 
+            where: { id: user.id }, 
+            data: { walletBalance: { increment: cost } } 
+        });
+
+        // B. Log Refund Transaction (ADDED)
+        await tx.transaction.create({
+            data: {
+              userId: user.id,
+              amount: cost,
+              type: 'REFUND',
+              status: 'COMPLETED',
+              reference: `${reference}-REFUND`, // Ensure unique reference
+              description: `Refund: Airtime Failed (${network} ${amount})`,
+              serviceId: 'AIRTIME'
+            }
+        });
+
+        // C. Update Request Status
+        await tx.serviceRequest.update({ 
           where: { id: requestLog.id }, 
           data: { status: 'FAILED', responseData: { error: result.error } } 
-        })
-      ]);
+        });
+      });
 
       return NextResponse.json({ 
         status: false, 
