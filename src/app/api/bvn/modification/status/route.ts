@@ -76,7 +76,7 @@ export async function GET(req: Request) {
             status: true,
             current_status: 'FAILED',
             message: "Modification Failed",
-            reason: request.adminNote || "Request declined by Administrator",
+            reason: request.adminNote || "Request modification failed",
             last_updated: request.updatedAt
         });
     }
