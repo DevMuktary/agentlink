@@ -30,10 +30,26 @@ export async function POST(req: Request) {
 
     // 4. Deduct & Log
     const requestLog = await prisma.$transaction(async (tx) => {
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: serviceCost } }
       });
+
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: serviceCost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `VNIN Slip for NIN: ${nin}`,
+          serviceId: 'VNIN_SLIP'
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -66,14 +82,34 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // REFUND: Provider Failed
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } }),
-        prisma.serviceRequest.update({ 
+      // REFUND: Provider Failed (UPDATED)
+      await prisma.$transaction(async (tx) => {
+        // A. Refund Wallet
+        await tx.user.update({ 
+            where: { id: user.id }, 
+            data: { walletBalance: { increment: serviceCost } } 
+        });
+
+        // B. Log Refund Transaction (ADDED)
+        await tx.transaction.create({
+            data: {
+              userId: user.id,
+              amount: serviceCost,
+              type: 'REFUND',
+              status: 'COMPLETED',
+              reference: `${reference}-REFUND`, // Ensure unique reference
+              description: `Refund: VNIN Slip Failed (${nin})`,
+              serviceId: 'VNIN_SLIP'
+            }
+        });
+
+        // C. Update Request Status
+        await tx.serviceRequest.update({ 
             where: { id: requestLog.id }, 
             data: { status: 'FAILED', responseData: { error: result.error } } 
-        })
-      ]);
+        });
+      });
+
       return NextResponse.json({ status: false, error: result.error, message: 'Refunded' }, { status: 400 });
     }
 
