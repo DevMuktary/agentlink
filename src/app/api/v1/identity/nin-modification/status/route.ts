@@ -4,9 +4,11 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   try {
+    // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
+    // 2. Get Params
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
@@ -15,7 +17,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // Find Request
+    // 3. Find Request
     let whereQuery: any = {
         userId: user.id,
         serviceType: { in: ['NIN_MODIFICATION_NAME', 'NIN_MODIFICATION_PHONE', 'NIN_MODIFICATION_ADDRESS'] }
@@ -40,38 +42,46 @@ export async function GET(req: Request) {
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    // --- CONSTRUCT RESPONSE ---
-    let resultPayload = null;
-    let message = "Request in progress";
-
+    // 4. Construct Response
+    
+    // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
-        // SUCCESS: Must return the Image
-        message = "Modification Successful";
-        resultPayload = {
-            success: true,
-            // We expect the Admin to have saved { "image": "url..." } in responseData
-            image_url: (request.responseData as any)?.image || (request.responseData as any)?.url || null,
-            note: "Changes applied successfully"
-        };
-    } else if (request.status === 'FAILED') {
-        // FAILED: Must return the Reason
-        message = "Modification Failed";
-        resultPayload = {
-            success: false,
-            // The Admin Note contains the reason (e.g., "Blurry Document", "Invalid Date")
-            reason: request.adminNote || "Modification rejected by Admin"
-        };
+        const resData = request.responseData as any || {};
+        
+        return NextResponse.json({
+            status: true,
+            current_status: 'COMPLETED',
+            message: "Modification Successful",
+            data: {
+                message: "Changes applied successfully",
+                // Check all usual keys for the uploaded slip/image
+                slip_url: resData.image || resData.url || resData.slip_url || resData.file_url || null
+            },
+            last_updated: request.updatedAt
+        });
+    } 
+    
+    // CASE B: FAILED
+    else if (request.status === 'FAILED') {
+        return NextResponse.json({
+            status: true,
+            current_status: 'FAILED',
+            message: "Modification Failed",
+            reason: request.adminNote || "Modification failed",
+            last_updated: request.updatedAt
+        });
     }
 
+    // CASE C: PROCESSING
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      message: message,
-      result: resultPayload,
+      message: "Request in progress",
       last_updated: request.updatedAt
     });
 
   } catch (error) {
+    console.error("NIN Mod Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
