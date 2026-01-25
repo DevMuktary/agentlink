@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     // --- EXTRACT FIELDS ---
     const reference = getString('reference');
 
-    // Business Details (Flattened inputs for FormData convenience)
+    // Business Details
     const business_details = {
         proposed_name_1: getString('business_proposed_name_1'),
         proposed_name_2: getString('business_proposed_name_2'),
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const proprietor_details = {
         firstname: getString('proprietor_firstname'),
         surname: getString('proprietor_surname'),
-        middle_name: getString('proprietor_middle_name'), // Optional
+        middle_name: getString('proprietor_middle_name'),
         nin: getString('proprietor_nin'),
         address: getString('proprietor_address'),
         phone: getString('proprietor_phone'),
@@ -88,7 +88,6 @@ export async function POST(req: Request) {
     }
 
     // --- 7. UPLOAD TO CLOUDINARY ---
-    // Upload all 3 in parallel for speed
     const [passportUpload, signatureUpload, ninSlipUpload] = await Promise.all([
         uploadToCloudinary(passportFile!, 'agentlink/cac/passports'),
         uploadToCloudinary(signatureFile!, 'agentlink/cac/signatures'),
@@ -107,13 +106,26 @@ export async function POST(req: Request) {
 
     // --- 9. CHARGE & LOG ---
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
 
-      // Create Request
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+            userId: user.id,
+            amount: cost,
+            type: 'SERVICE_CHARGE',
+            status: 'COMPLETED',
+            reference: reference, 
+            description: `CAC Registration for ${business_details.proposed_name_1}`,
+            serviceId: 'CAC_REGISTRATION'
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -128,7 +140,6 @@ export async function POST(req: Request) {
                 passport_url: passportUpload.secure_url,
                 signature_url: signatureUpload.secure_url,
                 nin_slip_url: ninSlipUpload.secure_url,
-                // Optional: Store public_ids if you need to delete them later
                 passport_id: passportUpload.public_id,
                 signature_id: signatureUpload.public_id,
                 nin_slip_id: ninSlipUpload.public_id
