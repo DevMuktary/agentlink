@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-// 1. Import the provider checker
+// Import the provider checker
 import { checkIpeStatus } from '@/services/providers/ninslip-ipe';
 
 export async function GET(req: Request) {
   try {
+    // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -45,24 +46,23 @@ export async function GET(req: Request) {
     }
 
     // ============================================================
-    // 3. LIVE CHECK LOGIC
-    // If DB says PROCESSING, check with Provider immediately
+    // 3. LIVE CHECK LOGIC (Lazy Update)
     // ============================================================
     let currentStatus = request.status;
     let responseData = request.responseData;
-    let errorReason = (request.responseData as any)?.error || null;
+    let adminNote = null;
     
-    // Extract the Tracking ID (0SLT...) from the saved request data
+    // Extract Tracking ID from the saved request
     const trackingId = (request.requestData as any)?.trackingId;
 
+    // Only check provider if we are still processing AND we have a tracking ID
     if (currentStatus === 'PROCESSING' && trackingId) {
-       console.log(`Doing Live Check for IPE: ${trackingId}`);
        
        // Call Provider API
        const liveResult = await checkIpeStatus(trackingId);
 
        if (liveResult.status === 'COMPLETED') {
-         // UPDATE DB: Success
+         // SUCCESS: Update DB
          currentStatus = 'COMPLETED';
          responseData = liveResult.data; 
          
@@ -72,33 +72,52 @@ export async function GET(req: Request) {
          });
 
        } else if (liveResult.status === 'FAILED') {
-         // UPDATE DB: Failed
+         // FAILED: Update DB (No Refund logic here as requested)
          currentStatus = 'FAILED';
-         errorReason = liveResult.message;
+         adminNote = liveResult.message || 'Provider Rejected';
          
          await prisma.serviceRequest.update({
            where: { id: request.id },
            data: { 
              status: 'FAILED', 
-             responseData: { error: liveResult.message, reason: 'Provider Rejected' } 
+             responseData: { error: liveResult.message },
+             adminNote: adminNote
            }
          });
        }
+       // If 'PENDING', we do nothing and wait.
     }
     // ============================================================
 
-    // 4. Return Result
+    // 4. Construct Response
+    let message = "Request processing";
+    let dataPayload = null;
+
+    if (currentStatus === 'COMPLETED') {
+        message = "Clearance Successful";
+        const resData = responseData as any || {};
+        dataPayload = {
+            tracking_id: trackingId,
+            // Return the slip URL or base64 from provider
+            slip_url: resData.slip_url || resData.url || resData.file_url || null,
+            download_url: resData.download_url || null
+        };
+    } else if (currentStatus === 'FAILED') {
+        message = "Clearance Failed";
+    }
+
+    // 5. Return JSON
     return NextResponse.json({
       status: true,
       current_status: currentStatus,
-      original_tracking_id: trackingId,
-      result: currentStatus === 'COMPLETED' ? responseData : null,
-      error_reason: currentStatus === 'FAILED' ? errorReason : null,
+      message: message,
+      data: dataPayload, // Contains slip if success
+      reason: currentStatus === 'FAILED' ? (adminNote || "Clearance failed") : null,
       last_updated: new Date()
     });
 
   } catch (error) {
-    console.error("Check Status Error:", error);
+    console.error("IPE Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
