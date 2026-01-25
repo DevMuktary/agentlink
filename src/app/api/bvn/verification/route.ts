@@ -35,12 +35,26 @@ export async function POST(req: Request) {
 
     // 5. Deduct & Log (PROCESSING)
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: serviceCost } }
       });
-      // Create Request Log
+
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: serviceCost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `BVN Verification: ${bvn}`,
+          serviceId: 'BVN_VERIFICATION'
+        }
+      });
+
+      // C. Create Request Log
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -70,14 +84,33 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // FAILED: Refund User & Update DB
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } }),
-        prisma.serviceRequest.update({ 
+      // FAILED: Refund User & Update DB (UPDATED)
+      await prisma.$transaction(async (tx) => {
+        // A. Refund Wallet
+        await tx.user.update({ 
+            where: { id: user.id }, 
+            data: { walletBalance: { increment: serviceCost } } 
+        });
+
+        // B. Log Refund Transaction (ADDED)
+        await tx.transaction.create({
+            data: {
+              userId: user.id,
+              amount: serviceCost,
+              type: 'REFUND',
+              status: 'COMPLETED',
+              reference: `${reference}-REFUND`, // Ensure unique reference
+              description: `Refund: BVN Verification Failed (${bvn})`,
+              serviceId: 'BVN_VERIFICATION'
+            }
+        });
+
+        // C. Update Request Status
+        await tx.serviceRequest.update({ 
           where: { id: requestLog.id }, 
           data: { status: 'FAILED', responseData: { error: result.error } } 
-        })
-      ]);
+        });
+      });
 
       return NextResponse.json({ 
         status: false, 
