@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Get Params (GET is better for Status checks)
+    // 2. Get Params
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
@@ -21,8 +21,16 @@ export async function GET(req: Request) {
     const request = await prisma.serviceRequest.findFirst({
         where: {
             userId: user.id,
-            // We search across all JAMB service types
-            serviceType: { contains: 'JAMB' },
+            // FIX: Enums cannot use 'contains'. We must use 'in' with specific Enum values.
+            serviceType: { 
+                in: [
+                    'JAMB_ORIGINAL_RESULT',
+                    'JAMB_ADMISSION_LETTER',
+                    'JAMB_REGISTRATION_SLIP',
+                    'JAMB_PROFILE_CODE_RETRIEVAL',
+                    'JAMB_SERVICES' 
+                ] 
+            },
             OR: [
                 { id: requestId || undefined },
                 { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
@@ -44,7 +52,6 @@ export async function GET(req: Request) {
         
         data = {
             // OPTION A: Admin uploaded a PDF (Result/Admission Letter)
-            // We check common field names admin might use
             document_url: resData.result_url || resData.file_url || resData.url || resData.pdf_url || null,
             
             // OPTION B: Admin provided a PIN/Code (Profile Code Retrieval)
@@ -59,7 +66,7 @@ export async function GET(req: Request) {
         status: true,
         current_status: request.status,
         message,
-        data: data, // Will be null if processing, or contain url/pin if completed
+        data: data,
         service_type: request.serviceType,
         admin_note: request.adminNote,
         date: request.createdAt
