@@ -18,7 +18,8 @@ export async function GET(req: Request) {
     }
 
     // 3. Find Request (Filter by User & BVN Mod Types)
-    let whereQuery: any = {
+    const request = await prisma.serviceRequest.findFirst({
+      where: {
         userId: user.id,
         serviceType: { 
           in: [
@@ -29,22 +30,17 @@ export async function GET(req: Request) {
             'BVN_MOD_DOB_PHONE', 
             'BVN_MOD_FULL'
           ] 
-        }
-    };
-
-    if (requestId) {
-        whereQuery.id = requestId;
-    } else {
-        whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
-    }
-
-    const request = await prisma.serviceRequest.findFirst({
-      where: whereQuery,
+        },
+        OR: [
+            { id: requestId || undefined },
+            { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
+        ]
+      },
       select: {
         id: true,
         status: true,
         responseData: true,
-        adminNote: true, // This is where the Rejection Reason lives
+        adminNote: true,
         updatedAt: true
       }
     });
@@ -54,32 +50,42 @@ export async function GET(req: Request) {
     }
 
     // 4. Construct Response
-    let resultPayload = null;
-    let message = "Request is currently being processed";
-
+    
+    // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
-        message = "Modification Successful";
-        resultPayload = {
-            success: true,
-            message: "Your data has been updated/modified successfully.",
-            // If admin uploaded a proof/slip, we show it
-            document_url: (request.responseData as any)?.image || (request.responseData as any)?.url || null
-        };
-    } else if (request.status === 'FAILED') {
-        message = "Modification Failed";
-        resultPayload = {
-            success: false,
-            // Show the exact reason the admin wrote
-            reason: request.adminNote || "Request declined by Administrator"
-        };
+        const resData = request.responseData as any || {};
+        
+        return NextResponse.json({
+            status: true,
+            current_status: 'COMPLETED',
+            message: "Modification Successful",
+            data: {
+                message: "Your data has been updated successfully.",
+                // Check all possible Cloudinary field names
+                slip_url: resData.slip_url || resData.image || resData.url || resData.file_url || null,
+                // Sometimes admin might return the new BVN details directly
+                new_details: resData.new_details || null 
+            },
+            last_updated: request.updatedAt
+        });
+    } 
+    
+    // CASE B: FAILED
+    else if (request.status === 'FAILED') {
+        return NextResponse.json({
+            status: true,
+            current_status: 'FAILED',
+            message: "Modification Failed",
+            reason: request.adminNote || "Request declined by Administrator",
+            last_updated: request.updatedAt
+        });
     }
 
-    // 5. Return JSON
+    // CASE C: PROCESSING
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      message: message,
-      result: resultPayload,
+      message: "Request is currently being processed",
       last_updated: request.updatedAt
     });
 
