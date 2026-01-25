@@ -17,6 +17,11 @@ export async function POST(req: Request) {
     if (!nin || !service_code) {
       return NextResponse.json({ error: 'NIN and service_code are required' }, { status: 400 });
     }
+    
+    // Check reference (Strict validation for transaction tracking)
+    if (!reference) {
+      return NextResponse.json({ error: 'Reference is required' }, { status: 400 });
+    }
 
     // 2. CHECK SERVICE & ADMIN CONTROL
     const service = await prisma.service.findUnique({
@@ -41,13 +46,26 @@ export async function POST(req: Request) {
 
     // 4. DEDUCT MONEY (Single Transaction)
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct balance
+      // A. Deduct balance
       await tx.user.update({
         where: { id: user!.id },
         data: { walletBalance: { decrement: COST } }
       });
 
-      // Log request
+      // B. Log Transaction (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user!.id,
+          amount: COST,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `NIN Slip (${service.name}) - ${nin}`,
+          serviceId: service.code
+        }
+      });
+
+      // C. Log request
       return await tx.serviceRequest.create({
         data: {
           userId: user!.id,
@@ -63,14 +81,34 @@ export async function POST(req: Request) {
     const providerResponse = await lookupNinByNumber(nin);
 
     if (!providerResponse.success) {
-        // FAIL: Refund user
-        await prisma.$transaction([
-            prisma.user.update({ where: { id: user!.id }, data: { walletBalance: { increment: COST } } }),
-            prisma.serviceRequest.update({ 
+        // FAIL: Refund user (UPDATED)
+        await prisma.$transaction(async (tx) => {
+            // A. Refund Wallet
+            await tx.user.update({ 
+                where: { id: user!.id }, 
+                data: { walletBalance: { increment: COST } } 
+            });
+
+            // B. Log Refund Transaction (ADDED)
+            await tx.transaction.create({
+                data: {
+                  userId: user!.id,
+                  amount: COST,
+                  type: 'REFUND',
+                  status: 'COMPLETED',
+                  reference: `${reference}-REFUND`,
+                  description: `Refund: NIN Slip Provider Failed (${nin})`,
+                  serviceId: service.code
+                }
+            });
+
+            // C. Update Request
+            await tx.serviceRequest.update({ 
                 where: { id: requestLog.id }, 
                 data: { status: 'FAILED', responseData: { error: providerResponse.error } } 
-            })
-        ]);
+            });
+        });
+
         return NextResponse.json({ status: false, error: providerResponse.error }, { status: 400 });
     }
 
@@ -105,14 +143,34 @@ export async function POST(req: Request) {
 
     } catch (pdfError) {
         console.error("PDF Error:", pdfError);
-        // ERROR: Refund if PDF fails
-        await prisma.$transaction([
-            prisma.user.update({ where: { id: user!.id }, data: { walletBalance: { increment: COST } } }),
-            prisma.serviceRequest.update({ 
+        // ERROR: Refund if PDF fails (UPDATED)
+        await prisma.$transaction(async (tx) => {
+            // A. Refund Wallet
+            await tx.user.update({ 
+                where: { id: user!.id }, 
+                data: { walletBalance: { increment: COST } } 
+            });
+
+            // B. Log Refund Transaction (ADDED)
+            await tx.transaction.create({
+                data: {
+                  userId: user!.id,
+                  amount: COST,
+                  type: 'REFUND',
+                  status: 'COMPLETED',
+                  reference: `${reference}-REFUND-PDF`,
+                  description: `Refund: PDF Generation Failed (${nin})`,
+                  serviceId: service.code
+                }
+            });
+
+            // C. Update Request
+            await tx.serviceRequest.update({ 
                 where: { id: requestLog.id }, 
                 data: { status: 'FAILED', responseData: { error: 'Document Generation Failed' } } 
-            })
-        ]);
+            });
+        });
+
         return NextResponse.json({ status: false, error: 'System Error: Could not generate document' }, { status: 500 });
     }
 
