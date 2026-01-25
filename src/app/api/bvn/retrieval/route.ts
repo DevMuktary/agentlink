@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: Request) {
   try {
@@ -8,33 +9,40 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
-    const { 
-      service_code, 
-      reference, 
-      phone_number,
-      full_name,        // Optional for Phone
-      agent_code,       // CRM
-      ticket_id,        // CRM
-      bms_ticket,       // CRM
-      screenshot_base64 // CRM
-    } = body;
+    // 2. Parse FormData (Changed from JSON to FormData)
+    const formData = await req.formData();
+    const getString = (key: string) => formData.get(key) as string | null;
 
-    // 2. Basic Validation
+    const service_code = getString('service_code');
+    const reference = getString('reference');
+    
+    // Category A: Phone
+    const phone_number = getString('phone_number');
+    const full_name = getString('full_name');
+
+    // Category B: CRM
+    const agent_code = getString('agent_code');
+    const ticket_id = getString('ticket_id');
+    const bms_ticket = getString('bms_ticket');
+    const screenshotFile = formData.get('screenshot') as File | null; // Get File
+
+    // 3. Basic Validation
     if (!service_code || !reference) {
       return NextResponse.json({ status: false, error: 'Missing service_code or reference' }, { status: 400 });
     }
 
-    // 3. Identify Service
+    // 4. Identify Service
     const service = await prisma.service.findUnique({ where: { serviceCode: Number(service_code) } });
     
     if (!service || !service.isActive || !service.code.toString().startsWith('BVN_RETRIEVAL_')) {
       return NextResponse.json({ status: false, error: 'Invalid BVN Retrieval Service Code' }, { status: 404 });
     }
 
-    // 4. CATEGORY SPECIFIC VALIDATION
     const code = service.code.toString();
+    let screenshotUrl = null;
+    let screenshotPublicId = null;
 
+    // 5. CATEGORY SPECIFIC VALIDATION & UPLOAD
     // --- CATEGORY A: BY PHONE (Code 630) ---
     if (code === 'BVN_RETRIEVAL_PHONE') {
         if (!phone_number) {
@@ -48,26 +56,26 @@ export async function POST(req: Request) {
         if (!agent_code) missing.push('agent_code');
         if (!ticket_id) missing.push('ticket_id');
         if (!bms_ticket) missing.push('bms_ticket');
-        if (!screenshot_base64) missing.push('screenshot_base64');
+        if (!screenshotFile) missing.push('screenshot (file)');
 
         if (missing.length > 0) {
             return NextResponse.json({ status: false, error: `Missing Fields for CRM: ${missing.join(', ')}` }, { status: 400 });
         }
         
-        // Simple Base64 Check (Ensure it's a string and looks somewhat like base64)
-        if (typeof screenshot_base64 !== 'string' || screenshot_base64.length < 100) {
-            return NextResponse.json({ status: false, error: 'Invalid screenshot_base64 format.' }, { status: 400 });
-        }
+        // Upload to Cloudinary
+        const upload = await uploadToCloudinary(screenshotFile!, 'agentlink/bvn_retrieval_proofs');
+        screenshotUrl = upload.secure_url;
+        screenshotPublicId = upload.public_id;
     }
 
     const cost = Number(service.price);
 
-    // 5. Check Balance
+    // 6. Check Balance
     if (Number(user.walletBalance) < cost) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 6. Process Transaction
+    // 7. Process Transaction
     const requestLog = await prisma.$transaction(async (tx) => {
       // A. Deduct
       await tx.user.update({
@@ -75,7 +83,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
             userId: user.id,
@@ -109,16 +117,16 @@ export async function POST(req: Request) {
             ticket_id: ticket_id || null,
             bms_ticket: bms_ticket || null,
             
-            // We store the image in responseData temporarily or requestData if you prefer. 
-            // Storing large Base64 in JSON column is fine for now but consider S3 later.
-            screenshot: screenshot_base64 || null 
+            // Store Cloudinary URL instead of Base64
+            screenshotUrl: screenshotUrl || null,
+            screenshotPublicId: screenshotPublicId || null
           },
           adminNote: 'Pending Retrieval'
         }
       });
     });
 
-    // 7. Success Response
+    // 8. Success Response
     return NextResponse.json({
       status: true,
       message: 'Retrieval Request Submitted Successfully',
