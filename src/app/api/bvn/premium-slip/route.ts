@@ -33,10 +33,26 @@ export async function POST(req: Request) {
 
     // 4. Deduct & Log (PROCESSING)
     const requestLog = await prisma.$transaction(async (tx) => {
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: serviceCost } }
       });
+
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: serviceCost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `BVN Premium Slip: ${bvn}`,
+          serviceId: 'BVN_PREMIUM_SLIP'
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -57,7 +73,7 @@ export async function POST(req: Request) {
         where: { id: requestLog.id },
         data: { 
             status: 'COMPLETED', 
-            responseData: { ...result.data, pdf_base64: result.pdf_base64 } // Save PDF internally too
+            responseData: { ...result.data, pdf_base64: result.pdf_base64 } 
         }
       });
 
@@ -72,14 +88,33 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // FAILED: Refund
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } }),
-        prisma.serviceRequest.update({ 
+      // FAILED: Refund (UPDATED)
+      await prisma.$transaction(async (tx) => {
+        // A. Refund Wallet
+        await tx.user.update({ 
+            where: { id: user.id }, 
+            data: { walletBalance: { increment: serviceCost } } 
+        });
+
+        // B. Log Refund Transaction (ADDED)
+        await tx.transaction.create({
+            data: {
+              userId: user.id,
+              amount: serviceCost,
+              type: 'REFUND',
+              status: 'COMPLETED',
+              reference: `${reference}-REFUND`, // Ensure unique reference
+              description: `Refund: BVN Premium Slip Failed (${bvn})`,
+              serviceId: 'BVN_PREMIUM_SLIP'
+            }
+        });
+
+        // C. Update Request Status
+        await tx.serviceRequest.update({ 
           where: { id: requestLog.id }, 
           data: { status: 'FAILED', responseData: { error: result.error } } 
-        })
-      ]);
+        });
+      });
 
       return NextResponse.json({ 
         status: false, 
