@@ -61,8 +61,8 @@ export async function GET(req: Request) {
        // Call Provider API (This helper does the POST to Robost)
        const liveResult = await checkPersonalizationStatus(trackingId);
 
-       // Check Provider Response (Robost uses "completed" lowercase)
-       if (liveResult.success && liveResult.status === 'completed') {
+       // FIX: Check for 'COMPLETED' (Uppercase) because the helper already normalized it
+       if (liveResult.success && liveResult.status === 'COMPLETED') {
          // SUCCESS
          currentStatus = 'COMPLETED';
          responseData = liveResult.data; // This contains { photo: "...", firstName: "...", etc. }
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
            data: { status: 'COMPLETED', responseData: liveResult.data }
          });
 
-       } else if (liveResult.success === false) {
+       } else if (liveResult.success === false || liveResult.status === 'FAILED') {
          // FAILED (Robost likely returned an error message)
          currentStatus = 'FAILED';
          adminNote = liveResult.message || 'Provider Failed';
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
            }
          });
        }
-       // If status is "processing" or similar, we just wait.
+       // If status is "PROCESSING", we just wait.
     }
     // ============================================================
 
