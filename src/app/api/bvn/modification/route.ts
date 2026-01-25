@@ -24,11 +24,10 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
 
     // 2. DATA EXTRACTION: Explicitly Destructure Everything
-    // This makes it clear what fields we expect from the JSON body
     const body = await req.json();
     const { 
-      service_code,       
-      bank_code,          
+      service_code,        
+      bank_code,           
       reference, 
       nin, 
       bvn, 
@@ -144,13 +143,26 @@ export async function POST(req: Request) {
 
     // --- 8. EXECUTE TRANSACTION ---
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct Balance
+      // A. Deduct Balance
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: finalCost } }
       });
       
-      // Save Request with STRICT Structure
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: finalCost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `BVN Modification (${modService.name})${surchargeApplied ? ' + Age Surcharge' : ''}`,
+          serviceId: modService.code.toString()
+        }
+      });
+
+      // C. Save Request with STRICT Structure
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
