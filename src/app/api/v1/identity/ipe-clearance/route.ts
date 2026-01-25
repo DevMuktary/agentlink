@@ -11,7 +11,9 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
     const { trackingId, reference } = await req.json();
+    
     if (!trackingId) return NextResponse.json({ status: false, error: 'Tracking ID required' }, { status: 400 });
+    if (!reference) return NextResponse.json({ status: false, error: 'Reference required' }, { status: 400 });
 
     // 2. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'IPE_CLEARANCE' } });
@@ -26,10 +28,26 @@ export async function POST(req: Request) {
 
     // 4. Charge & Log "PROCESSING"
     const requestLog = await prisma.$transaction(async (tx) => {
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
+
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: cost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `IPE Clearance: ${trackingId}`,
+          serviceId: 'IPE_CLEARANCE'
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -53,14 +71,34 @@ export async function POST(req: Request) {
         requestId: requestLog.id
       });
     } else {
-      // Failed: Refund immediately (As per rule: "Charged only if API accepts")
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: cost } } }),
-        prisma.serviceRequest.update({ 
+      // Failed: Refund immediately (UPDATED)
+      await prisma.$transaction(async (tx) => {
+        // A. Refund Wallet
+        await tx.user.update({ 
+            where: { id: user.id }, 
+            data: { walletBalance: { increment: cost } } 
+        });
+
+        // B. Log Refund Transaction (ADDED)
+        await tx.transaction.create({
+            data: {
+              userId: user.id,
+              amount: cost,
+              type: 'REFUND',
+              status: 'COMPLETED',
+              reference: `${reference}-REFUND`, // Ensure unique reference
+              description: `Refund: IPE Clearance Failed (${trackingId})`,
+              serviceId: 'IPE_CLEARANCE'
+            }
+        });
+
+        // C. Update Request Status
+        await tx.serviceRequest.update({ 
           where: { id: requestLog.id }, 
           data: { status: 'FAILED', responseData: { error: result.message }, adminNote: 'Refunded: Provider rejected request.' } 
-        })
-      ]);
+        });
+      });
+
       return NextResponse.json({ status: false, error: result.message }, { status: 400 });
     }
 
