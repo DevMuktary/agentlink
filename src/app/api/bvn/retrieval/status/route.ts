@@ -4,6 +4,7 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   try {
+    // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -11,8 +12,12 @@ export async function GET(req: Request) {
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
 
-    if (!requestId && !clientRef) return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
+    // 2. Validate Query
+    if (!requestId && !clientRef) {
+        return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
+    }
 
+    // 3. Find Request
     const request = await prisma.serviceRequest.findFirst({
       where: {
         userId: user.id,
@@ -29,31 +34,48 @@ export async function GET(req: Request) {
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    let result = null;
-    let message = "Request processing";
+    // 4. Handle Status Responses
 
+    // CASE A: COMPLETED (Success)
     if (request.status === 'COMPLETED') {
-        message = "Retrieval Successful";
-        result = {
-            success: true,
-            // You (Admin) will input the retrieved BVN into responseData
-            bvn: (request.responseData as any)?.bvn || "Retrieved",
-            details: (request.responseData as any) // Any other details you found
-        };
-    } else if (request.status === 'FAILED') {
-        message = "Retrieval Failed";
-        result = { success: false, reason: request.adminNote };
+        const resData = request.responseData as any || {};
+
+        return NextResponse.json({
+            status: true,
+            current_status: 'COMPLETED',
+            message: "Retrieval Successful",
+            data: {
+                // The 11-digit BVN entered by Admin
+                bvn: resData.bvn || resData.number || null,
+                
+                // Optional Image/Slip (Cloudinary URL)
+                image_url: resData.image_url || resData.url || resData.file_url || resData.slip_url || null
+            },
+            last_updated: request.updatedAt
+        });
     }
 
+    // CASE B: FAILED
+    else if (request.status === 'FAILED') {
+        return NextResponse.json({
+            status: true,
+            current_status: 'FAILED',
+            message: "Retrieval Failed",
+            reason: request.adminNote || "Retrieval declined",
+            last_updated: request.updatedAt
+        });
+    }
+
+    // CASE C: PROCESSING
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      message,
-      result,
+      message: "Request processing",
       last_updated: request.updatedAt
     });
 
   } catch (error) {
+    console.error("BVN Retrieval Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
