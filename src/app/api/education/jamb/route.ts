@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     // 5. Service-Specific Validation
     const requestData: any = { clientReference: reference, service_type };
     let validationError = null;
+    let descriptionDetail = '';
 
     if (['JAMB_ORIGINAL_RESULT', 'JAMB_ADMISSION_LETTER', 'JAMB_REGISTRATION_SLIP'].includes(service_type)) {
         // Document Services
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
         requestData.full_name = full_name;
         requestData.reg_number = reg_number;
         requestData.year = year;
+        descriptionDetail = `${service.name} for ${reg_number} (${year})`;
 
     } else if (service_type === 'JAMB_PROFILE_CODE_RETRIEVAL') {
         // Retrieval Service
@@ -55,6 +57,7 @@ export async function POST(req: Request) {
         requestData.reg_number = reg_number;
         requestData.phone_number = phone;
         requestData.email = email;
+        descriptionDetail = `JAMB Profile Retrieval (${reg_number || phone})`;
     } else {
         validationError = 'Invalid JAMB Service Type';
     }
@@ -71,13 +74,26 @@ export async function POST(req: Request) {
 
     // 7. Process Transaction
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
 
-      // Create Request
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+            userId: user.id,
+            amount: cost,
+            type: 'SERVICE_CHARGE',
+            status: 'COMPLETED',
+            reference: reference, 
+            description: descriptionDetail || service.name,
+            serviceId: service_type
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
