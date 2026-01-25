@@ -5,24 +5,48 @@ import { lookupNinByPhone } from '@/services/providers/robost-phone';
 
 export async function POST(req: Request) {
   try {
+    // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
     const { phone, reference } = await req.json();
+    
+    // 2. Validate Inputs
     if (!phone || phone.length < 10) return NextResponse.json({ status: false, error: 'Invalid Phone Number' }, { status: 400 });
+    if (!reference) return NextResponse.json({ status: false, error: 'Missing Reference' }, { status: 400 });
 
-    // 1. GET PRICE (Ensure 'nin_phone_lookup' is in your DB seed if you want distinct pricing)
+    // 3. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'NIN_SEARCH_BY_PHONE' } });
     const serviceCost = service ? Number(service.price) : 150;
+    
+    if (service && !service.isActive) {
+        return NextResponse.json({ status: false, error: 'Service unavailable' }, { status: 503 });
+    }
 
-    // 2. CHECK BALANCE
+    // 4. Check Balance
     if (Number(user.walletBalance) < serviceCost) {
       return NextResponse.json({ status: false, error: 'Insufficient wallet balance' }, { status: 402 });
     }
 
-    // 3. DEDUCT & LOG
+    // 5. Deduct & Log (PROCESSING)
     const requestLog = await prisma.$transaction(async (tx) => {
+      // A. Deduct
       await tx.user.update({ where: { id: user.id }, data: { walletBalance: { decrement: serviceCost } } });
+      
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+            userId: user.id,
+            amount: serviceCost,
+            type: 'SERVICE_CHARGE',
+            status: 'COMPLETED',
+            reference: reference,
+            description: `NIN Search by Phone: ${phone}`,
+            serviceId: 'NIN_SEARCH_BY_PHONE'
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -34,25 +58,47 @@ export async function POST(req: Request) {
       });
     });
 
-    // 4. CALL PROVIDER
+    // 6. Call Provider
     const result = await lookupNinByPhone(phone);
 
     if (result.success) {
+      // SUCCESS
       await prisma.serviceRequest.update({
         where: { id: requestLog.id },
         data: { status: 'COMPLETED', responseData: result.data }
       });
       return NextResponse.json({ status: true, message: 'Success', data: result.data });
     } else {
-      // REFUND ON FAILURE
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } }),
-        prisma.serviceRequest.update({ where: { id: requestLog.id }, data: { status: 'FAILED', responseData: { error: result.error } } })
-      ]);
+      // REFUND ON FAILURE (UPDATED)
+      await prisma.$transaction(async (tx) => {
+         // A. Refund Wallet
+         await tx.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } });
+         
+         // B. Log Refund Transaction (ADDED)
+         await tx.transaction.create({
+            data: {
+                userId: user.id,
+                amount: serviceCost,
+                type: 'REFUND',
+                status: 'COMPLETED',
+                reference: `${reference}-REFUND`, // Ensure unique reference
+                description: `Refund: NIN Phone Search Failed (${phone})`,
+                serviceId: 'NIN_SEARCH_BY_PHONE'
+            }
+         });
+
+         // C. Update Request
+         await tx.serviceRequest.update({ 
+             where: { id: requestLog.id }, 
+             data: { status: 'FAILED', responseData: { error: result.error } } 
+         });
+      });
+      
       return NextResponse.json({ status: false, error: result.error, message: 'Refunded' }, { status: 400 });
     }
 
   } catch (error) {
+    console.error("Phone Verify Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
