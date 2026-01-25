@@ -4,6 +4,7 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   try {
+    // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
@@ -11,8 +12,12 @@ export async function GET(req: Request) {
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
 
-    if (!requestId && !clientRef) return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
+    // 2. Validate
+    if (!requestId && !clientRef) {
+        return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
+    }
 
+    // 3. Find Request
     const request = await prisma.serviceRequest.findFirst({
       where: {
         userId: user.id,
@@ -29,28 +34,37 @@ export async function GET(req: Request) {
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    let result = null;
-    let message = "Processing Request";
-
+    // 4. Construct Response
+    
+    // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
-        message = "Submission Successful";
-        result = {
-            success: true,
-            message: "It has been successfully sent to NIBSS"
-        };
-    } else if (request.status === 'FAILED') {
-        message = "Submission Failed";
-        result = { 
-            success: false, 
-            reason: request.adminNote || "Request Rejected" 
-        };
+        return NextResponse.json({
+            status: true,
+            current_status: 'COMPLETED',
+            message: "Submission Successful",
+            data: {
+                message: "Your request has been successfully submitted to NIBSS."
+            },
+            last_updated: request.updatedAt
+        });
+    } 
+    
+    // CASE B: FAILED
+    else if (request.status === 'FAILED') {
+        return NextResponse.json({
+            status: true,
+            current_status: 'FAILED',
+            message: "Submission Failed",
+            reason: request.adminNote || "Request Rejected",
+            last_updated: request.updatedAt
+        });
     }
 
+    // CASE C: PROCESSING
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      message,
-      result,
+      message: "Processing Request",
       last_updated: request.updatedAt
     });
 
