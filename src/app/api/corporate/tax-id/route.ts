@@ -64,13 +64,26 @@ export async function POST(req: Request) {
 
     // 6. Process Transaction
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
 
-      // Create Request
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: cost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `Tax ID Request (${code === 'TAX_ID_INDIVIDUAL' ? 'Individual' : 'Corporate'})`,
+          serviceId: service.code.toString()
+        }
+      });
+
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
