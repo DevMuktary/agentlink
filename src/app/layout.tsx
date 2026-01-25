@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgentLink | Identity & Corporate Services API",
+  title: "AgentHub | Identity & Corporate Services API",
   description: "The all-in-one API platform for NIN, BVN, CAC, and Utility services in Nigeria.",
 };
 
