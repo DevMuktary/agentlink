@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { uploadToCloudinary } from '@/lib/cloudinary'; // Import our new helper
+import { uploadToCloudinary } from '@/lib/cloudinary'; 
 
 export async function POST(req: Request) {
   try {
@@ -9,10 +9,8 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Parse FormData (Not JSON)
+    // 2. Parse FormData
     const formData = await req.formData();
-
-    // Helper to get string values safely
     const getString = (key: string) => formData.get(key) as string | null;
 
     // Extract Text Fields
@@ -57,7 +55,6 @@ export async function POST(req: Request) {
     if (!local_government) missingFields.push('local_government');
     if (!senatorial_district) missingFields.push('senatorial_district');
 
-    // Validate Files (Assuming they are required for enrollment)
     if (!passportFile) missingFields.push('passport');
     if (!signatureFile) missingFields.push('signature');
 
@@ -69,7 +66,6 @@ export async function POST(req: Request) {
     }
 
     // 4. Upload Images to Cloudinary
-    // We upload them in parallel to save time
     const [passportUpload, signatureUpload] = await Promise.all([
       uploadToCloudinary(passportFile!, 'agentlink/bvn_passports'),
       uploadToCloudinary(signatureFile!, 'agentlink/bvn_signatures')
@@ -87,13 +83,26 @@ export async function POST(req: Request) {
 
     // 6. Process Transaction
     const requestLog = await prisma.$transaction(async (tx) => {
-      // Deduct
+      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
 
-      // Create Request with Image URLs
+      // B. Create Transaction Record (ADDED)
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: cost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `BVN Enrollment for ${first_name} ${last_name}`,
+          serviceId: 'ANDROID_BVN_ENROLLMENT'
+        }
+      });
+
+      // C. Create Request with Image URLs
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -117,10 +126,9 @@ export async function POST(req: Request) {
             date_of_birth,
             local_government,
             senatorial_district,
-            // SAVE URLS, NOT BASE64
             passportUrl: passportUpload.secure_url,
             signatureUrl: signatureUpload.secure_url,
-            passportPublicId: passportUpload.public_id, // Useful if we need to delete/update later
+            passportPublicId: passportUpload.public_id,
             signaturePublicId: signatureUpload.public_id
           },
           adminNote: 'Pending Enrollment Credentials'
@@ -137,7 +145,7 @@ export async function POST(req: Request) {
         reference: reference,
         status: 'PROCESSING',
         charged_amount: cost,
-        passport_url: passportUpload.secure_url, // Return the URL so the frontend can display it if needed
+        passport_url: passportUpload.secure_url,
         note: 'You will receive an email from NIBSS containing your credentials upon completion.'
       }
     });
