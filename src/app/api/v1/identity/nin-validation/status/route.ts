@@ -20,7 +20,13 @@ export async function GET(req: Request) {
     // 3. Find the Request
     let whereQuery: any = {
         userId: user.id,
-        serviceType: { in: ['NIN_VALIDATION_NO_RECORD', 'NIN_VALIDATION_UPDATE_RECORD', 'NIN_VALIDATION_VNIN'] }
+        serviceType: { 
+          in: [
+            'NIN_VALIDATION_NO_RECORD', 
+            'NIN_VALIDATION_UPDATE_RECORD', 
+            'NIN_VALIDATION_VNIN'
+          ] 
+        }
     };
 
     if (requestId) {
@@ -43,33 +49,41 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // 4. Construct Clean Result (No "Admin" mentions)
-    let resultPayload = null;
-    let message = "Validation in progress";
-
+    // 4. Construct Clean Result
+    // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
-        message = "Validation Completed";
-        resultPayload = {
-            valid: true,
-            message: "Validation Successful"
-        };
-    } else if (request.status === 'FAILED') {
-        message = "Validation Failed";
-        resultPayload = {
-            valid: false,
+        return NextResponse.json({
+            status: true,
+            current_status: 'COMPLETED',
+            message: "Validation Completed",
+            data: {
+                valid: true,
+                message: "Validation Successful. Records have been validated."
+            },
+            last_updated: request.updatedAt
+        });
+    } 
+    
+    // CASE B: FAILED
+    else if (request.status === 'FAILED') {
+        return NextResponse.json({
+            status: true,
+            current_status: 'FAILED',
             message: "Validation Failed",
-            // We use the adminNote as the specific reason (e.g. "Details mismatch"), 
-            // but we display it as a generic system reason.
-            reason: request.adminNote || "Verification could not be completed" 
-        };
+            data: {
+                valid: false,
+                message: "Validation Failed"
+            },
+            reason: request.adminNote || "Verification could not be completed",
+            last_updated: request.updatedAt
+        });
     }
 
-    // 5. Return Response
+    // CASE C: PROCESSING
     return NextResponse.json({
       status: true,
       current_status: request.status,
-      message: message,
-      result: resultPayload,
+      message: "Validation in progress",
       last_updated: request.updatedAt
     });
 
