@@ -4,7 +4,7 @@ export default function DocsLandingPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       
-      {/* 1. NAVBAR / HEADER */}
+      {/* 1. NAVBAR */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -13,44 +13,52 @@ export default function DocsLandingPage() {
           </div>
           <nav className="flex gap-6 text-sm font-medium text-slate-600">
             <Link href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</Link>
-            <Link href="mailto:support@agenthub.com" className="hover:text-blue-600 transition-colors">Support</Link>
           </nav>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        {/* 2. HERO SECTION */}
+        {/* 2. HERO */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-6">
-            Build with <span className="text-blue-600">AgentHub</span>
+            AgentHub <span className="text-blue-600">API Reference</span>
           </h1>
           <p className="text-lg text-slate-600 leading-relaxed">
-            The all-in-one API for Identity Verification, Corporate Registration, and Digital Services in Nigeria. 
-            Robust, reliable, and designed for developers.
+            The unified infrastructure for Identity, Corporate, and Utility services in Nigeria.
+            <br/>
+            <strong>Base URL:</strong> <code className="bg-slate-200 px-2 py-1 rounded text-sm">https://api.agenthub.com/api</code>
           </p>
           <div className="mt-8 flex justify-center gap-4">
-            <Link href="/docs/authentication" className="px-6 py-3 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-all">
-              Get Your API Keys
-            </Link>
-            <Link href="/docs/errors" className="px-6 py-3 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-all">
-              Error Codes
+            <Link href="/docs/authentication" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+              Authentication Guide
             </Link>
           </div>
         </div>
 
-        {/* 3. CORE SERVICES GRID */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-blue-600 pl-4">Identity Services</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 3. SERVICES GRID */}
+        
+        {/* ROW 1: IDENTITY (NIN & BVN) */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <span className="w-1 h-8 bg-blue-600 rounded-full block"></span>
+            Identity Services
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
             {/* NIN Card */}
             <ServiceCard 
               href="/docs/nin"
               title="NIN Services"
               icon="🆔"
-              description="Verify identities, modify data, validate slips, and perform advanced NIN personalization."
-              endpoints={['/verify', '/modification', '/validation', '/slip']}
+              description="Comprehensive NIN management including Validation, Modification, Slip Generation, and IPE Clearance."
+              endpoints={[
+                '/v1/identity/nin-validation',
+                '/v1/identity/nin-modification',
+                '/v1/identity/slip',
+                '/v1/identity/ipe-clearance',
+                '/v1/identity/nin-personalization'
+              ]}
             />
 
             {/* BVN Card */}
@@ -58,32 +66,32 @@ export default function DocsLandingPage() {
               href="/docs/bvn"
               title="BVN Services"
               icon="🏦"
-              description="Full suite for BVN enrollment, modification, phone retrieval, and VNIN-to-NIBSS submission."
-              endpoints={['/enrollment', '/modification', '/retrieval', '/vnin-link']}
-            />
-
-            {/* IPE Clearance Card */}
-            <ServiceCard 
-              href="/docs/ipe"
-              title="IPE Clearance"
-              icon="✅"
-              description="Automated IPE clearance processing with instant status checks and slip generation."
-              endpoints={['/clearance', '/status']}
+              description="Enrollment, Modification, and Retrieval services for Bank Verification Numbers."
+              endpoints={[
+                '/bvn/enrollment',
+                '/bvn/modification',
+                '/bvn/retrieval',
+                '/bvn/vnin-to-nibss'
+              ]}
             />
           </div>
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-green-600 pl-4">Corporate & Tax</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* ROW 2: CORPORATE & EDUCATION */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <span className="w-1 h-8 bg-green-600 rounded-full block"></span>
+            Corporate & Education
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             
             {/* CAC Card */}
             <ServiceCard 
               href="/docs/cac"
               title="CAC Registration"
               icon="🏢"
-              description="Register business names and companies directly via API. Track status and download certificates."
-              endpoints={['/register', '/status', '/upload']}
+              description="Register Business Names and Limited Liability Companies."
+              endpoints={['/corporate/cac']}
             />
 
             {/* Tax ID Card */}
@@ -91,42 +99,46 @@ export default function DocsLandingPage() {
               href="/docs/tax"
               title="Tax ID (TIN)"
               icon="📄"
-              description="Generate Individual and Non-Individual Tax Identification Numbers (JTB/FIRS)."
-              endpoints={['/generate', '/status']}
+              description="Generate Personal and Non-Individual Tax Identification Numbers."
+              endpoints={['/corporate/tax-id']}
             />
 
-          </div>
-        </div>
-
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-purple-600 pl-4">Education & Utilities</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
             {/* JAMB Card */}
             <ServiceCard 
               href="/docs/jamb"
               title="JAMB Services"
               icon="🎓"
-              description="Process result slips, admission letters, and regularization for higher education."
-              endpoints={['/result', '/admission', '/profile-code']}
+              description="Result slips, Admission letters, and Profile Code retrieval."
+              endpoints={['/education/jamb']}
             />
 
-            {/* Utilities Card */}
-            <ServiceCard 
+          </div>
+        </div>
+
+        {/* ROW 3: UTILITIES & SYSTEM */}
+        <div className="mb-16">
+           <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <span className="w-1 h-8 bg-purple-600 rounded-full block"></span>
+            Utilities & System
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             
+             {/* Utilities */}
+             <ServiceCard 
               href="/docs/utilities"
-              title="Utilities & Bills"
+              title="Utilities"
               icon="⚡"
-              description="Vending for Airtime, Data bundles, and Electricity bill payments across all networks."
-              endpoints={['/airtime', '/data', '/power']}
+              description="Airtime, Data, and Bill Payments."
+              endpoints={['/utilities/airtime', '/utilities/data']}
             />
 
-            {/* Wallet & General */}
+            {/* Status & Wallet */}
             <ServiceCard 
-              href="/docs/wallet"
-              title="Wallet & Account"
-              icon="💼"
-              description="Manage your AgentHub wallet balance, view transaction history, and fund your account."
-              endpoints={['/balance', '/transactions']}
+              href="/docs/status"
+              title="Status & Wallet"
+              icon="📡"
+              description="Check job status and wallet balance."
+              endpoints={['/status?request_id=...', '/wallet/balance']}
             />
 
           </div>
@@ -134,14 +146,11 @@ export default function DocsLandingPage() {
 
       </main>
 
-      {/* 4. FOOTER */}
-      <footer className="bg-slate-900 text-slate-400 py-12">
+      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="mb-4 text-white font-semibold">AgentHub API v1.0</p>
-          <p className="text-sm">
-            &copy; {new Date().getFullYear()} AgentHub. All rights reserved. 
-            <br />
-            Built for developers, by developers.
+          <p className="mb-2 text-white font-semibold">AgentHub Developer API</p>
+          <p className="text-xs text-slate-500 font-mono">
+            System Status: <span className="text-green-400">● Operational</span>
           </p>
         </div>
       </footer>
@@ -149,30 +158,33 @@ export default function DocsLandingPage() {
   );
 }
 
-// Helper Component for Cards
+// Reusable Card Component
 function ServiceCard({ title, description, icon, href, endpoints }: any) {
   return (
     <Link href={href} className="group block h-full">
-      <div className="h-full bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md hover:border-blue-500 transition-all duration-200">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-3xl">{icon}</span>
-          <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-            Explore &rarr;
+      <div className="h-full bg-white border border-slate-200 rounded-xl p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+        <div className="flex items-center justify-between mb-6">
+          <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-2xl group-hover:bg-blue-50 transition-colors">
+            {icon}
+          </div>
+          <span className="text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            View Docs &rarr;
           </span>
         </div>
-        <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+        
+        <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
           {title}
         </h3>
-        <p className="text-slate-600 text-sm mb-4 leading-relaxed">
+        <p className="text-slate-600 text-sm mb-6 leading-relaxed">
           {description}
         </p>
         
-        {/* Endpoint Tags */}
-        <div className="flex flex-wrap gap-2">
+        {/* Endpoint List */}
+        <div className="flex flex-col gap-2">
           {endpoints.map((ep: string) => (
-            <span key={ep} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-mono rounded border border-slate-200">
+            <code key={ep} className="text-xs font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100 truncate">
               POST {ep}
-            </span>
+            </code>
           ))}
         </div>
       </div>
