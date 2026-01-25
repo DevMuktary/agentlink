@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-// Import the provider checker
+// We assume this helper function performs the POST request to Robost API
 import { checkPersonalizationStatus } from '@/services/providers/robost-personalization';
 
 export async function GET(req: Request) {
@@ -49,31 +49,33 @@ export async function GET(req: Request) {
     // 3. LIVE CHECK LOGIC (Lazy Update)
     // ============================================================
     let currentStatus = request.status;
-    let responseData = request.responseData;
+    let responseData: any = request.responseData;
     let adminNote = null;
     
-    // Extract Tracking ID
+    // Extract Tracking ID from the saved request
     const trackingId = (request.requestData as any)?.trackingId;
 
-    // Check Provider if still PROCESSING
+    // Only check provider if we are still processing AND we have a tracking ID
     if (currentStatus === 'PROCESSING' && trackingId) {
        
+       // Call Provider API (This helper does the POST to Robost)
        const liveResult = await checkPersonalizationStatus(trackingId);
 
-       if (liveResult.status === 'COMPLETED') {
-         // SUCCESS: Update DB
+       // Check Provider Response (Robost uses "completed" lowercase)
+       if (liveResult.success && liveResult.status === 'completed') {
+         // SUCCESS
          currentStatus = 'COMPLETED';
-         responseData = liveResult.data; 
+         responseData = liveResult.data; // This contains { photo: "...", firstName: "...", etc. }
          
          await prisma.serviceRequest.update({
            where: { id: request.id },
            data: { status: 'COMPLETED', responseData: liveResult.data }
          });
 
-       } else if (liveResult.status === 'FAILED') {
-         // FAILED: Update DB (No Refund as per IPE logic)
+       } else if (liveResult.success === false) {
+         // FAILED (Robost likely returned an error message)
          currentStatus = 'FAILED';
-         adminNote = liveResult.message || 'Provider Rejected';
+         adminNote = liveResult.message || 'Provider Failed';
          
          await prisma.serviceRequest.update({
            where: { id: request.id },
@@ -84,6 +86,7 @@ export async function GET(req: Request) {
            }
          });
        }
+       // If status is "processing" or similar, we just wait.
     }
     // ============================================================
 
@@ -93,12 +96,17 @@ export async function GET(req: Request) {
 
     if (currentStatus === 'COMPLETED') {
         message = "Personalization Successful";
-        const resData = responseData as any || {};
+        const resData = responseData || {};
+        
         dataPayload = {
             tracking_id: trackingId,
-            // Return slip/image from provider
-            image_url: resData.image || resData.url || resData.file_url || null,
-            download_url: resData.download_url || null
+            // Return the Base64 Photo directly from Robost Data
+            photo_base64: resData.photo || null, 
+            
+            // Return other key details if available
+            full_name: `${resData.firstname || ''} ${resData.surname || ''}`.trim(),
+            nin: resData.nin || resData.NIN || null,
+            date_of_birth: resData.birthdate || resData.dateOfBirth || null
         };
     } else if (currentStatus === 'FAILED') {
         message = "Personalization Failed";
