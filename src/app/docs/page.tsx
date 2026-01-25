@@ -1,136 +1,181 @@
 import Link from 'next/link';
 
-export default function DocsHome() {
+export default function DocsLandingPage() {
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
-      {/* --- HEADER --- */}
-      <header className="bg-blue-900 text-white py-12">
-        <div className="container mx-auto px-6 text-center">
-          <h1 className="text-4xl font-bold mb-4">AGENTHUB Developer API</h1>
-          <p className="text-lg text-blue-200 max-w-2xl mx-auto">
-            The unified API for Identity Verification, Corporate Registration, Education, and Utility services in Nigeria.
-          </p>
-          <div className="mt-8">
-            <Link href="/dashboard" className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded shadow transition">
-              Go to Dashboard
-            </Link>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      
+      {/* 1. NAVBAR / HEADER */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">A</div>
+            <span className="text-xl font-bold tracking-tight text-slate-900">AgentHub <span className="text-blue-600">Docs</span></span>
           </div>
+          <nav className="flex gap-6 text-sm font-medium text-slate-600">
+            <Link href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</Link>
+            <Link href="mailto:support@agenthub.com" className="hover:text-blue-600 transition-colors">Support</Link>
+          </nav>
         </div>
       </header>
 
-      {/* --- MAIN CONTENT --- */}
-      <main className="container mx-auto px-6 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        {/* 1. GETTING STARTED */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6 border-b pb-2 border-gray-200">🚀 Getting Started</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <Link href="/docs/authentication" className="block p-6 bg-white rounded-lg shadow hover:shadow-md transition border border-gray-100">
-              <h3 className="text-xl font-semibold text-blue-800 mb-2">Authentication</h3>
-              <p className="text-gray-600 text-sm">Learn how to generate API Keys and authenticate your requests securely.</p>
+        {/* 2. HERO SECTION */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-6">
+            Build with <span className="text-blue-600">AgentHub</span>
+          </h1>
+          <p className="text-lg text-slate-600 leading-relaxed">
+            The all-in-one API for Identity Verification, Corporate Registration, and Digital Services in Nigeria. 
+            Robust, reliable, and designed for developers.
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <Link href="/docs/authentication" className="px-6 py-3 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-all">
+              Get Your API Keys
             </Link>
-            <Link href="/docs/errors" className="block p-6 bg-white rounded-lg shadow hover:shadow-md transition border border-gray-100">
-              <h3 className="text-xl font-semibold text-blue-800 mb-2">Errors & Responses</h3>
-              <p className="text-gray-600 text-sm">Standard response formats, error codes, and handling best practices.</p>
-            </Link>
-            <Link href="/docs/webhooks" className="block p-6 bg-white rounded-lg shadow hover:shadow-md transition border border-gray-100">
-              <h3 className="text-xl font-semibold text-blue-800 mb-2">Webhooks</h3>
-              <p className="text-gray-600 text-sm">Listen for real-time events like completion of manual jobs.</p>
+            <Link href="/docs/errors" className="px-6 py-3 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-all">
+              Error Codes
             </Link>
           </div>
-        </section>
+        </div>
 
-        {/* 2. IDENTITY SERVICES */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6 border-b pb-2 border-gray-200">🆔 Identity Services</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <DocCard 
-              title="NIN Services" 
-              desc="Verification, Validation, Modification, and Slip Generation." 
-              href="/docs/identity/nin" 
+        {/* 3. CORE SERVICES GRID */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-blue-600 pl-4">Identity Services</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* NIN Card */}
+            <ServiceCard 
+              href="/docs/nin"
+              title="NIN Services"
+              icon="🆔"
+              description="Verify identities, modify data, validate slips, and perform advanced NIN personalization."
+              endpoints={['/verify', '/modification', '/validation', '/slip']}
             />
-            <DocCard 
-              title="BVN Services" 
-              desc="Enrollment, Modification, Retrieval, and Verification." 
-              href="/docs/identity/bvn" 
+
+            {/* BVN Card */}
+            <ServiceCard 
+              href="/docs/bvn"
+              title="BVN Services"
+              icon="🏦"
+              description="Full suite for BVN enrollment, modification, phone retrieval, and VNIN-to-NIBSS submission."
+              endpoints={['/enrollment', '/modification', '/retrieval', '/vnin-link']}
             />
-            <DocCard 
-              title="IPE Clearance" 
-              desc="NIN IPE Clearance processing and slip generation." 
-              href="/docs/identity/ipe" 
-            />
-            <DocCard 
-              title="NIN Personalization" 
-              desc="Apply for Plastic ID personalization." 
-              href="/docs/identity/personalization" 
-            />
-            <DocCard 
-              title="VNIN Generation" 
-              desc="Enterprise VNIN generation for corporate use." 
-              href="/docs/identity/vnin" 
+
+            {/* IPE Clearance Card */}
+            <ServiceCard 
+              href="/docs/ipe"
+              title="IPE Clearance"
+              icon="✅"
+              description="Automated IPE clearance processing with instant status checks and slip generation."
+              endpoints={['/clearance', '/status']}
             />
           </div>
-        </section>
+        </div>
 
-        {/* 3. CORPORATE SERVICES */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6 border-b pb-2 border-gray-200">🏢 Corporate Services</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <DocCard 
-              title="CAC Registration" 
-              desc="Business Name and Company registration automation." 
-              href="/docs/corporate/cac" 
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-green-600 pl-4">Corporate & Tax</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* CAC Card */}
+            <ServiceCard 
+              href="/docs/cac"
+              title="CAC Registration"
+              icon="🏢"
+              description="Register business names and companies directly via API. Track status and download certificates."
+              endpoints={['/register', '/status', '/upload']}
             />
-            <DocCard 
-              title="Tax ID (TIN)" 
-              desc="Individual and Non-Individual Tax ID generation." 
-              href="/docs/corporate/tin" 
-            />
-          </div>
-        </section>
 
-        {/* 4. UTILITIES & EDUCATION */}
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6 border-b pb-2 border-gray-200">🎓 Utilities & Education</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-             <DocCard 
-              title="JAMB Services" 
-              desc="Result printing, Admission letters, and Profile codes." 
-              href="/docs/education/jamb" 
+            {/* Tax ID Card */}
+            <ServiceCard 
+              href="/docs/tax"
+              title="Tax ID (TIN)"
+              icon="📄"
+              description="Generate Individual and Non-Individual Tax Identification Numbers (JTB/FIRS)."
+              endpoints={['/generate', '/status']}
             />
-            <DocCard 
-              title="Airtime & Data" 
-              desc="VTU services for MTN, Glo, Airtel, and 9mobile." 
-              href="/docs/utilities/vtu" 
-            />
-            <DocCard 
-              title="Electricity & Cables" 
-              desc="Bill payments for Discos and Cable TV subscriptions." 
-              href="/docs/utilities/bills" 
-            />
+
           </div>
-        </section>
+        </div>
+
+        <div className="mb-16">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-l-4 border-purple-600 pl-4">Education & Utilities</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* JAMB Card */}
+            <ServiceCard 
+              href="/docs/jamb"
+              title="JAMB Services"
+              icon="🎓"
+              description="Process result slips, admission letters, and regularization for higher education."
+              endpoints={['/result', '/admission', '/profile-code']}
+            />
+
+            {/* Utilities Card */}
+            <ServiceCard 
+              href="/docs/utilities"
+              title="Utilities & Bills"
+              icon="⚡"
+              description="Vending for Airtime, Data bundles, and Electricity bill payments across all networks."
+              endpoints={['/airtime', '/data', '/power']}
+            />
+
+            {/* Wallet & General */}
+            <ServiceCard 
+              href="/docs/wallet"
+              title="Wallet & Account"
+              icon="💼"
+              description="Manage your AgentHub wallet balance, view transaction history, and fund your account."
+              endpoints={['/balance', '/transactions']}
+            />
+
+          </div>
+        </div>
 
       </main>
 
-      {/* --- FOOTER --- */}
-      <footer className="bg-gray-800 text-gray-400 py-8 text-center">
-        <p>&copy; {new Date().getFullYear()} AGENTHUB Technology. All rights reserved.</p>
-        <p className="text-sm mt-2">Powered by Xpresspoint Tech</p>
+      {/* 4. FOOTER */}
+      <footer className="bg-slate-900 text-slate-400 py-12">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="mb-4 text-white font-semibold">AgentHub API v1.0</p>
+          <p className="text-sm">
+            &copy; {new Date().getFullYear()} AgentHub. All rights reserved. 
+            <br />
+            Built for developers, by developers.
+          </p>
+        </div>
       </footer>
     </div>
   );
 }
 
-// Simple Card Component for cleaner code
-function DocCard({ title, desc, href }: { title: string, desc: string, href: string }) {
+// Helper Component for Cards
+function ServiceCard({ title, description, icon, href, endpoints }: any) {
   return (
-    <Link href={href} className="group block p-6 bg-white rounded-lg shadow hover:shadow-lg transition border border-gray-100">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition">{title}</h3>
-        <span className="text-gray-400 group-hover:text-blue-500">&rarr;</span>
+    <Link href={href} className="group block h-full">
+      <div className="h-full bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md hover:border-blue-500 transition-all duration-200">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-3xl">{icon}</span>
+          <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            Explore &rarr;
+          </span>
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+          {title}
+        </h3>
+        <p className="text-slate-600 text-sm mb-4 leading-relaxed">
+          {description}
+        </p>
+        
+        {/* Endpoint Tags */}
+        <div className="flex flex-wrap gap-2">
+          {endpoints.map((ep: string) => (
+            <span key={ep} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-mono rounded border border-slate-200">
+              POST {ep}
+            </span>
+          ))}
+        </div>
       </div>
-      <p className="text-gray-600 text-sm leading-relaxed">{desc}</p>
     </Link>
   );
 }
