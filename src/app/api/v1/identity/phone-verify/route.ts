@@ -9,18 +9,33 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json({ status: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
     
-    // FIX 1: Accept 'phone' OR 'phone_number'
+    // FIX 1: Normalize input to 'phone'
     const phone = body.phone || body.phone_number;
     
-    // FIX 2: Make Reference Optional (Auto-generate if missing)
-    const reference = body.reference || `REF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    
-    // 2. Validate Inputs
-    if (!phone || phone.length < 10) {
-        return NextResponse.json({ status: false, error: 'Invalid Phone Number' }, { status: 400 });
+    // FIX 2: Specific Error Messages
+    if (!phone) {
+        return NextResponse.json({ 
+            status: false, 
+            error: "Missing parameter: Please provide 'phone' or 'phone_number'" 
+        }, { status: 400 });
     }
+
+    if (String(phone).length < 10) {
+        return NextResponse.json({ 
+            status: false, 
+            error: `Invalid format: Phone number '${phone}' is too short. Must be at least 10 digits.` 
+        }, { status: 400 });
+    }
+    
+    // Auto-generate reference if missing
+    const reference = body.reference || `REF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     // 3. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'NIN_SEARCH_BY_PHONE' } });
@@ -40,14 +55,14 @@ export async function POST(req: Request) {
       // A. Deduct
       await tx.user.update({ where: { id: user.id }, data: { walletBalance: { decrement: serviceCost } } });
       
-      // B. Create Transaction Record
+      // B. Create Transaction
       await tx.transaction.create({
         data: {
             userId: user.id,
             amount: serviceCost,
             type: 'SERVICE_CHARGE',
             status: 'COMPLETED',
-            reference: reference, // Guaranteed to exist now
+            reference: reference,
             description: `NIN Search by Phone: ${phone}`,
             serviceId: 'NIN_SEARCH_BY_PHONE'
         }
@@ -78,10 +93,8 @@ export async function POST(req: Request) {
     } else {
       // REFUND ON FAILURE
       await prisma.$transaction(async (tx) => {
-         // A. Refund Wallet
          await tx.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } });
          
-         // B. Log Refund Transaction
          await tx.transaction.create({
             data: {
                 userId: user.id,
@@ -94,14 +107,18 @@ export async function POST(req: Request) {
             }
          });
 
-         // C. Update Request
          await tx.serviceRequest.update({ 
              where: { id: requestLog.id }, 
              data: { status: 'FAILED', responseData: { error: result.error } } 
          });
       });
       
-      return NextResponse.json({ status: false, error: result.error, message: 'Refunded' }, { status: 400 });
+      // Return the specific provider error if available, or a generic one
+      return NextResponse.json({ 
+          status: false, 
+          error: result.error || "NIN not found for this number", 
+          message: 'Refunded' 
+      }, { status: 400 });
     }
 
   } catch (error) {
