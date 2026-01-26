@@ -9,10 +9,14 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { trackingId, reference } = await req.json();
+    const body = await req.json();
+    const { trackingId } = body;
     
+    // FIX: Auto-generate reference if missing (Don't force them)
+    const reference = body.reference || `PERS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
     if (!trackingId) return NextResponse.json({ status: false, error: 'Tracking ID required' }, { status: 400 });
-    if (!reference) return NextResponse.json({ status: false, error: 'Reference required' }, { status: 400 });
+    // REMOVED THE STRICT CHECK FOR REFERENCE
 
     // 2. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'NIN_PERSONALIZATION' } });
@@ -33,7 +37,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -69,28 +73,25 @@ export async function POST(req: Request) {
         reference: reference
       });
     } else {
-      // Refund Logic (UPDATED)
+      // Refund Logic
       await prisma.$transaction(async (tx) => {
-        // A. Refund Wallet
         await tx.user.update({ 
             where: { id: user.id }, 
             data: { walletBalance: { increment: cost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: cost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              reference: `${reference}-REFUND`, 
               description: `Refund: Personalization Failed (${trackingId})`,
               serviceId: 'NIN_PERSONALIZATION'
             }
         });
 
-        // C. Update Request Status
         await tx.serviceRequest.update({ 
           where: { id: requestLog.id }, 
           data: { status: 'FAILED', responseData: { error: result.message }, adminNote: 'Refunded: Submission rejected.' } 
