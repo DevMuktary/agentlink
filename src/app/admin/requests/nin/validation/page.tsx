@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Search, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Download, Layers, FileText
+  AlertTriangle, User, Download, Layers
 } from 'lucide-react';
 
 export default function AdminNinValidationQueue() {
@@ -22,29 +22,51 @@ export default function AdminNinValidationQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
-  // 1. Fetch Queue
+  // 1. Fetch Queue (Robust Version)
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      // We look for the 3 specific Validation types
-      const endpoints = [
-        '/api/admin/requests/all?service=NIN_VALIDATION_VNIN&status=ALL',
-        '/api/admin/requests/all?service=NIN_VALIDATION_NO_RECORD&status=ALL',
-        '/api/admin/requests/all?service=NIN_VALIDATION_UPDATE_RECORD&status=ALL',
-        // Fallback for generic legacy types
-        '/api/admin/requests/all?service=NIN_VALIDATION&status=ALL',
+      // We define the specific service codes we expect
+      const serviceTypes = [
+        'NIN_VALIDATION_VNIN',
+        'NIN_VALIDATION_NO_RECORD',
+        'NIN_VALIDATION_UPDATE_RECORD',
+        'NIN_VALIDATION' // Fallback
       ];
 
-      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
-      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
-      
-      // DEBUG: Check what is actually coming from the DB
-      console.log("Admin Queue Data:", combined);
+      // Create promises
+      const promises = serviceTypes.map(type => 
+        axios.get(`/api/admin/requests/all?service=${type}&status=ALL`)
+      );
 
+      // Use allSettled so one failure doesn't break the whole page
+      const results = await Promise.allSettled(promises);
+
+      const combined: any[] = [];
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          // Check if the API returned success and data
+          if (result.value.data && result.value.data.status) {
+             combined.push(...result.value.data.data);
+          }
+        } else {
+          console.warn("Failed to fetch a specific validation queue:", result.reason);
+        }
+      });
+      
       // Sort: Newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      setRequests(combined);
+      // Remove duplicates just in case
+      const uniqueIds = new Set();
+      const uniqueRequests = combined.filter(item => {
+        const isDuplicate = uniqueIds.has(item.id);
+        uniqueIds.add(item.id);
+        return !isDuplicate;
+      });
+
+      setRequests(uniqueRequests);
     } catch (error) {
         console.error("Failed to fetch queue", error);
     } finally { 
@@ -54,9 +76,10 @@ export default function AdminNinValidationQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // Set default refund
+  // Set default refund logic
   useEffect(() => {
     if (selectedItem) {
+        // Default refund is the cost of the request
         setRefundAmount(selectedItem.cost.toString());
         setResultFile(null);
         setRejectionReason('');
@@ -102,33 +125,26 @@ export default function AdminNinValidationQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setShouldRefund(true);
   };
 
   // Helper for Badges
   const getTypeBadge = (type: string) => {
       if (type.includes('VNIN')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">vNIN Validation</span>;
       if (type.includes('NO_RECORD')) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">No Record Found</span>;
-      if (type.includes('UPDATE')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Update Record</span>;
+      if (type.includes('UPDATE')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Record Update</span>;
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Validation</span>;
   };
 
-  // --- FIX: Updated Logic to find the search term correctly ---
+  // FIX: Helper to extract Search Key (Updated to match your API)
   const getSearchTerm = (item: any) => {
-      const data = item.requestData || {};
+      // Your API saves everything under 'nin' inside requestData
+      if (item.requestData?.nin) return item.requestData.nin;
       
-      // We saved everything as 'nin' in the POST endpoint, so check that first.
-      if (data.nin) return data.nin;
-
-      // Fallbacks for legacy data
-      if (data.vnin) return data.vnin;
-      if (data.tracking_id) return data.tracking_id;
-      if (data.surname) return `${data.surname} ${data.firstname || ''}`;
+      // Fallbacks for older data
+      if (item.requestData?.vnin) return item.requestData.vnin;
+      if (item.requestData?.tracking_id) return item.requestData.tracking_id;
       
-      return 'N/A';
+      return '-';
   };
 
   if (loading) return <GlobalLoader />;
@@ -140,7 +156,7 @@ export default function AdminNinValidationQueue() {
             <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
             <Search className="w-8 h-8 text-purple-600" /> NIN Validation Queue
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Process manual validation requests</p>
+            <p className="text-slate-500 text-sm mt-1">Manage Validation, No Record Found & VNIN Issues</p>
         </div>
         <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
           <RefreshCw className="w-5 h-5 text-slate-600" />
@@ -154,8 +170,8 @@ export default function AdminNinValidationQueue() {
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Search Param (NIN/Ref)</th>
+                <th className="px-6 py-4 font-medium">Service Type</th>
+                <th className="px-6 py-4 font-medium">NIN / ID</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
@@ -245,7 +261,7 @@ export default function AdminNinValidationQueue() {
                         </div>
                     </div>
 
-                    {/* SUBMITTED DATA (FIXED RENDERING) */}
+                    {/* SUBMITTED DATA (RAW VIEW) */}
                     <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-purple-200 pb-2">
                             <Layers size={16} className="text-purple-700" />
@@ -254,18 +270,16 @@ export default function AdminNinValidationQueue() {
                         
                         <div className="grid grid-cols-1 gap-3">
                             {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                // Filter out empty or null values
-                                if (value === null || value === undefined || value === '') return null;
+                                // Skip empty/null values
+                                if (!value || typeof value === 'object') return null;
                                 
                                 // Format Key
                                 const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                
+
                                 return (
                                     <div key={key} className="flex justify-between items-center border-b border-purple-200/50 pb-2 last:border-0">
                                         <span className="text-slate-500 text-xs font-semibold uppercase">{label}</span>
-                                        <span className="text-slate-900 font-mono font-bold text-sm text-right break-all">
-                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                        </span>
+                                        <span className="text-slate-900 font-mono font-bold text-sm text-right">{String(value)}</span>
                                     </div>
                                 );
                             })}
