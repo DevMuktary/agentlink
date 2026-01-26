@@ -8,7 +8,13 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { nin, reference } = await req.json();
+    const body = await req.json();
+    const { nin } = body;
+    
+    // FIX: Generate a reference if the user didn't provide one. 
+    // The DB requires a unique string for the Transaction table.
+    const reference = body.reference || `REF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
     if (!nin || nin.length !== 11) return NextResponse.json({ status: false, error: 'Invalid NIN' }, { status: 400 });
 
     // 1. GET DYNAMIC PRICE
@@ -34,7 +40,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: serviceCost } }
       });
 
-      // B. Log Transaction
+      // B. Log Transaction (Now guaranteed to have a 'reference')
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -54,6 +60,7 @@ export async function POST(req: Request) {
           serviceType: 'NIN_VERIFICATION',
           status: 'PROCESSING',
           cost: serviceCost, 
+          // We save the 'reference' used (either user-provided or auto-generated)
           requestData: { nin, clientReference: reference }, 
         }
       });
@@ -84,7 +91,7 @@ export async function POST(req: Request) {
               amount: serviceCost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure uniqueness
+              reference: `${reference}-REFUND`, // This is safe because 'reference' is now guaranteed
               description: `Refund for failed NIN Verification: ${nin}`,
               serviceId: 'NIN_VERIFICATION'
             }
