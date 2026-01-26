@@ -4,113 +4,100 @@ import Link from 'next/link';
 
 export default function DocsLandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="px-4 sm:px-6 lg:px-8 py-10 max-w-7xl mx-auto">
       
-      {/* HEADER */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">A</div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">AgentHub <span className="text-blue-600">Docs</span></span>
-          </div>
-          <nav className="flex gap-4 text-sm font-medium text-slate-600 items-center">
-            <Link href="/dashboard" className="hidden sm:block hover:text-blue-600 transition-colors">Dashboard</Link>
-            <Link href="/dashboard/developers" className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-colors">
-              Get API Key
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* HERO SECTION */}
+      <div className="mb-16 text-center sm:text-left">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
+          AgentHub <span className="text-blue-600">API Reference</span>
+        </h1>
+        <p className="text-lg text-slate-600 leading-relaxed mb-6 max-w-3xl">
+          Welcome to the unified infrastructure for Identity, Corporate, and Utility services in Nigeria. 
+          Select a service below to view detailed documentation.
+        </p>
         
-        {/* HERO */}
-        <div className="text-center max-w-4xl mx-auto mb-16">
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 mb-6">
-            AgentHub <span className="text-blue-600">API Reference</span>
-          </h1>
-          <p className="text-lg text-slate-600 leading-relaxed mb-8">
-            The unified infrastructure for Identity, Corporate, and Utility services in Nigeria.
-            <br/>
-            <strong>Base URL:</strong> <code className="bg-slate-200 px-3 py-1 rounded text-sm text-blue-700 font-mono break-all">https://agenthub.ng/api</code>
-          </p>
+        <div className="bg-slate-900 text-slate-300 rounded-xl p-4 font-mono text-sm flex flex-col sm:flex-row items-center justify-between gap-4 max-w-2xl shadow-lg">
+          <span className="flex items-center gap-2">
+            <span className="text-slate-500">Base URL:</span> 
+            <span className="text-blue-400 font-bold">https://agenthub.ng/api</span>
+          </span>
+          <Link href="/dashboard/developers" className="text-slate-900 bg-white px-4 py-2 rounded font-bold hover:bg-slate-200 transition-colors text-xs uppercase tracking-wider">
+            Get API Key
+          </Link>
+        </div>
+      </div>
+
+      {/* SERVICES GRID */}
+      <div className="space-y-16">
+      
+        {/* IDENTITY SECTION */}
+        <section>
+          <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-2">
+             <span className="text-2xl">🆔</span>
+             <h2 className="text-2xl font-bold text-slate-900">Identity Services</h2>
+          </div>
           
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link href="/dashboard/developers" className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2">
-              <span>🔑</span> Get API Key
-            </Link>
-            <Link href="/docs/authentication" className="px-8 py-4 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-              <span>📚</span> Read Guide
-            </Link>
-          </div>
-        </div>
-
-        {/* SERVICES GRID */}
-        
-        {/* IDENTITY */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-2">Identity Services</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* NIN */}
+            {/* NIN CARD */}
             <ServiceCard 
               href="/docs/nin"
               title="NIN Services"
-              icon="🆔"
-              description="NIN Validation, Modification, Slip Generation, and IPE Clearance."
+              description="National Identity Number verification, modification, slips, and clearance."
               endpoints={[
                 { method: 'POST', path: '/v1/identity/nin-validation' },
-                { method: 'POST', path: '/v1/identity/nin-modification' },
-                { method: 'POST', path: '/v1/identity/slip' },
-                { method: 'POST', path: '/v1/identity/ipe-clearance' },
-                { method: 'POST', path: '/v1/identity/nin-personalization' },
-                { method: 'POST', path: '/v1/identity/phone-verify' },
                 { method: 'POST', path: '/v1/identity/nin-verify' },
-                { method: 'POST', path: '/v1/identity/vnin-slip' }
+                { method: 'POST', path: '/v1/identity/phone-verify' },
+                { method: 'POST', path: '/v1/identity/nin-modification' },
+                { method: 'POST', path: '/v1/identity/nin-personalization' },
+                { method: 'POST', path: '/v1/identity/slip' },
+                { method: 'POST', path: '/v1/identity/vnin-slip' },
+                { method: 'POST', path: '/v1/identity/ipe-clearance' },
               ]}
             />
 
-            {/* BVN */}
+            {/* BVN CARD */}
             <ServiceCard 
               href="/docs/bvn"
               title="BVN Services"
-              icon="🏦"
-              description="BVN User Enrollment, Modification, Retrieval, and NIBSS linkage."
+              description="Bank Verification Number enrollment, retrieval, and NIBSS linkage."
               endpoints={[
                 { method: 'POST', path: '/bvn/enrollment' },
+                { method: 'POST', path: '/bvn/verification' },
                 { method: 'POST', path: '/bvn/modification' },
                 { method: 'POST', path: '/bvn/retrieval' },
-                { method: 'POST', path: '/bvn/vnin-to-nibss' }
+                { method: 'POST', path: '/bvn/vnin-to-nibss' },
                 { method: 'POST', path: '/bvn/premium-slip' },
-                { method: 'POST', path: '/bvn/verification' }
               ]}
             />
           </div>
-        </div>
+        </section>
 
-        {/* CORPORATE */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-2">Corporate & Education</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* CORPORATE SECTION */}
+        <section>
+          <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-2">
+             <span className="text-2xl">🏢</span>
+             <h2 className="text-2xl font-bold text-slate-900">Corporate & Education</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* CAC */}
             <ServiceCard 
               href="/docs/cac"
               title="CAC Registration"
-              icon="🏢"
-              description="Register Businesses and LLCs."
+              description="Business Name & Company Registration."
               endpoints={[
                 { method: 'POST', path: '/corporate/cac' },
                 { method: 'GET', path: '/corporate/cac/status' }
               ]}
             />
 
-            {/* Tax */}
+            {/* TAX */}
             <ServiceCard 
               href="/docs/tax"
               title="Tax ID (TIN)"
-              icon="📄"
-              description="Generate Individual & Corporate TIN."
+              description="JTB/FIRS Tax Identification Numbers."
               endpoints={[
                 { method: 'POST', path: '/corporate/tax-id' },
                 { method: 'GET', path: '/corporate/tax-id/status' }
@@ -121,8 +108,7 @@ export default function DocsLandingPage() {
             <ServiceCard 
               href="/docs/jamb"
               title="JAMB Services"
-              icon="🎓"
-              description="Result Slips & Admission Letters."
+              description="Result Slips, Admission Letters & Caps."
               endpoints={[
                 { method: 'POST', path: '/education/jamb' },
                 { method: 'GET', path: '/education/jamb/status' }
@@ -130,18 +116,21 @@ export default function DocsLandingPage() {
             />
 
           </div>
-        </div>
+        </section>
 
-        {/* UTILITIES */}
-        <div className="mb-16">
-           <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-2">Utilities & System</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* UTILITIES SECTION */}
+        <section>
+           <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-2">
+             <span className="text-2xl">⚡</span>
+             <h2 className="text-2xl font-bold text-slate-900">Utilities & System</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              
-             {/* Utilities */}
+             {/* UTILITIES */}
              <ServiceCard 
               href="/docs/utilities"
               title="Utilities"
-              icon="⚡"
               description="Airtime and Data Bundles."
               endpoints={[
                 { method: 'POST', path: '/utilities/airtime' },
@@ -149,69 +138,50 @@ export default function DocsLandingPage() {
               ]}
             />
 
-            {/* Status */}
+            {/* STATUS */}
             <ServiceCard 
               href="/docs/status"
-              title="Status & Balance"
-              icon="💳"
-              description="Check Balance and Transaction Status."
+              title="System Status"
+              description="Transaction status and wallet management."
               endpoints={[
-                { method: 'GET', path: '/wallet/balance' },
                 { method: 'GET', path: '/status' },
-                { method: '...', path: 'and more' }
+                { method: 'GET', path: '/wallet/balance' },
               ]}
             />
 
           </div>
-        </div>
-
-      </main>
-
-      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="mb-2 text-white font-semibold">AgentHub Developer API v1.0</p>
-          <div className="mt-4">
-             <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 text-sm">Return to Dashboard</Link>
-          </div>
-        </div>
-      </footer>
+        </section>
+      </div>
     </div>
   );
 }
 
-function ServiceCard({ title, description, icon, href, endpoints }: any) {
+// Component for the Service Cards
+function ServiceCard({ title, description, href, endpoints }: any) {
   return (
     <Link href={href} className="group block h-full">
-      <div className="h-full bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center text-xl group-hover:bg-blue-50 transition-colors border border-slate-100">
-            {icon}
-          </div>
-          <span className="text-blue-600 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-            Docs &rarr;
-          </span>
+      <div className="h-full bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col">
+        
+        <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+              {title}
+            </h3>
+            <span className="text-blue-600 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                View Docs &rarr;
+            </span>
         </div>
         
-        <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-          {title}
-        </h3>
-        <p className="text-slate-600 text-sm mb-4 leading-relaxed flex-grow">
+        <p className="text-slate-600 text-sm mb-5 leading-relaxed">
           {description}
         </p>
         
-        <div className="flex flex-col gap-2 mt-auto">
+        <div className="mt-auto space-y-1">
           {endpoints.map((ep: any, index: number) => (
-            <div key={index} className="flex flex-col gap-1 border-b border-slate-50 pb-1 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between">
-                     <code className="text-[10px] font-mono text-slate-600 truncate bg-slate-50 px-1 rounded w-full">
-                       {ep.path}
-                    </code>
-                    {ep.method && (
-                        <span className={`text-[9px] font-bold px-1 rounded ml-2 ${ep.method === 'GET' ? 'bg-green-100 text-green-700' : ep.method === 'POST' ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}>
-                            {ep.method}
-                        </span>
-                    )}
-                </div>
+            <div key={index} className="flex items-center gap-3 text-xs font-mono bg-slate-50 px-2.5 py-2 rounded border border-slate-100 group-hover:bg-blue-50/30 transition-colors">
+               <span className={`uppercase font-bold text-[10px] w-8 ${ep.method === 'GET' ? 'text-green-600' : 'text-blue-600'}`}>
+                 {ep.method}
+               </span>
+               <span className="text-slate-700 font-medium truncate flex-1">{ep.path}</span>
             </div>
           ))}
         </div>
