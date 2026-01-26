@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-// We assume this helper function performs the POST request to Robost API
 import { checkPersonalizationStatus } from '@/services/providers/robost-personalization';
 
 export async function GET(req: Request) {
@@ -37,7 +36,8 @@ export async function GET(req: Request) {
         status: true,
         requestData: true,
         responseData: true,
-        updatedAt: true
+        updatedAt: true,
+        adminNote: true
       }
     });
 
@@ -50,30 +50,45 @@ export async function GET(req: Request) {
     // ============================================================
     let currentStatus = request.status;
     let responseData: any = request.responseData;
-    let adminNote = null;
+    let adminNote = request.adminNote;
     
-    // Extract Tracking ID from the saved request
     const trackingId = (request.requestData as any)?.trackingId;
 
     // Only check provider if we are still processing AND we have a tracking ID
     if (currentStatus === 'PROCESSING' && trackingId) {
        
-       // Call Provider API
        const liveResult = await checkPersonalizationStatus(trackingId);
+       
+       // Normalize for checks
+       const pStatus = (liveResult.status || '').toLowerCase();
+       const pMsg = (liveResult.message || '').toLowerCase();
 
-       // FIX: Check for 'COMPLETED' (Uppercase)
-       if (liveResult.success && liveResult.status === 'COMPLETED') {
-         // SUCCESS
+       // CASE A: SUCCESS
+       if (liveResult.success && pStatus === 'completed') {
          currentStatus = 'COMPLETED';
-         responseData = liveResult.data; // This is the FULL object from Robost
+         responseData = liveResult.data; 
          
          await prisma.serviceRequest.update({
            where: { id: request.id },
            data: { status: 'COMPLETED', responseData: liveResult.data }
          });
+       } 
 
-       } else if (liveResult.success === false || liveResult.status === 'FAILED') {
-         // FAILED
+       // CASE B: STILL PROCESSING (The Fix)
+       // If the provider says "processing" or "pending", we do NOTHING.
+       // We keep the local status as 'PROCESSING' and wait for the user to check again later.
+       else if (
+           pStatus === 'processing' || 
+           pStatus === 'pending' || 
+           pMsg.includes('processing') || 
+           pMsg.includes('pending')
+       ) {
+           // Do not mark as FAILED. Do not update DB.
+           currentStatus = 'PROCESSING';
+       }
+
+       // CASE C: ACTUAL FAILURE
+       else if (liveResult.success === false || pStatus === 'failed') {
          currentStatus = 'FAILED';
          adminNote = liveResult.message || 'Provider Failed';
          
@@ -95,18 +110,15 @@ export async function GET(req: Request) {
 
     if (currentStatus === 'COMPLETED') {
         message = "Personalization Successful";
-        // UPDATED: Return EVERYTHING the provider sent
         dataPayload = responseData; 
     } else if (currentStatus === 'FAILED') {
         message = "Personalization Failed";
     }
 
-    // 5. Return JSON
     return NextResponse.json({
       status: true,
       current_status: currentStatus,
       message: message,
-      // This will now contain firstName, lastName, photo, address, religion, etc.
       data: dataPayload, 
       reason: currentStatus === 'FAILED' ? (adminNote || "Request failed") : null,
       last_updated: new Date()
@@ -116,4 +128,4 @@ export async function GET(req: Request) {
     console.error("Personalization Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
-}
+}v
