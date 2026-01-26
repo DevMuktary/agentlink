@@ -46,20 +46,22 @@ export async function GET(req: Request) {
     }
 
     // ============================================================
-    // 3. LIVE CHECK LOGIC (Lazy Update)
+    // 3. LIVE CHECK LOGIC (Self-Healing)
     // ============================================================
     let currentStatus = request.status;
     let responseData: any = request.responseData;
-    let adminNote = request.adminNote;
+    let adminNote = request.adminNote || '';
     
     const trackingId = (request.requestData as any)?.trackingId;
 
-    // Only check provider if we are still processing AND we have a tracking ID
-    if (currentStatus === 'PROCESSING' && trackingId) {
+    // FIX: Retry if status is PROCESSING *OR* if it FAILED with a "processing" reason
+    const shouldRetry = currentStatus === 'PROCESSING' || 
+                        (currentStatus === 'FAILED' && adminNote.toLowerCase().includes('processing'));
+
+    if (shouldRetry && trackingId) {
        
        const liveResult = await checkPersonalizationStatus(trackingId);
        
-       // Normalize for checks
        const pStatus = (liveResult.status || '').toLowerCase();
        const pMsg = (liveResult.message || '').toLowerCase();
 
@@ -67,24 +69,30 @@ export async function GET(req: Request) {
        if (liveResult.success && pStatus === 'completed') {
          currentStatus = 'COMPLETED';
          responseData = liveResult.data; 
+         adminNote = 'Completed';
          
          await prisma.serviceRequest.update({
            where: { id: request.id },
-           data: { status: 'COMPLETED', responseData: liveResult.data }
+           data: { status: 'COMPLETED', responseData: liveResult.data, adminNote: 'Completed' }
          });
        } 
 
-       // CASE B: STILL PROCESSING (The Fix)
-       // If the provider says "processing" or "pending", we do NOTHING.
-       // We keep the local status as 'PROCESSING' and wait for the user to check again later.
+       // CASE B: STILL PROCESSING (Stay as Processing / Heal from Failed)
        else if (
            pStatus === 'processing' || 
            pStatus === 'pending' || 
            pMsg.includes('processing') || 
            pMsg.includes('pending')
        ) {
-           // Do not mark as FAILED. Do not update DB.
+           // Force status to PROCESSING in memory (and fix DB if it was wrong)
            currentStatus = 'PROCESSING';
+           
+           if (request.status === 'FAILED') {
+               await prisma.serviceRequest.update({
+                   where: { id: request.id },
+                   data: { status: 'PROCESSING', adminNote: 'Processing...' }
+               });
+           }
        }
 
        // CASE C: ACTUAL FAILURE
@@ -92,14 +100,17 @@ export async function GET(req: Request) {
          currentStatus = 'FAILED';
          adminNote = liveResult.message || 'Provider Failed';
          
-         await prisma.serviceRequest.update({
-           where: { id: request.id },
-           data: { 
-             status: 'FAILED', 
-             responseData: { error: liveResult.message },
-             adminNote: adminNote
-           }
-         });
+         // Only update DB if it's not already FAILED with this note
+         if (request.status !== 'FAILED' || request.adminNote !== adminNote) {
+             await prisma.serviceRequest.update({
+               where: { id: request.id },
+               data: { 
+                 status: 'FAILED', 
+                 responseData: { error: liveResult.message },
+                 adminNote: adminNote
+               }
+             });
+         }
        }
     }
     // ============================================================
