@@ -9,11 +9,18 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { phone, reference } = await req.json();
+    const body = await req.json();
+    
+    // FIX 1: Accept 'phone' OR 'phone_number'
+    const phone = body.phone || body.phone_number;
+    
+    // FIX 2: Make Reference Optional (Auto-generate if missing)
+    const reference = body.reference || `REF-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
     // 2. Validate Inputs
-    if (!phone || phone.length < 10) return NextResponse.json({ status: false, error: 'Invalid Phone Number' }, { status: 400 });
-    if (!reference) return NextResponse.json({ status: false, error: 'Missing Reference' }, { status: 400 });
+    if (!phone || phone.length < 10) {
+        return NextResponse.json({ status: false, error: 'Invalid Phone Number' }, { status: 400 });
+    }
 
     // 3. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'NIN_SEARCH_BY_PHONE' } });
@@ -33,14 +40,14 @@ export async function POST(req: Request) {
       // A. Deduct
       await tx.user.update({ where: { id: user.id }, data: { walletBalance: { decrement: serviceCost } } });
       
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
             userId: user.id,
             amount: serviceCost,
             type: 'SERVICE_CHARGE',
             status: 'COMPLETED',
-            reference: reference,
+            reference: reference, // Guaranteed to exist now
             description: `NIN Search by Phone: ${phone}`,
             serviceId: 'NIN_SEARCH_BY_PHONE'
         }
@@ -69,19 +76,19 @@ export async function POST(req: Request) {
       });
       return NextResponse.json({ status: true, message: 'Success', data: result.data });
     } else {
-      // REFUND ON FAILURE (UPDATED)
+      // REFUND ON FAILURE
       await prisma.$transaction(async (tx) => {
          // A. Refund Wallet
          await tx.user.update({ where: { id: user.id }, data: { walletBalance: { increment: serviceCost } } });
          
-         // B. Log Refund Transaction (ADDED)
+         // B. Log Refund Transaction
          await tx.transaction.create({
             data: {
                 userId: user.id,
                 amount: serviceCost,
                 type: 'REFUND',
                 status: 'COMPLETED',
-                reference: `${reference}-REFUND`, // Ensure unique reference
+                reference: `${reference}-REFUND`,
                 description: `Refund: NIN Phone Search Failed (${phone})`,
                 serviceId: 'NIN_SEARCH_BY_PHONE'
             }
