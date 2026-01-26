@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Search, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Download, Layers
+  AlertTriangle, User, Layers
 } from 'lucide-react';
 
 export default function AdminNinValidationQueue() {
@@ -14,7 +14,6 @@ export default function AdminNinValidationQueue() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
-  const [resultFile, setResultFile] = useState<File | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNote, setAdminNote] = useState('');
   
@@ -26,39 +25,29 @@ export default function AdminNinValidationQueue() {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      // We define the specific service codes we expect
       const serviceTypes = [
         'NIN_VALIDATION_VNIN',
         'NIN_VALIDATION_NO_RECORD',
         'NIN_VALIDATION_UPDATE_RECORD',
-        'NIN_VALIDATION' // Fallback
+        'NIN_VALIDATION' 
       ];
 
-      // Create promises
       const promises = serviceTypes.map(type => 
         axios.get(`/api/admin/requests/all?service=${type}&status=ALL`)
       );
 
-      // Use allSettled so one failure doesn't break the whole page
       const results = await Promise.allSettled(promises);
-
       const combined: any[] = [];
 
       results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          // Check if the API returned success and data
-          if (result.value.data && result.value.data.status) {
+        if (result.status === 'fulfilled' && result.value.data && result.value.data.status) {
              combined.push(...result.value.data.data);
-          }
-        } else {
-          console.warn("Failed to fetch a specific validation queue:", result.reason);
         }
       });
       
-      // Sort: Newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      // Remove duplicates just in case
+      // Remove duplicates
       const uniqueIds = new Set();
       const uniqueRequests = combined.filter(item => {
         const isDuplicate = uniqueIds.has(item.id);
@@ -79,9 +68,7 @@ export default function AdminNinValidationQueue() {
   // Set default refund logic
   useEffect(() => {
     if (selectedItem) {
-        // Default refund is the cost of the request
         setRefundAmount(selectedItem.cost.toString());
-        setResultFile(null);
         setRejectionReason('');
         setAdminNote('');
         setShouldRefund(true);
@@ -90,7 +77,7 @@ export default function AdminNinValidationQueue() {
 
   // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
-    if (action === 'APPROVE' && !resultFile) return alert("Please upload the Validated NIN Slip (PDF/Image).");
+    // Validation checks
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
     if(!confirm(`Confirm ${action} action?`)) return;
@@ -100,12 +87,11 @@ export default function AdminNinValidationQueue() {
       const formData = new FormData();
       formData.append('requestId', selectedItem.id);
       formData.append('action', action);
-      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Validation Successful'));
       
-      if (action === 'APPROVE' && resultFile) {
-        formData.append('file', resultFile);
-      }
-
+      // Automatic default message if empty
+      const note = action === 'REJECT' ? rejectionReason : (adminNote || 'Validation Completed');
+      formData.append('note', note);
+      
       if (action === 'REJECT') {
           const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
           formData.append('refund_amount', finalRefund.toString());
@@ -135,15 +121,11 @@ export default function AdminNinValidationQueue() {
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Validation</span>;
   };
 
-  // FIX: Helper to extract Search Key (Updated to match your API)
+  // Helper to extract Search Key
   const getSearchTerm = (item: any) => {
-      // Your API saves everything under 'nin' inside requestData
       if (item.requestData?.nin) return item.requestData.nin;
-      
-      // Fallbacks for older data
       if (item.requestData?.vnin) return item.requestData.vnin;
       if (item.requestData?.tracking_id) return item.requestData.tracking_id;
-      
       return '-';
   };
 
@@ -270,10 +252,7 @@ export default function AdminNinValidationQueue() {
                         
                         <div className="grid grid-cols-1 gap-3">
                             {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                // Skip empty/null values
                                 if (!value || typeof value === 'object') return null;
-                                
-                                // Format Key
                                 const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
                                 return (
@@ -294,37 +273,27 @@ export default function AdminNinValidationQueue() {
                             {/* APPROVE BOX */}
                             <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
                                 <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-                                    <CheckCircle2 className="text-green-600" size={20} /> Approve & Upload Result
+                                    <CheckCircle2 className="text-green-600" size={20} /> Approve Request
                                 </h4>
                                 <div className="space-y-4">
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Validation Slip (PDF/Image)</label>
-                                        <input 
-                                            type="file" 
-                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
-                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer" 
-                                        />
-                                        <p className="text-[10px] text-slate-400 mt-1">Upload the result slip generated from the portal.</p>
-                                    </div>
-                                    
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note (Optional)</label>
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
-                                            placeholder="Optional comments..." 
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-black font-medium focus:ring-2 focus:ring-green-500 outline-none" 
+                                            placeholder="Leave empty for 'Validation Completed'..." 
                                             rows={2} 
                                         />
                                     </div>
 
                                     <button 
                                         onClick={() => handleAction('APPROVE')} 
-                                        disabled={processing || !resultFile} 
+                                        disabled={processing} 
                                         className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
                                     >
-                                        {processing ? 'Processing...' : 'Complete & Send'}
+                                        {processing ? 'Processing...' : 'Mark as Completed'}
                                     </button>
                                 </div>
                             </div>
@@ -336,7 +305,7 @@ export default function AdminNinValidationQueue() {
                                     <input 
                                         value={rejectionReason} 
                                         onChange={e => setRejectionReason(e.target.value)} 
-                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
+                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm text-black font-medium focus:ring-2 focus:ring-red-200 outline-none" 
                                         placeholder="Reason for rejection (Required)..." 
                                     />
                                     
@@ -359,7 +328,7 @@ export default function AdminNinValidationQueue() {
                                                     type="number" 
                                                     value={refundAmount} 
                                                     onChange={e => setRefundAmount(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-black"
                                                 />
                                             </div>
                                         )}
@@ -384,23 +353,15 @@ export default function AdminNinValidationQueue() {
                                     <h3 className="text-2xl font-bold text-green-800">Validation Completed</h3>
                                     <p className="text-green-600 text-sm mb-6">Finished on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     
-                                    {selectedItem.responseData?.resultUrl && (
-                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
-                                            <Download size={18} /> Download Slip
-                                        </a>
-                                    )}
-
-                                    {selectedItem.adminNote && (
-                                        <div className="mt-4 bg-white/60 p-3 rounded border border-green-200 text-sm text-green-800 max-w-xs break-words">
-                                            <strong>Note:</strong> {selectedItem.adminNote}
-                                        </div>
-                                    )}
+                                    <div className="mt-4 bg-white/60 p-3 rounded border border-green-200 text-sm text-black font-medium max-w-xs break-words">
+                                        <strong>Note:</strong> {selectedItem.adminNote}
+                                    </div>
                                 </>
                             ) : (
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
                                     <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
-                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <p className="text-black font-medium text-sm mb-4 bg-white/50 p-2 rounded border border-red-200">Reason: {selectedItem.adminNote}</p>
                                     <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
                                 </>
                             )}
