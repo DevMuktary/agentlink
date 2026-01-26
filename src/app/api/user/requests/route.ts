@@ -21,7 +21,7 @@ export async function GET(req: Request) {
         ...(type && { serviceType: type as any }) // Filter if type provided
       },
       orderBy: { createdAt: 'desc' },
-      take: 50OO
+      take: 5000
     });
 
     return NextResponse.json(requests);
