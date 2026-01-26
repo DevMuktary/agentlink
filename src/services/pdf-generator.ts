@@ -6,13 +6,16 @@ import fs from 'fs';
 // --- Helper Functions ---
 
 const loadFile = (filePath: string) => {
+  // Resolves path relative to the project root (process.cwd())
   const absolutePath = path.resolve(process.cwd(), filePath);
   return fs.promises.readFile(absolutePath);
 };
 
-// Updated to generate a QR code with a transparent background
+// Generate QR code with a transparent background
 const createQrCodeBuffer = async (data: any): Promise<Buffer> => {
-  const qrText = `surname: ${data.surname} | givenNames: ${data.firstname} ${data.middlename} | dob: ${data.birthdate}`;
+  // Construct QR data string
+  const qrText = `surname: ${data.surname} | givenNames: ${data.firstname} ${data.middlename} | dob: ${data.birthdate} | nin: ${data.nin}`;
+  
   return QRCode.toBuffer(qrText, {
     color: {
       dark: '#000000', // Black dots
@@ -26,14 +29,12 @@ const formatNin = (nin: string) => {
   return `${nin.slice(0, 4)}   ${nin.slice(4, 7)}   ${nin.slice(7)}`;
 };
 
-// --- FIX: RETURN EMPTY STRING INSTEAD OF ASTERISKS ---
 const displayField = (value: any): string => {
   if (value === null || value === undefined || value === "") {
     return ''; 
   }
   return value.toString();
 };
-// -----------------------------------------------------
 
 const getIssueDate = (): string => {
   const today = new Date();
@@ -51,54 +52,63 @@ const getIssueDate = (): string => {
  * Main function to generate the PDF
  */
 export async function generateNinSlipPdf(slipType: string, data: any): Promise<Buffer> {
-  const templateType = slipType.toLowerCase();
+  // Ensure we map 'improved' to 'regular' just in case legacy calls come in
+  let templateType = slipType.toLowerCase();
+  if (templateType === 'improved') templateType = 'regular';
   
   // 1. Create a new PDF document
   const pdfDoc = await PDFDocument.create();
 
-  // 2. Load the PNG template and the user's photo
+  // 2. Load the PNG template
   let templateImage;
   let userPhoto;
 
   try {
-    // Looks for files in public/templates/nin_premium.png, etc.
-    const templateBuffer = await loadFile(`public/templates/nin_${templateType}.png`);
+    // Looks for files in public/templates/nin_regular.png, nin_standard.png, etc.
+    const templatePath = `public/templates/nin_${templateType}.png`;
+    
+    // Debug check (Optional, helps with logs)
+    if (!fs.existsSync(path.resolve(process.cwd(), templatePath))) {
+        throw new Error(`File not found: ${templatePath}`);
+    }
+
+    const templateBuffer = await loadFile(templatePath);
     templateImage = await pdfDoc.embedPng(templateBuffer);
   } catch (error: any) {
     console.error(`Failed to load template: nin_${templateType}.png`, error.message);
     throw new Error(`Service configuration error: Could not load template file for ${slipType}.`);
   }
 
+  // 3. Load User Photo
   try {
-    const photoBuffer = Buffer.from(data.photo, 'base64');
+    // Clean base64 string if it has prefix
+    const photoBase64 = data.photo.replace(/^data:image\/\w+;base64,/, "");
+    const photoBuffer = Buffer.from(photoBase64, 'base64');
     userPhoto = await pdfDoc.embedJpg(photoBuffer);
   } catch (error: any) {
-    console.error("Failed to embed user photo (data.photo):", error.message);
-    if (error.message.includes('buffer length') || error.message.includes('Invalid JPG')) {
-      throw new Error("Failed to generate slip: The photo data from the API was corrupt.");
-    }
-    throw new Error("Failed to generate slip: Invalid photo data.");
+    console.error("Failed to embed user photo:", error.message);
+    // Return a specific error so we can refund the user in the route handler
+    throw new Error("Failed to generate slip: Invalid or Corrupt User Photo.");
   }
 
-  // 3. Add a page to the PDF that matches the template's size
+  // 4. Add a page to the PDF matching template dimensions
   const { width, height } = templateImage.scale(1);
   const page = pdfDoc.addPage([width, height]);
   
-  // 4. Draw the template as the background
+  // 5. Draw the template as the background
   page.drawImage(templateImage, { x: 0, y: 0, width: width, height: height });
 
-  // 5. Load the BUILT-IN fonts
+  // 6. Load Fonts
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   
-  // 6. Draw the data (Y-coordinates are from bottom-left)
+  // 7. Draw Data based on Template Type
   if (templateType === 'regular') {
-    
-    // This is the "perfect" position for REGULAR
+    // --- REGULAR LAYOUT ---
     page.drawText(displayField(data.nin), {
       x: 122, y: height - 170, size: 10, font: helvetica, color: rgb(0.2, 0.2, 0.2)
     });
-    page.drawText(displayField(data.trackingId), {
+    page.drawText(displayField(data.trackingId || data.tracking_id), {
       x: 105, y: height - 133, size: 10, font: helvetica, color: rgb(0.2, 0.2, 0.2)
     });
     page.drawText(displayField(data.surname), {
@@ -113,15 +123,16 @@ export async function generateNinSlipPdf(slipType: string, data: any): Promise<B
     page.drawText(displayField(data.gender?.toUpperCase()), {
       x: 296, y: height - 232, size: 10, font: helvetica, color: rgb(0.2, 0.2, 0.2)
     });
-    page.drawText(displayField(data.residence_AdressLine1), {
+    page.drawText(displayField(data.residence_AdressLine1 || data.residence_address), {
       x: 437, y: height - 140, size: 10, font: helvetica, color: rgb(0.2, 0.2, 0.2), maxWidth: 160
     });
+    
+    // Photo Position for Regular
     page.drawImage(userPhoto, { x: 615, y: height - (112 + 115), width: 105, height: 115 });
   } 
   
   else if (templateType === 'standard') {
-    
-    // This is the "perfect" position for STANDARD
+    // --- STANDARD LAYOUT ---
     const qrBuffer = await createQrCodeBuffer(data);
     const qrImage = await pdfDoc.embedPng(qrBuffer);
 
@@ -140,8 +151,12 @@ export async function generateNinSlipPdf(slipType: string, data: any): Promise<B
     page.drawText(displayField(data.birthdate), {
       x: 320, y: height - 185, size: 12, font: helvetica, color: rgb(0.2, 0.2, 0.2)
     });
+    
+    // Images
     page.drawImage(userPhoto, { x: 207, y: height - (87 + 100), width: 90, height: 100 });
     page.drawImage(qrImage, { x: 498, y: height - (90 + 90), width: 90, height: 90 });
+    
+    // Issue Date
     page.drawText("ISSUE DATE", {
       x: 518, y: height - 187, size: 8, font: helveticaBold, color: rgb(0.2, 0.2, 0.2)
     });
@@ -151,11 +166,11 @@ export async function generateNinSlipPdf(slipType: string, data: any): Promise<B
   } 
   
   else if (templateType === 'premium') {
-    
+    // --- PREMIUM LAYOUT ---
     const qrBuffer = await createQrCodeBuffer(data);
     const qrImage = await pdfDoc.embedPng(qrBuffer);
 
-    // Bold NIN (Perfected position)
+    // Bold NIN
     page.drawText(formatNin(data.nin), {
       x: 445, y: height - 1048, size: 56, font: helveticaBold, color: rgb(0.2, 0.2, 0.2)
     });
@@ -165,7 +180,7 @@ export async function generateNinSlipPdf(slipType: string, data: any): Promise<B
       x: 270, y: height - 570, size: 18, font: helveticaBold, color: rgb(0.8, 0.8, 0.8), opacity: 0.3
     });
     
-    // Text Fields (Perfected position)
+    // Text Fields
     page.drawText(displayField(data.surname), {
       x: 475, y: height - 695, size: 32, font: helvetica, color: rgb(0.2, 0.2, 0.2)
     });
@@ -187,24 +202,12 @@ export async function generateNinSlipPdf(slipType: string, data: any): Promise<B
       x: 955, y: height - 935, size: 32, font: helvetica, color: rgb(0.2, 0.2, 0.2)
     });
     
-    // Photo (Perfected position)
-    page.drawImage(userPhoto, { 
-      x: 169, 
-      y: height - 929,
-      width: 260, 
-      height: 324 
-    });
-    
-    // QR Code (Perfected position)
-    page.drawImage(qrImage, { 
-      x: 870, 
-      y: height - 814, 
-      width: 344, 
-      height: 326 
-    });
+    // Images
+    page.drawImage(userPhoto, { x: 169, y: height - 929, width: 260, height: 324 });
+    page.drawImage(qrImage, { x: 870, y: height - 814, width: 344, height: 326 });
   }
 
-  // 7. Save the PDF to a buffer and return it
+  // 8. Serialize
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 }
