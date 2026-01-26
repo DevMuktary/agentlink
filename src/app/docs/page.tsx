@@ -9,12 +9,12 @@ export default function DocsLandingPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       
-      {/* 1. HEADER (Adjusted Z-Index to not block global sidebar) */}
+      {/* 1. HEADER */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           <div className="flex items-center gap-4">
-            {/* Mobile Hamburger (Visible only on small screens) */}
+            {/* Mobile Menu Button */}
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md"
@@ -57,7 +57,7 @@ export default function DocsLandingPage() {
               <span>🔑</span> Get Your API Key
             </Link>
             <Link href="/docs/authentication" className="px-8 py-4 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-              <span>📚</span> Read the Guide
+              <span>📚</span> Authentication Guide
             </Link>
           </div>
         </div>
@@ -77,13 +77,16 @@ export default function DocsLandingPage() {
               href="/docs/nin"
               title="NIN Services"
               icon="🇳🇬"
-              description="Complete NIN management suite. Supports Validation, Modifications, Premium Slips, and IPE Clearance."
+              description="Complete NIN suite: Validation, Modification, Slip Generation, Personalization, and IPE Clearance."
               endpoints={[
-                { method: 'POST', path: '/v1/identity/nin-validation', label: 'Validate NIN/VNIN' },
+                { method: 'POST', path: '/v1/identity/nin-validation', label: 'Validate NIN Record' },
                 { method: 'POST', path: '/v1/identity/nin-modification', label: 'Modify Name/DOB/Phone' },
-                { method: 'POST', path: '/v1/identity/slip', label: 'Generate Premium/Standard Slip' },
-                { method: 'POST', path: '/v1/identity/ipe-clearance', label: 'IPE Clearance Processing' },
-                { method: 'POST', path: '/v1/identity/nin-personalization', label: 'NIN Personalization' }
+                { method: 'POST', path: '/v1/identity/slip', label: 'Generate NIN Slip (Premium/Standard)' },
+                { method: 'POST', path: '/v1/identity/vnin-slip', label: 'Generate VNIN Slip' },
+                { method: 'POST', path: '/v1/identity/ipe-clearance', label: 'IPE Clearance' },
+                { method: 'POST', path: '/v1/identity/nin-personalization', label: 'NIN Personalization' },
+                { method: 'POST', path: '/v1/identity/phone-verify', label: 'Search NIN by Phone' },
+                { method: 'GET', path: '/v1/identity/*/status', label: 'Check Status for any service above' }
               ]}
             />
 
@@ -92,13 +95,13 @@ export default function DocsLandingPage() {
               href="/docs/bvn"
               title="BVN Services"
               icon="🏦"
-              description="Bank Verification Number services including Enrollment, Modification, and NIBSS linkage."
+              description="Bank Verification Number services: Enrollment, Modification, Retrieval, and NIBSS Linking."
               endpoints={[
                 { method: 'POST', path: '/bvn/enrollment', label: 'New BVN Enrollment' },
                 { method: 'POST', path: '/bvn/modification', label: 'Modify BVN Details' },
                 { method: 'POST', path: '/bvn/retrieval', label: 'Retrieve Lost BVN' },
                 { method: 'POST', path: '/bvn/vnin-to-nibss', label: 'Link VNIN to NIBSS' },
-                { method: 'POST', path: '/identity/phone-verify', label: 'NIN Lookup by Phone' }
+                { method: 'GET', path: '/bvn/*/status', label: 'Check Status for any service above' }
               ]}
             />
           </div>
@@ -117,7 +120,7 @@ export default function DocsLandingPage() {
               href="/docs/cac"
               title="CAC Registration"
               icon="📜"
-              description="Register Business Names and Limited Liability Companies (LLC). Upload requirements and track status."
+              description="Register Business Names and Limited Liability Companies (LLC)."
               endpoints={[
                 { method: 'POST', path: '/corporate/cac', label: 'Submit Registration' },
                 { method: 'GET', path: '/corporate/cac/status', label: 'Check Status & Certificate' }
@@ -129,7 +132,7 @@ export default function DocsLandingPage() {
               href="/docs/tax"
               title="Tax ID (TIN)"
               icon="⚖️"
-              description="Generate Personal and Non-Individual Tax Identification Numbers (JTB/FIRS)."
+              description="Generate Personal and Non-Individual Tax Identification Numbers."
               endpoints={[
                 { method: 'POST', path: '/corporate/tax-id', label: 'Generate TIN' },
                 { method: 'GET', path: '/corporate/tax-id/status', label: 'Download TIN Slip' }
@@ -141,10 +144,10 @@ export default function DocsLandingPage() {
               href="/docs/jamb"
               title="JAMB Services"
               icon="🎓"
-              description="Educational services including Result Slips, Admission Letters, and Profile Codes."
+              description="Result Slips, Admission Letters, and Profile Code Retrieval."
               endpoints={[
-                { method: 'POST', path: '/education/jamb', label: 'Purchase JAMB Service' },
-                { method: 'GET', path: '/education/jamb/status', label: 'Get Result PDF' }
+                { method: 'POST', path: '/education/jamb', label: 'Purchase Service' },
+                { method: 'GET', path: '/education/jamb/status', label: 'Get Result/Pin' }
               ]}
             />
 
@@ -162,13 +165,12 @@ export default function DocsLandingPage() {
              {/* Utilities */}
              <ServiceCard 
               href="/docs/utilities"
-              title="Utilities & Bills"
+              title="Utilities"
               icon="💡"
-              description="Instant vending for Airtime, Data Bundles (All Networks), and Electricity Bill Payments."
+              description="Instant vending for Airtime and Data Bundles."
               endpoints={[
                 { method: 'POST', path: '/utilities/airtime', label: 'Purchase Airtime' },
-                { method: 'POST', path: '/utilities/data', label: 'Purchase Data Bundle' },
-                { method: 'POST', path: '/utilities/power', label: 'Pay Electric Bill' }
+                { method: 'POST', path: '/utilities/data', label: 'Purchase Data Bundle' }
               ]}
             />
 
@@ -177,10 +179,9 @@ export default function DocsLandingPage() {
               href="/docs/status"
               title="Status & Balance"
               icon="💳"
-              description="Monitor your wallet balance, fund your account, and check transaction history."
+              description="Monitor wallet balance and check transaction status."
               endpoints={[
-                { method: 'GET', path: '/wallet/balance', label: 'Check Balance' },
-                { method: 'GET', path: '/status?request_id=...', label: 'Universal Status Check' }
+                { method: 'GET', path: '/wallet/balance', label: 'Check Wallet Balance' }
               ]}
             />
 
@@ -230,8 +231,8 @@ function ServiceCard({ title, description, icon, href, endpoints }: any) {
           {endpoints.map((ep: any, index: number) => (
             <div key={index} className="flex flex-col gap-1 border-b border-slate-50 pb-2 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-slate-400">{ep.label}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${ep.method === 'GET' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 truncate max-w-[70%]">{ep.label}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${ep.method === 'GET' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                         {ep.method}
                     </span>
                 </div>
