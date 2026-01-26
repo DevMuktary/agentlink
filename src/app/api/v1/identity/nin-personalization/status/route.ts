@@ -58,14 +58,14 @@ export async function GET(req: Request) {
     // Only check provider if we are still processing AND we have a tracking ID
     if (currentStatus === 'PROCESSING' && trackingId) {
        
-       // Call Provider API (This helper does the POST to Robost)
+       // Call Provider API
        const liveResult = await checkPersonalizationStatus(trackingId);
 
-       // FIX: Check for 'COMPLETED' (Uppercase) because the helper already normalized it
+       // FIX: Check for 'COMPLETED' (Uppercase)
        if (liveResult.success && liveResult.status === 'COMPLETED') {
          // SUCCESS
          currentStatus = 'COMPLETED';
-         responseData = liveResult.data; // This contains { photo: "...", firstName: "...", etc. }
+         responseData = liveResult.data; // This is the FULL object from Robost
          
          await prisma.serviceRequest.update({
            where: { id: request.id },
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
          });
 
        } else if (liveResult.success === false || liveResult.status === 'FAILED') {
-         // FAILED (Robost likely returned an error message)
+         // FAILED
          currentStatus = 'FAILED';
          adminNote = liveResult.message || 'Provider Failed';
          
@@ -86,7 +86,6 @@ export async function GET(req: Request) {
            }
          });
        }
-       // If status is "PROCESSING", we just wait.
     }
     // ============================================================
 
@@ -96,18 +95,8 @@ export async function GET(req: Request) {
 
     if (currentStatus === 'COMPLETED') {
         message = "Personalization Successful";
-        const resData = responseData || {};
-        
-        dataPayload = {
-            tracking_id: trackingId,
-            // Return the Base64 Photo directly from Robost Data
-            photo_base64: resData.photo || null, 
-            
-            // Return other key details if available
-            full_name: `${resData.firstname || ''} ${resData.surname || ''}`.trim(),
-            nin: resData.nin || resData.NIN || null,
-            date_of_birth: resData.birthdate || resData.dateOfBirth || null
-        };
+        // UPDATED: Return EVERYTHING the provider sent
+        dataPayload = responseData; 
     } else if (currentStatus === 'FAILED') {
         message = "Personalization Failed";
     }
@@ -117,7 +106,8 @@ export async function GET(req: Request) {
       status: true,
       current_status: currentStatus,
       message: message,
-      data: dataPayload,
+      // This will now contain firstName, lastName, photo, address, religion, etc.
+      data: dataPayload, 
       reason: currentStatus === 'FAILED' ? (adminNote || "Request failed") : null,
       last_updated: new Date()
     });
