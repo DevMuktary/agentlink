@@ -9,8 +9,21 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { nin, reference } = await req.json();
-    if (!nin || nin.length !== 11) return NextResponse.json({ status: false, error: 'Invalid NIN' }, { status: 400 });
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json({ status: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
+
+    const { nin } = body;
+
+    // FIX: Auto-generate reference if missing
+    const reference = body.reference || `VNIN-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    if (!nin || nin.length !== 11) {
+        return NextResponse.json({ status: false, error: 'Invalid NIN' }, { status: 400 });
+    }
 
     // 2. Get Dynamic Price
     const service = await prisma.service.findUnique({ where: { code: 'VNIN_SLIP' } });
@@ -36,7 +49,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: serviceCost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -78,11 +91,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ 
           status: true, 
           message: 'VNIN Slip Generated', 
-          pdf_base64: result.data.pdf_base64 // <--- SENDING THIS DIRECTLY
+          pdf_base64: result.data.pdf_base64 
       });
 
     } else {
-      // REFUND: Provider Failed (UPDATED)
+      // REFUND: Provider Failed
       await prisma.$transaction(async (tx) => {
         // A. Refund Wallet
         await tx.user.update({ 
@@ -90,14 +103,14 @@ export async function POST(req: Request) {
             data: { walletBalance: { increment: serviceCost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
+        // B. Log Refund Transaction
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: serviceCost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              reference: `${reference}-REFUND`, 
               description: `Refund: VNIN Slip Failed (${nin})`,
               serviceId: 'VNIN_SLIP'
             }
@@ -110,7 +123,7 @@ export async function POST(req: Request) {
         });
       });
 
-      return NextResponse.json({ status: false, error: result.error, message: 'Refunded' }, { status: 400 });
+      return NextResponse.json({ status: false, error: result.error || "Failed to generate slip", message: 'Refunded' }, { status: 400 });
     }
 
   } catch (error) {
