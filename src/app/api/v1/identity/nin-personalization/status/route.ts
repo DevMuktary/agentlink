@@ -128,4 +128,4 @@ export async function GET(req: Request) {
     console.error("Personalization Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
-}v
+}
