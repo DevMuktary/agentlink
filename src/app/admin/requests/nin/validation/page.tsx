@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Search, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Download, Layers
+  AlertTriangle, User, Download, Layers, FileText
 } from 'lucide-react';
 
 export default function AdminNinValidationQueue() {
@@ -22,10 +22,11 @@ export default function AdminNinValidationQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
-  // 1. Fetch Queue (Merge all Validation Types)
+  // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
     try {
+      // Fetch all validation types
       const endpoints = [
         '/api/admin/requests/all?service=NIN_VALIDATION_VNIN&status=ALL',
         '/api/admin/requests/all?service=NIN_VALIDATION_NO_RECORD&status=ALL',
@@ -34,6 +35,8 @@ export default function AdminNinValidationQueue() {
       ];
 
       const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
+      
+      // Combine and filter valid responses
       const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
       
       // Sort: Newest first
@@ -49,9 +52,12 @@ export default function AdminNinValidationQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // Set default refund
+  // Set default refund when item selected
   useEffect(() => {
     if (selectedItem) {
+        // Log for debugging
+        console.log("Selected Item Data:", selectedItem.requestData);
+        
         setRefundAmount(selectedItem.cost.toString());
         setResultFile(null);
         setRejectionReason('');
@@ -97,13 +103,9 @@ export default function AdminNinValidationQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setShouldRefund(true);
   };
 
-  // Helper for Badges
+  // Helper: Badges
   const getTypeBadge = (type: string) => {
       if (type.includes('VNIN')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">vNIN Search</span>;
       if (type.includes('NO_RECORD')) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">Demographic Search</span>;
@@ -111,22 +113,23 @@ export default function AdminNinValidationQueue() {
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Validation</span>;
   };
 
-  // Helper to extract Search Key
+  // Helper: Search Term (Robust Fallback)
   const getSearchTerm = (item: any) => {
-      if (item.serviceType.includes('VNIN')) return item.requestData?.vnin;
-      if (item.serviceType.includes('UPDATE')) return item.requestData?.tracking_id || item.requestData?.trackingId;
-      if (item.serviceType.includes('NO_RECORD')) return `${item.requestData?.surname || ''} ${item.requestData?.firstname || ''}`;
-      return item.requestData?.nin || '-';
+      const data = item.requestData || {};
+      // Check all possible keys regardless of service type to be safe
+      return data.nin || data.vnin || data.tracking_id || data.trackingId || data.phone || '-';
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
+      
+      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-            <Search className="w-8 h-8 text-purple-600" /> NIN Validation
+            <Search className="w-8 h-8 text-purple-600" /> NIN Validation Queue
             </h1>
             <p className="text-slate-500 text-sm mt-1">Process Validation & Search Requests</p>
         </div>
@@ -142,8 +145,8 @@ export default function AdminNinValidationQueue() {
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Search Param</th>
+                <th className="px-6 py-4 font-medium">Service Type</th>
+                <th className="px-6 py-4 font-medium">Reference / Search Key</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
@@ -159,10 +162,11 @@ export default function AdminNinValidationQueue() {
                 ) : (
                     requests.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()} <span className="text-xs text-slate-400 block">{new Date(item.createdAt).toLocaleTimeString()}</span></td>
                         <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
-                        <td className="px-6 py-4 font-mono text-slate-700 font-bold">
-                            {getSearchTerm(item)}
+                        <td className="px-6 py-4 font-mono text-slate-700">
+                            <div className="font-bold">{getSearchTerm(item)}</div>
+                            <div className="text-[10px] text-slate-400">{item.requestData?.clientReference || '-'}</div>
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                             <div className="flex flex-col">
@@ -184,7 +188,7 @@ export default function AdminNinValidationQueue() {
                                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                             }`}
                         >
-                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
+                            {item.status === 'PROCESSING' ? 'Process' : 'Details'}
                         </button>
                         </td>
                     </tr>
@@ -205,9 +209,9 @@ export default function AdminNinValidationQueue() {
               <div className="flex items-center gap-3">
                   <div>
                     <h3 className="font-bold text-xl text-slate-900">
-                        {selectedItem.status === 'PROCESSING' ? 'Process Validation' : 'Request Details'}
+                        {selectedItem.status === 'PROCESSING' ? 'Process Request' : 'Request Details'}
                     </h3>
-                    <p className="text-slate-500 text-xs">ID: {selectedItem.id}</p>
+                    <p className="text-slate-500 text-xs font-mono">ID: {selectedItem.id}</p>
                   </div>
                   {getTypeBadge(selectedItem.serviceType)}
               </div>
@@ -217,7 +221,7 @@ export default function AdminNinValidationQueue() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
                 {/* LEFT COLUMN: DATA */}
-                <div className="space-y-6 text-sm h-full overflow-y-auto pr-2">
+                <div className="space-y-6 text-sm">
                     
                     {/* AGENT INFO */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
@@ -233,7 +237,7 @@ export default function AdminNinValidationQueue() {
                         </div>
                     </div>
 
-                    {/* SUBMITTED DATA (RAW VIEW) */}
+                    {/* SUBMITTED DATA (FIXED RENDERING) */}
                     <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-purple-200 pb-2">
                             <Layers size={16} className="text-purple-700" />
@@ -241,20 +245,29 @@ export default function AdminNinValidationQueue() {
                         </div>
                         
                         <div className="grid grid-cols-1 gap-3">
-                            {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                // Skip empty/null values
-                                if (!value || typeof value === 'object') return null;
-                                
-                                // Format Key
-                                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            {/* Robust Rendering Logic: Displays everything, stringifies objects */}
+                            {(!selectedItem.requestData || Object.keys(selectedItem.requestData).length === 0) ? (
+                                <p className="text-slate-400 text-xs italic">No data found in request payload.</p>
+                            ) : (
+                                Object.entries(selectedItem.requestData).map(([key, value]) => {
+                                    // Normalize key
+                                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                    
+                                    // Handle Objects/Nulls
+                                    let displayValue = value;
+                                    if (typeof value === 'object' && value !== null) {
+                                        displayValue = JSON.stringify(value);
+                                    }
+                                    if (value === null || value === undefined) displayValue = 'N/A';
 
-                                return (
-                                    <div key={key} className="flex justify-between items-center border-b border-purple-200/50 pb-2 last:border-0">
-                                        <span className="text-slate-500 text-xs font-semibold uppercase">{label}</span>
-                                        <span className="text-slate-900 font-mono font-bold text-sm text-right">{String(value)}</span>
-                                    </div>
-                                );
-                            })}
+                                    return (
+                                        <div key={key} className="flex justify-between items-center border-b border-purple-200/50 pb-2 last:border-0">
+                                            <span className="text-slate-500 text-xs font-semibold uppercase">{label}</span>
+                                            <span className="text-slate-900 font-mono font-bold text-sm text-right break-all max-w-[200px]">{String(displayValue)}</span>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
                 </div>
@@ -270,14 +283,13 @@ export default function AdminNinValidationQueue() {
                                 </h4>
                                 <div className="space-y-4">
                                     
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Validation Slip (PDF/Image)</label>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-dashed border-slate-300">
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Validation Result (PDF/Image)</label>
                                         <input 
                                             type="file" 
                                             onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
-                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer" 
+                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer" 
                                         />
-                                        <p className="text-[10px] text-slate-400 mt-1">Upload the result slip generated from the portal.</p>
                                     </div>
                                     
                                     <div>
@@ -285,8 +297,8 @@ export default function AdminNinValidationQueue() {
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
-                                            placeholder="Optional comments..." 
+                                            className="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                                            placeholder="Optional comments for agent..." 
                                             rows={2} 
                                         />
                                     </div>
@@ -294,9 +306,10 @@ export default function AdminNinValidationQueue() {
                                     <button 
                                         onClick={() => handleAction('APPROVE')} 
                                         disabled={processing || !resultFile} 
-                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
+                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200 flex items-center justify-center gap-2"
                                     >
-                                        {processing ? 'Processing...' : 'Complete & Send'}
+                                        {processing ? <RefreshCw className="animate-spin" size={16}/> : <CheckCircle2 size={16}/>}
+                                        {processing ? 'Uploading...' : 'Complete Request'}
                                     </button>
                                 </div>
                             </div>
@@ -313,27 +326,27 @@ export default function AdminNinValidationQueue() {
                                     />
                                     
                                     {/* REFUND CONTROLS */}
-                                    <div className="pt-2 border-t border-red-100">
-                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                    <div className="pt-2 border-t border-red-100 flex items-center justify-between">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800">
                                             <input 
                                                 type="checkbox" 
                                                 checked={shouldRefund} 
                                                 onChange={e => setShouldRefund(e.target.checked)}
-                                                className="accent-red-600" 
+                                                className="accent-red-600 w-4 h-4" 
                                             />
-                                            Refund User?
+                                            Refund {shouldRefund ? 'Enabled' : 'Disabled'}
                                         </label>
                                         
                                         {shouldRefund && (
-                                            <div>
-                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                             <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-red-500 uppercase font-bold">Amount:</span>
                                                 <input 
                                                     type="number" 
                                                     value={refundAmount} 
                                                     onChange={e => setRefundAmount(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                    className="w-20 p-1 bg-white border border-red-200 rounded text-xs text-right font-mono"
                                                 />
-                                            </div>
+                                             </div>
                                         )}
                                     </div>
 
@@ -353,17 +366,16 @@ export default function AdminNinValidationQueue() {
                             {selectedItem.status === 'COMPLETED' ? (
                                 <>
                                     <CheckCircle2 size={64} className="text-green-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-green-800">Validation Completed</h3>
-                                    <p className="text-green-600 text-sm mb-6">Finished on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    <h3 className="text-2xl font-bold text-green-800">Completed</h3>
                                     
                                     {selectedItem.responseData?.resultUrl && (
-                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
-                                            <Download size={18} /> Download Slip
+                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="mt-6 bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-green-700 flex items-center gap-2">
+                                            <FileText size={16} /> View Validated Slip
                                         </a>
                                     )}
 
                                     {selectedItem.adminNote && (
-                                        <div className="mt-4 bg-white/60 p-3 rounded border border-green-200 text-sm text-green-800 max-w-xs break-words">
+                                        <div className="mt-6 bg-white/60 p-3 rounded border border-green-200 text-sm text-green-800 max-w-xs break-words">
                                             <strong>Note:</strong> {selectedItem.adminNote}
                                         </div>
                                     )}
@@ -371,9 +383,8 @@ export default function AdminNinValidationQueue() {
                             ) : (
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
+                                    <h3 className="text-2xl font-bold text-red-800">Declined</h3>
                                     <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
-                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
                                 </>
                             )}
                         </div>
