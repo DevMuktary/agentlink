@@ -1,190 +1,161 @@
 import Link from 'next/link';
+import { ArrowRight, Terminal, Shield, FileText, Zap, Key } from 'lucide-react';
 
 export default function DocsLandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
       
-      {/* 1. NAVBAR */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">A</div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">AgentHub <span className="text-blue-600">Docs</span></span>
-          </div>
-          <nav className="flex gap-6 text-sm font-medium text-slate-600">
-            <Link href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</Link>
-          </nav>
+      {/* 1. HERO SECTION */}
+      <div className="text-center max-w-3xl mx-auto">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold uppercase tracking-wide mb-6">
+          <Terminal size={14} /> Developer Documentation
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        {/* 2. HERO */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-6">
-            AgentHub <span className="text-blue-600">API Reference</span>
-          </h1>
-          <p className="text-lg text-slate-600 leading-relaxed">
-            The unified infrastructure for Identity, Corporate, and Utility services in Nigeria.
-            <br/>
-            <strong>Base URL:</strong> <code className="bg-slate-200 px-2 py-1 rounded text-sm">https://api.agenthub.com/api</code>
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Link href="/docs/authentication" className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
-              Authentication Guide
-            </Link>
-          </div>
-        </div>
-
-        {/* 3. SERVICES GRID */}
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">
+          Build with <span className="text-blue-600">AgentHub</span>
+        </h1>
         
-        {/* ROW 1: IDENTITY (NIN & BVN) */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <span className="w-1 h-8 bg-blue-600 rounded-full block"></span>
-            Identity Services
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            
-            {/* NIN Card */}
-            <ServiceCard 
-              href="/docs/nin"
-              title="NIN Services"
-              icon="🆔"
-              description="Comprehensive NIN management including Validation, Modification, Slip Generation, and IPE Clearance."
-              endpoints={[
-                '/v1/identity/nin-validation',
-                '/v1/identity/nin-modification',
-                '/v1/identity/slip',
-                '/v1/identity/ipe-clearance',
-                '/v1/identity/nin-personalization'
-              ]}
-            />
+        <p className="text-lg text-slate-600 leading-relaxed mb-8">
+          The unified infrastructure for Identity Verification (NIN, BVN), Corporate Registration (CAC), and Utilities in Nigeria. 
+          <br className="hidden sm:block" />
+          Simple, reliable, and developer-friendly.
+        </p>
 
-            {/* BVN Card */}
-            <ServiceCard 
-              href="/docs/bvn"
-              title="BVN Services"
-              icon="🏦"
-              description="Enrollment, Modification, and Retrieval services for Bank Verification Numbers."
-              endpoints={[
-                '/bvn/enrollment',
-                '/bvn/modification',
-                '/bvn/retrieval',
-                '/bvn/vnin-to-nibss'
-              ]}
-            />
-          </div>
+        {/* Base URL Box */}
+        <div className="bg-slate-900 text-slate-300 font-mono text-sm rounded-lg px-6 py-4 inline-block mb-8 shadow-xl">
+          <span className="text-blue-400 mr-2">$</span>
+          https://agenthub.ng/api
         </div>
 
-        {/* ROW 2: CORPORATE & EDUCATION */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <span className="w-1 h-8 bg-green-600 rounded-full block"></span>
-            Corporate & Education
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            
-            {/* CAC Card */}
-            <ServiceCard 
-              href="/docs/cac"
-              title="CAC Registration"
-              icon="🏢"
-              description="Register Business Names and Limited Liability Companies."
-              endpoints={['/corporate/cac']}
-            />
-
-            {/* Tax ID Card */}
-            <ServiceCard 
-              href="/docs/tax"
-              title="Tax ID (TIN)"
-              icon="📄"
-              description="Generate Personal and Non-Individual Tax Identification Numbers."
-              endpoints={['/corporate/tax-id']}
-            />
-
-            {/* JAMB Card */}
-            <ServiceCard 
-              href="/docs/jamb"
-              title="JAMB Services"
-              icon="🎓"
-              description="Result slips, Admission letters, and Profile Code retrieval."
-              endpoints={['/education/jamb']}
-            />
-
-          </div>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <Link 
+            href="/developer" 
+            className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200"
+          >
+            <Key size={18} />
+            Get API Key
+          </Link>
+          <Link 
+            href="/docs/authentication" 
+            className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-all hover:border-slate-300"
+          >
+            <Shield size={18} />
+            Read Auth Guide
+          </Link>
         </div>
+      </div>
 
-        {/* ROW 3: UTILITIES & SYSTEM */}
-        <div className="mb-16">
-           <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <span className="w-1 h-8 bg-purple-600 rounded-full block"></span>
-            Utilities & System
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-             
-             {/* Utilities */}
-             <ServiceCard 
-              href="/docs/utilities"
-              title="Utilities"
-              icon="⚡"
-              description="Airtime, Data, and Bill Payments."
-              endpoints={['/utilities/airtime', '/utilities/data']}
-            />
+      <div className="border-t border-slate-200"></div>
 
-            {/* Status & Wallet */}
-            <ServiceCard 
-              href="/docs/status"
-              title="Status & Wallet"
-              icon="📡"
-              description="Check job status and wallet balance."
-              endpoints={['/status?request_id=...', '/wallet/balance']}
-            />
-
-          </div>
+      {/* 2. DOCUMENTATION GRID */}
+      
+      {/* Identity Services */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+          <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Shield size={24} /></div>
+          Identity Services
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <DocCard 
+            href="/docs/nin"
+            title="NIN Services"
+            description="Validate IDs, modify records, generate slips, and process IPE clearance."
+            endpoints={[
+              '/v1/identity/nin-validation',
+              '/v1/identity/nin-modification',
+              '/v1/identity/ipe-clearance'
+            ]}
+          />
+          <DocCard 
+            href="/docs/bvn"
+            title="BVN Services"
+            description="Enrollment, modification, phone retrieval, and VNIN-to-NIBSS linkage."
+            endpoints={[
+              '/bvn/enrollment',
+              '/bvn/modification',
+              '/bvn/vnin-to-nibss'
+            ]}
+          />
         </div>
+      </div>
 
-      </main>
-
-      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="mb-2 text-white font-semibold">AgentHub Developer API</p>
-          <p className="text-xs text-slate-500 font-mono">
-            System Status: <span className="text-green-400">● Operational</span>
-          </p>
+      {/* Corporate & Tax */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+          <div className="p-2 bg-green-100 text-green-600 rounded-lg"><FileText size={24} /></div>
+          Corporate & Tax
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <DocCard 
+            href="/docs/cac"
+            title="CAC Registration"
+            description="Register Business Names and Companies (LLC). Upload documents and track status."
+            endpoints={['/corporate/cac']}
+          />
+          <DocCard 
+            href="/docs/tax"
+            title="Tax ID (TIN)"
+            description="Generate Individual and Corporate Tax Identification Numbers."
+            endpoints={['/corporate/tax-id']}
+          />
+          <DocCard 
+            href="/docs/jamb"
+            title="JAMB Services"
+            description="Print Result Slips, Admission Letters, and retrieve Profile Codes."
+            endpoints={['/education/jamb']}
+          />
         </div>
-      </footer>
+      </div>
+
+      {/* Utilities */}
+      <div className="pb-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+          <div className="p-2 bg-amber-100 text-amber-600 rounded-lg"><Zap size={24} /></div>
+          Utilities & System
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <DocCard 
+            href="/docs/utilities"
+            title="Airtime & Data"
+            description="Vend airtime and data bundles across all major Nigerian networks."
+            endpoints={['/utilities/airtime', '/utilities/data']}
+          />
+          <DocCard 
+            href="/docs/status"
+            title="Status & Wallet"
+            description="Check the status of async jobs and manage your wallet balance."
+            endpoints={['/status?request_id=...', '/wallet/balance']}
+          />
+        </div>
+      </div>
+
     </div>
   );
 }
 
 // Reusable Card Component
-function ServiceCard({ title, description, icon, href, endpoints }: any) {
+function DocCard({ title, description, href, endpoints }: any) {
   return (
     <Link href={href} className="group block h-full">
-      <div className="h-full bg-white border border-slate-200 rounded-xl p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-        <div className="flex items-center justify-between mb-6">
-          <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-2xl group-hover:bg-blue-50 transition-colors">
-            {icon}
-          </div>
-          <span className="text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-            View Docs &rarr;
-          </span>
+      <div className="h-full bg-white border border-slate-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-lg transition-all duration-200">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+            {title}
+          </h3>
+          <ArrowRight size={18} className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
         </div>
         
-        <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
-          {title}
-        </h3>
-        <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+        <p className="text-slate-600 text-sm mb-5 line-clamp-2">
           {description}
         </p>
         
-        {/* Endpoint List */}
-        <div className="flex flex-col gap-2">
+        <div className="space-y-2">
           {endpoints.map((ep: string) => (
-            <code key={ep} className="text-xs font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100 truncate">
-              POST {ep}
-            </code>
+            <div key={ep} className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+              <span className="text-blue-600 font-bold">POST</span>
+              <span className="truncate">{ep}</span>
+            </div>
           ))}
         </div>
       </div>
