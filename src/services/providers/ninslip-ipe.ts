@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Use the token you provided (Add S8V_API_TOKEN to your .env for security)
+// Use the token you provided
 const API_TOKEN = process.env.S8V_API_TOKEN || "kprAMi3frffX9CFA21mFKTgi4teaylY4aEiHBshRLhrbQ0vxOb";
 const SUBMIT_URL = 'https://www.s8v.ng/api/clearance';
 const STATUS_URL = 'https://www.s8v.ng/api/clearance/status';
@@ -24,32 +24,50 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
 
     const response = await axios.post(SUBMIT_URL, payload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 60000 // 60s timeout
+      timeout: 60000 
     });
 
     const apiRes = response.data;
     console.log("S8V Submit Response:", JSON.stringify(apiRes, null, 2));
 
-    // Adjust these checks based on S8V's actual success response structure
-    // Assuming standard JSON { status: true/success, ... }
-    if (apiRes.status === true || apiRes.status === 'success' || apiRes.success === true) {
+    // FIX: The provider returns "success" as a STRING message, not a boolean true.
+    // We check if 'success' key exists and has content.
+    const isSuccess = 
+        apiRes.status === true || 
+        apiRes.status === 'success' || 
+        apiRes.success === true ||
+        (typeof apiRes.success === 'string' && apiRes.success.includes('successfully'));
+
+    if (isSuccess) {
       return { 
         success: true, 
-        message: apiRes.message || 'Submitted successfully',
+        message: (typeof apiRes.success === 'string' ? apiRes.success : apiRes.message) || 'Submitted successfully',
         data: apiRes 
       };
     }
 
     return { 
       success: false, 
-      message: apiRes.message || 'Provider rejected request' 
+      message: apiRes.message || apiRes.error || 'Provider rejected request' 
     };
 
   } catch (error: any) {
     console.error("S8V Submit Error:", error.response?.data || error.message);
+    
+    // Extract error message safely
+    let errorMsg = 'Connection failed';
+    if (error.response?.data?.error) {
+        if (typeof error.response.data.error === 'object') {
+            // Handle { error: { tracking_id: ["Invalid format"] } }
+            errorMsg = JSON.stringify(error.response.data.error);
+        } else {
+            errorMsg = error.response.data.error;
+        }
+    }
+
     return { 
       success: false, 
-      message: error.response?.data?.message || 'Connection failed' 
+      message: errorMsg
     };
   }
 }
@@ -71,28 +89,27 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
     console.log("S8V Status Response:", JSON.stringify(apiRes, null, 2));
 
     const statusStr = (apiRes.status || '').toString().toLowerCase();
-    const msgStr = (apiRes.message || '').toString().toLowerCase();
-
+    
     // MAP EXTERNAL STATUS TO INTERNAL
     // SUCCESS
     if (statusStr === 'success' || statusStr === 'successful' || statusStr === 'completed') {
       return { 
         success: true, 
         status: 'COMPLETED', 
-        data: apiRes.data || apiRes // Pass full data
+        data: apiRes.data || apiRes 
       };
     }
 
     // FAILED
     if (statusStr === 'failed' || statusStr === 'rejected') {
       return { 
-        success: true, // Request succeeded, but result is "Failed"
+        success: true, 
         status: 'FAILED', 
         message: apiRes.message || 'Clearance Rejected' 
       };
     }
 
-    // STILL PROCESSING (Default fallback)
+    // STILL PROCESSING
     return { 
       success: true, 
       status: 'PROCESSING', 
@@ -102,7 +119,6 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
   } catch (error: any) {
     console.error("S8V Status Check Error:", error.response?.data || error.message);
     
-    // Treat 404 as "Not Found" or "Processing" depending on provider behavior
     if (error.response?.status === 404) {
         return { success: false, message: 'Tracking ID not found at provider' };
     }
