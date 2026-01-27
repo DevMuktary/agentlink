@@ -1,108 +1,78 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: Request) {
   try {
     // 1. Authenticate
     const user = await validateApiKey(req);
-    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
+    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Parse FormData
-    const formData = await req.formData();
-    const getString = (key: string) => formData.get(key) as string | null;
+    // 2. Parse JSON (Since no file upload is needed)
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json({ status: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
 
-    const service_code = getString('service_code');
-    const reference = getString('reference');
-    const documentFile = formData.get('document') as File | null; // Supporting Doc (Affidavit/Bill)
+    const { 
+        service_code, nin, phone_number, full_name,
+        new_first_name, new_surname, new_phone_number, new_address 
+    } = body;
+
+    // FIX: Auto-generate reference if missing
+    const reference = body.reference || `MOD-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     // 3. Validate Common Inputs
     if (!service_code) return NextResponse.json({ status: false, error: 'Missing service_code' }, { status: 400 });
-    if (!reference) return NextResponse.json({ status: false, error: 'Missing reference' }, { status: 400 });
-    
-    // We enforce a document upload for modifications (Best Practice)
-    if (!documentFile) {
-      return NextResponse.json({ status: false, error: 'Missing supporting document (Affidavit, Marriage Cert, or Utility Bill)' }, { status: 400 });
-    }
+    if (!nin) return NextResponse.json({ status: false, error: 'Missing NIN' }, { status: 400 });
 
     // 4. Identify Service & Validate Specific Fields
     let serviceType = '';
     const code = Number(service_code);
-    const requestData: any = { service_code: code, clientReference: reference };
-
-    // Extract Common Fields
-    const nin = getString('nin');
-    const phone_number = getString('phone_number');
-    const full_name = getString('full_name');
+    const requestData: any = { service_code: code, clientReference: reference, nin, full_name };
 
     if (code === 501) {
         // --- CHANGE OF NAME ---
         serviceType = 'NIN_MODIFICATION_NAME';
-        const new_first_name = getString('new_first_name');
-        const new_surname = getString('new_surname');
-
-        if (!nin || !phone_number || !new_first_name || !new_surname) {
-            return NextResponse.json({ status: false, error: 'Missing fields: nin, phone_number, new_first_name, new_surname' }, { status: 400 });
+        if (!new_first_name || !new_surname) {
+            return NextResponse.json({ status: false, error: 'Missing: new_first_name, new_surname' }, { status: 400 });
         }
-        
-        // Build Data
-        requestData.nin = nin;
-        requestData.phone_number = phone_number;
         requestData.new_details = { first_name: new_first_name, surname: new_surname };
 
     } else if (code === 502) {
         // --- CHANGE OF PHONE ---
         serviceType = 'NIN_MODIFICATION_PHONE';
-        const new_phone_number = getString('new_phone_number');
-
-        if (!nin || !full_name || !new_phone_number) {
-            return NextResponse.json({ status: false, error: 'Missing fields: nin, full_name, new_phone_number' }, { status: 400 });
+        if (!new_phone_number) {
+            return NextResponse.json({ status: false, error: 'Missing: new_phone_number' }, { status: 400 });
         }
-
-        // Build Data
-        requestData.nin = nin;
-        requestData.full_name = full_name;
         requestData.new_phone_number = new_phone_number;
 
     } else if (code === 503) {
         // --- CHANGE OF ADDRESS ---
         serviceType = 'NIN_MODIFICATION_ADDRESS';
-        const new_address = getString('new_address');
-
-        if (!nin || !phone_number || !full_name || !new_address) {
-            return NextResponse.json({ status: false, error: 'Missing fields: nin, phone_number, full_name, new_address' }, { status: 400 });
+        if (!new_address) {
+            return NextResponse.json({ status: false, error: 'Missing: new_address' }, { status: 400 });
         }
-
-        // Build Data
-        requestData.nin = nin;
-        requestData.phone_number = phone_number;
-        requestData.full_name = full_name;
         requestData.new_address = new_address;
 
     } else {
-        return NextResponse.json({ status: false, error: 'Invalid service_code. Use 501 (Name), 502 (Phone), or 503 (Address).' }, { status: 400 });
+        return NextResponse.json({ status: false, error: 'Invalid service_code. Use 501, 502, or 503.' }, { status: 400 });
     }
 
-    // 5. Upload Document to Cloudinary
-    const uploadResult = await uploadToCloudinary(documentFile, 'agentlink/nin_modifications');
-    
-    // Add URL to request data
-    requestData.documentUrl = uploadResult.secure_url;
-    requestData.documentPublicId = uploadResult.public_id;
-
-    // 6. Get Price
+    // 5. Get Price
     const service = await prisma.service.findUnique({ where: { code: serviceType as any } });
     if (!service || !service.isActive) return NextResponse.json({ status: false, error: 'Service unavailable' }, { status: 503 });
 
     const cost = Number(service.price);
 
-    // 7. Check Balance
+    // 6. Check Balance
     if (Number(user.walletBalance) < cost) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 8. Process Transaction
+    // 7. Process Transaction
     const requestLog = await prisma.$transaction(async (tx) => {
       // A. Deduct
       await tx.user.update({
@@ -110,7 +80,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -123,7 +93,7 @@ export async function POST(req: Request) {
         }
       });
 
-      // C. Create Request
+      // C. Create Request (No Document URL needed here, Admin provides result later)
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -131,22 +101,21 @@ export async function POST(req: Request) {
           status: 'PROCESSING',
           cost: cost,
           requestData: requestData,
-          adminNote: 'Pending Modification - Document Uploaded'
+          adminNote: 'Pending Modification'
         }
       });
     });
 
-    // 9. Return Response
+    // 8. Return Response
     return NextResponse.json({
       status: true,
-      message: 'Modification Request Submitted Successfully',
+      message: 'Modification Request Submitted',
       data: {
         request_id: requestLog.id,
         reference: reference,
         service: service.name,
         status: 'PROCESSING',
-        charged_amount: cost,
-        document_url: uploadResult.secure_url
+        charged_amount: cost
       }
     });
 
