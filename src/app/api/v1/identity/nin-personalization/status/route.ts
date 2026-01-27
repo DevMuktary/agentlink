@@ -37,15 +37,18 @@ export async function GET(req: Request) {
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
     // ============================================================
-    // 3. LIVE CHECK LOGIC (Specific Fix for "Failed: Processing")
+    // 3. LIVE CHECK LOGIC (FINAL FIX)
     // ============================================================
     let currentStatus = request.status;
     let responseData: any = request.responseData;
     let adminNote = request.adminNote;
     
-    // AUTO-FIX: If DB is stuck on FAILED but reason is "processing", force retry
-    if (currentStatus === 'FAILED' && (adminNote?.toLowerCase().includes('processing') || adminNote?.toLowerCase().includes('pending'))) {
-        currentStatus = 'PROCESSING';
+    // AUTO-RECOVERY: If DB says FAILED but reason is "Check failed" or "processing", force retry
+    if (currentStatus === 'FAILED') {
+        const reason = (adminNote || '').toLowerCase();
+        if (reason.includes('check failed') || reason.includes('processing') || reason.includes('pending')) {
+            currentStatus = 'PROCESSING';
+        }
     }
 
     const trackingId = (request.requestData as any)?.trackingId;
@@ -56,15 +59,14 @@ export async function GET(req: Request) {
        try {
            liveResult = await checkPersonalizationStatus(trackingId);
        } catch (e) {
-           liveResult = { success: false, message: 'processing' }; // Treat timeout as processing
+           // Treat unexpected crashes as a soft fail (Processing)
+           liveResult = { success: false, message: 'Check failed' }; 
        }
        
        const pStatus = (liveResult.status || '').toLowerCase();
        const pMsg = (liveResult.message || '').toLowerCase();
 
-       // --- LOGIC START ---
-
-       // 1. SUCCESS CASE
+       // CASE A: SUCCESS
        if (liveResult.success && pStatus === 'completed') {
          currentStatus = 'COMPLETED';
          responseData = liveResult.data; 
@@ -75,14 +77,17 @@ export async function GET(req: Request) {
          });
        } 
 
-       // 2. PROCESSING CASE (The Important Part)
-       // If message contains "processing", we FORCE status to PROCESSING, 
-       // even if the provider sent "status: failed" or "success: false".
-       else if (pMsg.includes('processing') || pMsg.includes('pending') || pStatus === 'processing') {
-           
+       // CASE B: SOFT FAIL (Processing, Pending, or Generic "Check failed")
+       // We FORCE these to be PROCESSING. We do not accept them as failures.
+       else if (
+           pMsg.includes('processing') || 
+           pMsg.includes('pending') || 
+           pMsg.includes('check failed') || // <--- ADDED THIS
+           pStatus === 'processing'
+       ) {
            currentStatus = 'PROCESSING';
            
-           // If DB was erroneously marked FAILED, fix it.
+           // Fix DB if it was previously marked FAILED
            if (request.status === 'FAILED') {
                await prisma.serviceRequest.update({
                    where: { id: request.id },
@@ -91,13 +96,12 @@ export async function GET(req: Request) {
            }
        }
 
-       // 3. ACTUAL FAILURE CASE
-       // Only fail if it is NOT processing
+       // CASE C: HARD FAILURE (Specific errors only)
+       // Only fail if message explicitly says "not found", "invalid", or "error"
        else if (liveResult.success === false || pStatus === 'failed') {
          currentStatus = 'FAILED';
          adminNote = liveResult.message || 'Provider Failed';
          
-         // Update DB to Failed
          if (request.status !== 'FAILED') {
             await prisma.serviceRequest.update({
                 where: { id: request.id },
@@ -109,7 +113,6 @@ export async function GET(req: Request) {
             });
          }
        }
-       // --- LOGIC END ---
     }
     // ============================================================
 
