@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+import { uploadToCloudinary } from '@/lib/cloudinary'; // <--- ADD THIS IMPORT
 
 export async function POST(req: Request) {
   try {
@@ -34,19 +35,33 @@ export async function POST(req: Request) {
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     if (request.status !== 'PROCESSING') return NextResponse.json({ status: false, error: 'Request already processed' }, { status: 400 });
 
-    // 4. Handle Actions
+    // 4. Handle File Upload (Perform OUTSIDE transaction to avoid locking DB)
+    let uploadedUrl = null;
+
+    if (action === 'APPROVE') {
+        if (file) {
+            try {
+                // Upload to a specific folder for results
+                const uploadRes = await uploadToCloudinary(file, 'agentlink/results');
+                uploadedUrl = uploadRes.secure_url;
+            } catch (error) {
+                console.error("Upload Failed:", error);
+                return NextResponse.json({ status: false, error: 'Failed to upload result file' }, { status: 500 });
+            }
+        }
+    }
+
+    // 5. Handle DB Actions
     const result = await prisma.$transaction(async (tx) => {
         
         let responseData: any = request.responseData || {};
 
         if (action === 'APPROVE') {
-            // Upload Logic (Placeholder - add your cloudinary logic if needed)
-            let resultUrl = null;
             
-            // Note: If you are using Cloudinary or local upload, implement it here.
-            // For now, we assume the file handling is done or skipped if unnecessary.
-            
-            if (resultUrl) responseData.resultUrl = resultUrl;
+            // Save the URL we just uploaded
+            if (uploadedUrl) {
+                responseData.resultUrl = uploadedUrl; // This matches what the User API looks for
+            }
 
             // Update Request
             return await tx.serviceRequest.update({
@@ -54,7 +69,7 @@ export async function POST(req: Request) {
                 data: {
                     status: 'COMPLETED',
                     adminNote: note,
-                    responseData: responseData,
+                    responseData: responseData, // Save the JSON with the URL
                     updatedAt: new Date()
                 }
             });
@@ -72,14 +87,12 @@ export async function POST(req: Request) {
                 });
 
                 // Log Transaction
-                // FIX: Added 'REFUND-' prefix and timestamp to ensure uniqueness
                 await tx.transaction.create({
                     data: {
                         userId: request.userId,
                         type: 'REFUND',
                         amount: amountToRefund,
                         status: 'COMPLETED',
-                        // Uniqueness Fix:
                         reference: `REFUND-${request.id.slice(0,6)}-${Date.now().toString().slice(-4)}`,
                         description: `Refund for ${request.serviceType} (${requestId.slice(0,5)})`
                     }
