@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-// FIX: Import from the new NinSlip provider
 import { submitIpeRequest } from '@/services/providers/ninslip-ipe';
 
 export async function POST(req: Request) {
@@ -10,10 +9,13 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { trackingId, reference } = await req.json();
+    const body = await req.json();
+    const { trackingId } = body;
     
+    // Auto-generate reference if missing
+    const reference = body.reference || `IPE-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
     if (!trackingId) return NextResponse.json({ status: false, error: 'Tracking ID required' }, { status: 400 });
-    if (!reference) return NextResponse.json({ status: false, error: 'Reference required' }, { status: 400 });
 
     // 2. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'IPE_CLEARANCE' } });
@@ -26,15 +28,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 4. Charge & Log "PROCESSING"
+    // 4. Charge & Log
     const requestLog = await prisma.$transaction(async (tx) => {
-      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -47,7 +47,6 @@ export async function POST(req: Request) {
         }
       });
 
-      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -59,40 +58,37 @@ export async function POST(req: Request) {
       });
     });
 
-    // 5. Submit to NinSlip
+    // 5. Submit to S8V
     const result = await submitIpeRequest(trackingId);
 
     if (result.success) {
-      // Success: Keep money, keep status PROCESSING. Cron will check later.
+      // SUCCESS: Keep Processing
       return NextResponse.json({ 
         status: true, 
-        message: 'IPE Request Submitted Successfully',
-        data: result.data,
-        requestId: requestLog.id
+        message: 'IPE Request Submitted. Check status later.',
+        requestId: requestLog.id,
+        reference: reference
       });
     } else {
-      // Failed: Refund immediately (UPDATED)
+      // FAILED: Refund
       await prisma.$transaction(async (tx) => {
-        // A. Refund Wallet
         await tx.user.update({ 
             where: { id: user.id }, 
             data: { walletBalance: { increment: cost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: cost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              reference: `${reference}-REFUND`, 
               description: `Refund: IPE Clearance Failed (${trackingId})`,
               serviceId: 'IPE_CLEARANCE'
             }
         });
 
-        // C. Update Request Status
         await tx.serviceRequest.update({ 
           where: { id: requestLog.id }, 
           data: { status: 'FAILED', responseData: { error: result.message }, adminNote: 'Refunded: Provider rejected request.' } 
