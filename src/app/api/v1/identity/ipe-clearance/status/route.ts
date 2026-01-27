@@ -57,10 +57,18 @@ export async function GET(req: Request) {
         // If PROCESSING, do nothing.
     }
 
+    // --- FIX: Correct Message Logic ---
+    let message = "Request in progress";
+    if (currentStatus === 'COMPLETED') {
+        message = "Clearance Successful";
+    } else if (currentStatus === 'FAILED') {
+        message = "Clearance Failed";
+    }
+
     return NextResponse.json({
         status: true,
         current_status: currentStatus,
-        message: currentStatus === 'COMPLETED' ? "Clearance Successful" : "Request in progress",
+        message: message, // Now correctly says "Clearance Failed" if failed
         data: responseData,
         reason: currentStatus === 'FAILED' ? adminNote : null,
         last_updated: new Date()
