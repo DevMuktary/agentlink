@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   FileBadge, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Download, FileText, Eye
+  AlertTriangle, User, Download, FileText
 } from 'lucide-react';
 
 export default function AdminNinModificationQueue() {
@@ -22,21 +22,28 @@ export default function AdminNinModificationQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
-  // 1. Fetch Queue (Merge all Modification Types)
+  // 1. Fetch Queue (Robust Version)
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      // Fetch all service types related to NIN Modification
       const endpoints = [
         '/api/admin/requests/all?service=NIN_MODIFICATION_NAME&status=ALL',
-        '/api/admin/requests/all?service=NIN_MODIFICATION_DOB&status=ALL',
         '/api/admin/requests/all?service=NIN_MODIFICATION_PHONE&status=ALL',
         '/api/admin/requests/all?service=NIN_MODIFICATION_ADDRESS&status=ALL',
+        // Optional: Include DOB only if you added it to backend, otherwise this won't crash the app now
+        '/api/admin/requests/all?service=NIN_MODIFICATION_DOB&status=ALL', 
       ];
 
-      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
+      // Use allSettled so one 404 doesn't crash the whole dashboard
+      const results = await Promise.allSettled(endpoints.map(ep => axios.get(ep)));
       
-      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      const combined: any[] = [];
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value.data && result.value.data.status) {
+            combined.push(...result.value.data.data);
+        }
+      });
       
       // Sort by newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -64,7 +71,8 @@ export default function AdminNinModificationQueue() {
 
   // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
-    if (action === 'APPROVE' && !resultFile) return alert("Please upload the Modified NIN Slip.");
+    // For modification, we usually expect a result slip, but if you want it optional, remove the !resultFile check
+    if (action === 'APPROVE' && !resultFile) return alert("Please upload the Modified NIN Slip/Result.");
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
     if(!confirm(`Confirm ${action} action?`)) return;
@@ -99,15 +107,6 @@ export default function AdminNinModificationQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setShouldRefund(true);
-  };
-
-  // Helper to safely get document URL from various key possibilities
-  const getDocUrl = (data: any, keyBase: string) => {
-      return data?.[keyBase] || data?.[`${keyBase}_url`] || data?.[`${keyBase}_image`];
   };
 
   // Helper for Badges
@@ -117,6 +116,13 @@ export default function AdminNinModificationQueue() {
       if (type.includes('PHONE')) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">Phone Update</span>;
       if (type.includes('ADDRESS')) return <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-teal-200">Address Change</span>;
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Modification</span>;
+  };
+
+  // Helper to get Applicant Name (Handles different data structures)
+  const getApplicantName = (data: any) => {
+      if (data?.full_name) return data.full_name;
+      if (data?.surname && data?.firstname) return `${data.surname} ${data.firstname}`;
+      return 'N/A'; // Fallback
   };
 
   if (loading) return <GlobalLoader />;
@@ -163,7 +169,7 @@ export default function AdminNinModificationQueue() {
                         <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
                         <td className="px-6 py-4 font-bold text-slate-800">
-                            {item.requestData?.surname} {item.requestData?.firstname}
+                            {getApplicantName(item.requestData)}
                         </td>
                         <td className="px-6 py-4 font-mono text-slate-600">
                             {item.requestData?.nin}
@@ -259,33 +265,28 @@ export default function AdminNinModificationQueue() {
                             
                             {/* BASE IDENTITY */}
                             <div>
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Current Surname</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.surname}</span></p>
-                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">Current Firstname</span> <span className="text-slate-900">{selectedItem.requestData?.firstname}</span></p>
+                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Current Name</span> 
+                                    <span className="text-slate-900 font-bold">{getApplicantName(selectedItem.requestData)}</span>
+                                </p>
+                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone_number || selectedItem.requestData?.phone}</span></p>
                                 <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">NIN</span> <span className="text-slate-900 font-mono text-lg tracking-widest">{selectedItem.requestData?.nin}</span></p>
                             </div>
 
                             {/* REQUESTED CHANGES */}
                             <div className="bg-white/60 p-4 rounded-lg border border-indigo-100">
-                                {selectedItem.serviceType.includes('NAME') && (
+                                {selectedItem.serviceType.includes('NAME') && selectedItem.requestData?.new_details && (
                                     <>
                                         <h5 className="font-bold text-indigo-800 text-xs uppercase mb-2 border-b border-indigo-100 pb-1">New Name Requested</h5>
-                                        <p><span className="text-[10px] text-slate-400 block uppercase">New Surname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_surname}</span></p>
-                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Firstname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_firstname}</span></p>
-                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Middlename</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_middlename || '-'}</span></p>
-                                    </>
-                                )}
-
-                                {selectedItem.serviceType.includes('DOB') && (
-                                    <>
-                                        <h5 className="font-bold text-purple-800 text-xs uppercase mb-2 border-b border-purple-100 pb-1">New DOB Requested</h5>
-                                        <span className="font-bold text-slate-900 text-2xl">{selectedItem.requestData?.new_date_of_birth || selectedItem.requestData?.new_dob}</span>
+                                        <p><span className="text-[10px] text-slate-400 block uppercase">New Surname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData.new_details.surname}</span></p>
+                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Firstname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData.new_details.first_name}</span></p>
+                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Middlename</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData.new_details.middle_name || '-'}</span></p>
                                     </>
                                 )}
 
                                 {selectedItem.serviceType.includes('PHONE') && (
                                     <>
                                         <h5 className="font-bold text-orange-800 text-xs uppercase mb-2 border-b border-orange-100 pb-1">New Phone Requested</h5>
-                                        <span className="font-bold text-slate-900 text-xl font-mono">{selectedItem.requestData?.new_phone_number || selectedItem.requestData?.new_phone}</span>
+                                        <span className="font-bold text-slate-900 text-xl font-mono">{selectedItem.requestData?.new_phone_number}</span>
                                     </>
                                 )}
 
@@ -293,45 +294,9 @@ export default function AdminNinModificationQueue() {
                                     <>
                                         <h5 className="font-bold text-teal-800 text-xs uppercase mb-2 border-b border-teal-100 pb-1">New Address Requested</h5>
                                         <p className="font-medium text-slate-900">{selectedItem.requestData?.new_address}</p>
-                                        <p className="text-slate-600 text-xs mt-1">{selectedItem.requestData?.new_lga}, {selectedItem.requestData?.new_state}</p>
                                     </>
                                 )}
                             </div>
-                        </div>
-                    </div>
-
-                     {/* DOCUMENTS */}
-                     <div>
-                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {/* Generic Document Display Function */}
-                            {[
-                                { key: 'nin_slip', label: 'NIN Slip' },
-                                { key: 'court_affidavit', label: 'Affidavit' },
-                                { key: 'newspaper_publication', label: 'Newspaper' },
-                                { key: 'marriage_certificate', label: 'Marriage Cert' },
-                                { key: 'supporting_doc', label: 'Supporting Doc' },
-                                { key: 'application_letter', label: 'App Letter' },
-                            ].map((doc) => {
-                                const url = getDocUrl(selectedItem.requestData, doc.key);
-                                if (!url) return null;
-                                return (
-                                    <a key={doc.key} href={url} target="_blank" className="block group">
-                                        <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-indigo-400 overflow-hidden relative">
-                                            {/* Preview if Image, Icon if PDF */}
-                                            {url.match(/\.(jpeg|jpg|png)$/i) ? (
-                                                <img src={url} className="object-contain w-full h-full" alt={doc.label} />
-                                            ) : (
-                                                <FileText className="text-slate-400" size={24} />
-                                            )}
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Eye className="text-slate-700" />
-                                            </div>
-                                        </div>
-                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">{doc.label}</span>
-                                    </a>
-                                );
-                            })}
                         </div>
                     </div>
                 </div>
@@ -347,7 +312,7 @@ export default function AdminNinModificationQueue() {
                                 </h4>
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Modified Slip (PDF)</label>
+                                        <label className="block text-xs font-bold text-slate-900 mb-2 uppercase">Upload Modified Slip (PDF)</label>
                                         <input 
                                             type="file" 
                                             onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
@@ -356,11 +321,11 @@ export default function AdminNinModificationQueue() {
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
+                                        <label className="block text-xs font-bold text-slate-900 mb-2 uppercase">Admin Note</label>
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-black font-medium focus:ring-2 focus:ring-green-500 outline-none" 
                                             placeholder="Optional comments..." 
                                             rows={3} 
                                         />
@@ -383,7 +348,7 @@ export default function AdminNinModificationQueue() {
                                     <input 
                                         value={rejectionReason} 
                                         onChange={e => setRejectionReason(e.target.value)} 
-                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
+                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm text-black font-medium focus:ring-2 focus:ring-red-200 outline-none" 
                                         placeholder="Reason for rejection (Required)..." 
                                     />
                                     
@@ -406,7 +371,7 @@ export default function AdminNinModificationQueue() {
                                                     type="number" 
                                                     value={refundAmount} 
                                                     onChange={e => setRefundAmount(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-black"
                                                 />
                                                 <p className="text-[10px] text-slate-400 mt-1">
                                                     Original Cost: ₦{Number(selectedItem.cost).toLocaleString()}
@@ -444,7 +409,7 @@ export default function AdminNinModificationQueue() {
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
                                     <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
-                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <p className="text-black font-medium text-sm mb-4 bg-white/50 p-2 rounded border border-red-200">Reason: {selectedItem.adminNote}</p>
                                     <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
                                 </>
                             )}
