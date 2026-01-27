@@ -4,11 +4,9 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   try {
-    // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Get Params
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
@@ -17,17 +15,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // 3. Find Request
     let whereQuery: any = {
         userId: user.id,
         serviceType: { in: ['NIN_MODIFICATION_NAME', 'NIN_MODIFICATION_PHONE', 'NIN_MODIFICATION_ADDRESS'] }
     };
 
-    if (requestId) {
-        whereQuery.id = requestId;
-    } else {
-        whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
-    }
+    if (requestId) whereQuery.id = requestId;
+    else whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
 
     const request = await prisma.serviceRequest.findFirst({
       where: whereQuery,
@@ -35,27 +29,26 @@ export async function GET(req: Request) {
         id: true,
         status: true,
         responseData: true,
-        adminNote: true, // The rejection reason
+        adminNote: true,
         updatedAt: true
       }
     });
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    // 4. Construct Response
-    
     // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
         const resData = request.responseData as any || {};
-        
+        // The Admin uploads the slip URL to 'resultUrl' or 'image' or 'url'
+        const slipUrl = resData.resultUrl || resData.url || resData.image || null;
+
         return NextResponse.json({
             status: true,
             current_status: 'COMPLETED',
             message: "Modification Successful",
             data: {
                 message: "Changes applied successfully",
-                // Check all usual keys for the uploaded slip/image
-                slip_url: resData.image || resData.url || resData.slip_url || resData.file_url || null
+                slip_url: slipUrl // This is the file the Admin uploaded
             },
             last_updated: request.updatedAt
         });
@@ -67,7 +60,7 @@ export async function GET(req: Request) {
             status: true,
             current_status: 'FAILED',
             message: "Modification Failed",
-            reason: request.adminNote || "Modification failed",
+            reason: request.adminNote || "Modification rejected by admin",
             last_updated: request.updatedAt
         });
     }
@@ -81,7 +74,7 @@ export async function GET(req: Request) {
     });
 
   } catch (error) {
-    console.error("NIN Mod Status Error:", error);
+    console.error("Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
