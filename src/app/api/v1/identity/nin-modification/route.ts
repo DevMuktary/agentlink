@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Parse JSON (Since no file upload is needed)
+    // 2. Parse JSON
     let body;
     try {
       body = await req.json();
@@ -18,47 +18,67 @@ export async function POST(req: Request) {
 
     const { 
         service_code, nin, phone_number, full_name,
-        new_first_name, new_surname, new_phone_number, new_address 
+        new_first_name, new_surname, new_middle_name, // Added Middle Name
+        new_phone_number, new_address 
     } = body;
 
-    // FIX: Auto-generate reference if missing
+    // Auto-generate reference if missing
     const reference = body.reference || `MOD-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-    // 3. Validate Common Inputs
+    // 3. Common Validation
     if (!service_code) return NextResponse.json({ status: false, error: 'Missing service_code' }, { status: 400 });
     if (!nin) return NextResponse.json({ status: false, error: 'Missing NIN' }, { status: 400 });
 
     // 4. Identify Service & Validate Specific Fields
     let serviceType = '';
     const code = Number(service_code);
-    const requestData: any = { service_code: code, clientReference: reference, nin, full_name };
+    
+    // Base data structure
+    const requestData: any = { service_code: code, clientReference: reference, nin };
 
     if (code === 501) {
         // --- CHANGE OF NAME ---
         serviceType = 'NIN_MODIFICATION_NAME';
-        if (!new_first_name || !new_surname) {
-            return NextResponse.json({ status: false, error: 'Missing: new_first_name, new_surname' }, { status: 400 });
+        
+        // Required: NIN, Phone, New First, New Surname (Middle optional but supported)
+        if (!phone_number || !new_first_name || !new_surname) {
+            return NextResponse.json({ status: false, error: 'Missing: phone_number, new_first_name, or new_surname' }, { status: 400 });
         }
-        requestData.new_details = { first_name: new_first_name, surname: new_surname };
+        
+        requestData.phone_number = phone_number;
+        requestData.new_details = { 
+            first_name: new_first_name, 
+            surname: new_surname,
+            middle_name: new_middle_name || '' 
+        };
 
     } else if (code === 502) {
         // --- CHANGE OF PHONE ---
         serviceType = 'NIN_MODIFICATION_PHONE';
-        if (!new_phone_number) {
-            return NextResponse.json({ status: false, error: 'Missing: new_phone_number' }, { status: 400 });
+        
+        // Required: NIN, Full Name, New Phone
+        if (!full_name || !new_phone_number) {
+            return NextResponse.json({ status: false, error: 'Missing: full_name or new_phone_number' }, { status: 400 });
         }
+
+        requestData.full_name = full_name;
         requestData.new_phone_number = new_phone_number;
 
     } else if (code === 503) {
         // --- CHANGE OF ADDRESS ---
         serviceType = 'NIN_MODIFICATION_ADDRESS';
-        if (!new_address) {
-            return NextResponse.json({ status: false, error: 'Missing: new_address' }, { status: 400 });
+        
+        // Required: NIN, Phone, Full Name, New Address
+        if (!phone_number || !full_name || !new_address) {
+            return NextResponse.json({ status: false, error: 'Missing: phone_number, full_name or new_address' }, { status: 400 });
         }
+
+        requestData.phone_number = phone_number;
+        requestData.full_name = full_name;
         requestData.new_address = new_address;
 
     } else {
-        return NextResponse.json({ status: false, error: 'Invalid service_code. Use 501, 502, or 503.' }, { status: 400 });
+        return NextResponse.json({ status: false, error: 'Invalid service_code. Use 501 (Name), 502 (Phone), or 503 (Address).' }, { status: 400 });
     }
 
     // 5. Get Price
@@ -93,7 +113,7 @@ export async function POST(req: Request) {
         }
       });
 
-      // C. Create Request (No Document URL needed here, Admin provides result later)
+      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
