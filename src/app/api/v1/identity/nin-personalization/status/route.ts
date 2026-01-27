@@ -37,41 +37,34 @@ export async function GET(req: Request) {
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
     // ============================================================
-    // 3. LIVE CHECK LOGIC (Robust Version)
+    // 3. LIVE CHECK LOGIC (Specific Fix for "Failed: Processing")
     // ============================================================
     let currentStatus = request.status;
     let responseData: any = request.responseData;
     let adminNote = request.adminNote;
     
-    // AUTO-FIX: If DB says FAILED but reason is generic/soft, force retry
-    if (currentStatus === 'FAILED') {
-        const reason = (adminNote || '').toLowerCase();
-        // If it failed due to timeout or processing, let's retry
-        if (reason.includes('check failed') || reason.includes('processing') || reason.includes('timeout')) {
-            currentStatus = 'PROCESSING';
-        }
+    // AUTO-FIX: If DB is stuck on FAILED but reason is "processing", force retry
+    if (currentStatus === 'FAILED' && (adminNote?.toLowerCase().includes('processing') || adminNote?.toLowerCase().includes('pending'))) {
+        currentStatus = 'PROCESSING';
     }
 
     const trackingId = (request.requestData as any)?.trackingId;
 
     if (currentStatus === 'PROCESSING' && trackingId) {
        
-       // Log to see what's actually happening in your console
-       console.log(`Checking Personalization for ${trackingId}...`);
-       
        let liveResult;
        try {
            liveResult = await checkPersonalizationStatus(trackingId);
-           console.log("Provider Result:", liveResult); // <--- CHECK YOUR TERMINAL FOR THIS
        } catch (e) {
-           console.log("Check crashed (Timeout?), keeping status as PROCESSING");
-           liveResult = { success: false, message: 'Network Timeout - Retrying' };
+           liveResult = { success: false, message: 'processing' }; // Treat timeout as processing
        }
        
        const pStatus = (liveResult.status || '').toLowerCase();
        const pMsg = (liveResult.message || '').toLowerCase();
 
-       // CASE A: SUCCESS
+       // --- LOGIC START ---
+
+       // 1. SUCCESS CASE
        if (liveResult.success && pStatus === 'completed') {
          currentStatus = 'COMPLETED';
          responseData = liveResult.data; 
@@ -82,31 +75,41 @@ export async function GET(req: Request) {
          });
        } 
 
-       // CASE B: HARD FAILURE (Only fail if provider explicitly says "failed" or specific error)
-       else if (pStatus === 'failed' || pMsg.includes('not found') || pMsg.includes('invalid')) {
-         currentStatus = 'FAILED';
-         adminNote = liveResult.message || 'Provider Failed';
-         
-         if (request.status !== 'FAILED') {
-            await prisma.serviceRequest.update({
-                where: { id: request.id },
-                data: { status: 'FAILED', responseData: { error: liveResult.message }, adminNote: adminNote }
-            });
-         }
-       }
-       
-       // CASE C: EVERYTHING ELSE (Timeouts, "Check failed", "Processing")
-       // We do NOTHING. We just stay in PROCESSING state.
-       else {
+       // 2. PROCESSING CASE (The Important Part)
+       // If message contains "processing", we FORCE status to PROCESSING, 
+       // even if the provider sent "status: failed" or "success: false".
+       else if (pMsg.includes('processing') || pMsg.includes('pending') || pStatus === 'processing') {
+           
            currentStatus = 'PROCESSING';
-           // Fix DB if it was previously marked as FAILED erroneously
+           
+           // If DB was erroneously marked FAILED, fix it.
            if (request.status === 'FAILED') {
                await prisma.serviceRequest.update({
                    where: { id: request.id },
-                   data: { status: 'PROCESSING', adminNote: 'Auto-Recovered: Processing' }
+                   data: { status: 'PROCESSING', adminNote: 'Processing...' }
                });
            }
        }
+
+       // 3. ACTUAL FAILURE CASE
+       // Only fail if it is NOT processing
+       else if (liveResult.success === false || pStatus === 'failed') {
+         currentStatus = 'FAILED';
+         adminNote = liveResult.message || 'Provider Failed';
+         
+         // Update DB to Failed
+         if (request.status !== 'FAILED') {
+            await prisma.serviceRequest.update({
+                where: { id: request.id },
+                data: { 
+                    status: 'FAILED', 
+                    responseData: { error: liveResult.message },
+                    adminNote: adminNote
+                }
+            });
+         }
+       }
+       // --- LOGIC END ---
     }
     // ============================================================
 
