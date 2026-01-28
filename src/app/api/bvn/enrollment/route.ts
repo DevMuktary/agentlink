@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { uploadToCloudinary } from '@/lib/cloudinary'; 
 
 export async function POST(req: Request) {
   try {
@@ -9,35 +8,25 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Parse FormData
-    const formData = await req.formData();
-    const getString = (key: string) => formData.get(key) as string | null;
+    // 2. Parse JSON
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json({ status: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
 
-    // Extract Text Fields
-    const reference = getString('reference');
-    const parkway_wallet_id = getString('parkway_wallet_id');
-    const bvn = getString('bvn');
-    const agent_location = getString('agent_location');
-    const bank_name = getString('bank_name');
-    const account_number = getString('account_number');
-    const account_name = getString('account_name');
-    const first_name = getString('first_name');
-    const last_name = getString('last_name');
-    const email = getString('email');
-    const phone_number = getString('phone_number');
-    const home_address = getString('home_address');
-    const state_of_residence = getString('state_of_residence');
-    const date_of_birth = getString('date_of_birth');
-    const local_government = getString('local_government');
-    const senatorial_district = getString('senatorial_district');
+    const {
+      parkway_wallet_id, bvn, agent_location, bank_name,
+      account_number, account_name, first_name, last_name,
+      email, phone_number, home_address, state_of_residence,
+      date_of_birth, local_government, senatorial_district
+    } = body;
 
-    // Extract Files
-    const passportFile = formData.get('passport') as File | null;
-    const signatureFile = formData.get('signature') as File | null;
+    // FIX: Auto-generate reference if missing
+    const reference = body.reference || `BVN-ENR-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-    // 3. Validate Required Text Fields
-    if (!reference) return NextResponse.json({ status: false, error: 'Missing reference' }, { status: 400 });
-
+    // 3. Validate Required Fields
     const missingFields = [];
     if (!parkway_wallet_id) missingFields.push('parkway_wallet_id');
     if (!bvn) missingFields.push('bvn');
@@ -55,9 +44,6 @@ export async function POST(req: Request) {
     if (!local_government) missingFields.push('local_government');
     if (!senatorial_district) missingFields.push('senatorial_district');
 
-    if (!passportFile) missingFields.push('passport');
-    if (!signatureFile) missingFields.push('signature');
-
     if (missingFields.length > 0) {
       return NextResponse.json({ 
         status: false, 
@@ -65,13 +51,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 4. Upload Images to Cloudinary
-    const [passportUpload, signatureUpload] = await Promise.all([
-      uploadToCloudinary(passportFile!, 'agentlink/bvn_passports'),
-      uploadToCloudinary(signatureFile!, 'agentlink/bvn_signatures')
-    ]);
-
-    // 5. Get Price & Check Balance
+    // 4. Get Price & Check Balance
     const service = await prisma.service.findUnique({ where: { code: 'ANDROID_BVN_ENROLLMENT' } });
     if (!service || !service.isActive) return NextResponse.json({ status: false, error: 'Service unavailable' }, { status: 503 });
 
@@ -81,7 +61,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 6. Process Transaction
+    // 5. Process Transaction
     const requestLog = await prisma.$transaction(async (tx) => {
       // A. Deduct
       await tx.user.update({
@@ -89,7 +69,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -97,12 +77,12 @@ export async function POST(req: Request) {
           type: 'SERVICE_CHARGE',
           status: 'COMPLETED',
           reference: reference, 
-          description: `BVN Enrollment for ${first_name} ${last_name}`,
+          description: `BVN Enrollment: ${first_name} ${last_name}`,
           serviceId: 'ANDROID_BVN_ENROLLMENT'
         }
       });
 
-      // C. Create Request with Image URLs
+      // C. Create Service Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
@@ -125,18 +105,14 @@ export async function POST(req: Request) {
             state_of_residence,
             date_of_birth,
             local_government,
-            senatorial_district,
-            passportUrl: passportUpload.secure_url,
-            signatureUrl: signatureUpload.secure_url,
-            passportPublicId: passportUpload.public_id,
-            signaturePublicId: signatureUpload.public_id
+            senatorial_district
           },
-          adminNote: 'Pending Enrollment Credentials'
+          adminNote: 'Pending Processing'
         }
       });
     });
 
-    // 7. Return Success
+    // 6. Return Success
     return NextResponse.json({
       status: true,
       message: 'Enrollment Request Submitted Successfully',
@@ -145,7 +121,6 @@ export async function POST(req: Request) {
         reference: reference,
         status: 'PROCESSING',
         charged_amount: cost,
-        passport_url: passportUpload.secure_url,
         note: 'You will receive an email from NIBSS containing your credentials upon completion.'
       }
     });
