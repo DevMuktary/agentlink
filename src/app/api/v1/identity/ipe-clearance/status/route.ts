@@ -16,7 +16,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
     }
 
-    // Find Request
     let whereQuery: any = { userId: user.id, serviceType: 'IPE_CLEARANCE' };
     if (requestId) whereQuery.id = requestId;
     else whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
@@ -34,6 +33,7 @@ export async function GET(req: Request) {
     let adminNote = request.adminNote;
     const trackingId = (request.requestData as any)?.trackingId;
 
+    // Only check if currently PROCESSING
     if (currentStatus === 'PROCESSING' && trackingId) {
         
         const liveResult = await checkIpeStatus(trackingId);
@@ -54,11 +54,11 @@ export async function GET(req: Request) {
                 data: { status: 'FAILED', adminNote: adminNote }
             });
         }
-        // If PROCESSING, do nothing.
     }
 
-    // --- FIX: Correct Message Logic ---
+    // --- CONSTRUCT RESPONSE ---
     let message = "Request in progress";
+    
     if (currentStatus === 'COMPLETED') {
         message = "Clearance Successful";
     } else if (currentStatus === 'FAILED') {
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
         status: true,
         current_status: currentStatus,
-        message: message, // Now correctly says "Clearance Failed" if failed
+        message: message,
         data: responseData,
         reason: currentStatus === 'FAILED' ? adminNote : null,
         last_updated: new Date()
