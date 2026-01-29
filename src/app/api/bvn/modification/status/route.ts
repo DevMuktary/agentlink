@@ -17,17 +17,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // 3. Build Query Dynamically (Fixes Prisma issues)
+    // 3. Build Query
     let whereQuery: any = {
         userId: user.id,
         serviceType: { 
           in: [
-            'BVN_MOD_NAME', 
-            'BVN_MOD_DOB', 
-            'BVN_MOD_PHONE', 
-            'BVN_MOD_NAME_PHONE', 
-            'BVN_MOD_DOB_PHONE', 
-            'BVN_MOD_FULL'
+            'BVN_MOD_NAME', 'BVN_MOD_DOB', 'BVN_MOD_PHONE', 
+            'BVN_MOD_NAME_PHONE', 'BVN_MOD_DOB_PHONE', 'BVN_MOD_FULL'
           ] 
         }
     };
@@ -35,22 +31,14 @@ export async function GET(req: Request) {
     if (requestId) {
         whereQuery.id = requestId;
     } else {
-        // Search inside the JSON column safely
-        whereQuery.requestData = {
-            path: ['clientReference'],
-            equals: clientRef
-        };
+        whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
     }
 
     // 4. Find Request
     const request = await prisma.serviceRequest.findFirst({
       where: whereQuery,
       select: {
-        id: true,
-        status: true,
-        responseData: true,
-        adminNote: true,
-        updatedAt: true
+        id: true, status: true, responseData: true, adminNote: true, updatedAt: true
       }
     });
 
@@ -59,8 +47,6 @@ export async function GET(req: Request) {
     }
 
     // 5. Construct Response
-    
-    // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
         const resData = request.responseData as any || {};
         
@@ -70,16 +56,14 @@ export async function GET(req: Request) {
             message: "Modification Successful",
             data: {
                 message: "Your data has been updated successfully.",
-                // Check all possible Cloudinary field names
-                slip_url: resData.slip_url || resData.image || resData.url || resData.file_url || null,
-                // Sometimes admin might return the new BVN details directly
+                // FIX: Added 'resultUrl' which is what the Admin API saves
+                slip_url: resData.resultUrl || resData.slip_url || resData.url || null,
                 new_details: resData.new_details || null 
             },
             last_updated: request.updatedAt
         });
     } 
     
-    // CASE B: FAILED
     else if (request.status === 'FAILED') {
         return NextResponse.json({
             status: true,
@@ -90,7 +74,6 @@ export async function GET(req: Request) {
         });
     }
 
-    // CASE C: PROCESSING
     return NextResponse.json({
       status: true,
       current_status: request.status,
