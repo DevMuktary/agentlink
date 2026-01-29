@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   FileBadge, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Download, FileText, Eye, Layers
+  AlertTriangle, User, Download, Layers, Calendar, Phone, type LucideIcon
 } from 'lucide-react';
 
 export default function AdminBvnModificationQueue() {
@@ -22,25 +22,27 @@ export default function AdminBvnModificationQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
-  // 1. Fetch Queue (Merge all BVN Mod Types)
+  // 1. Fetch Queue (Robust)
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      // Fetch all service types related to BVN Modification
       const endpoints = [
-        '/api/admin/requests/all?service=BVN_MODIFICATION_NAME&status=ALL',
-        '/api/admin/requests/all?service=BVN_MODIFICATION_DOB&status=ALL',
-        '/api/admin/requests/all?service=BVN_MODIFICATION_PHONE&status=ALL',
-        '/api/admin/requests/all?service=BVN_MODIFICATION_NAME_PHONE&status=ALL',
-        '/api/admin/requests/all?service=BVN_MODIFICATION_DOB_PHONE&status=ALL',
-        '/api/admin/requests/all?service=BVN_MODIFICATION_FULL&status=ALL',
-        // Fallback generic
-        '/api/admin/requests/all?service=BVN_MODIFICATION&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_NAME&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_DOB&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_PHONE&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_NAME_PHONE&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_DOB_PHONE&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_FULL&status=ALL',
       ];
 
-      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
+      const results = await Promise.allSettled(endpoints.map(ep => axios.get(ep)));
       
-      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      const combined: any[] = [];
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value.data?.status) {
+            combined.push(...result.value.data.data);
+        }
+      });
       
       // Sort by newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -103,16 +105,6 @@ export default function AdminBvnModificationQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setShouldRefund(true);
-  };
-
-  // Helper to safely get document URL
-  const getDocUrl = (data: any, keyBase: string) => {
-      // Check exact key, then _url suffix, then _image suffix
-      return data?.[keyBase] || data?.[`${keyBase}_url`] || data?.[`${keyBase}_image`];
   };
 
   // Helper for Badges
@@ -122,6 +114,16 @@ export default function AdminBvnModificationQueue() {
       if (type.includes('PHONE')) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">Phone Update</span>;
       if (type.includes('FULL')) return <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-red-200">Full Data Mod</span>;
       return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">BVN Mod</span>;
+  };
+
+  // Helper to extract Applicant Name safely
+  const getApplicantName = (data: any) => {
+      const identity = data?.identity || {};
+      if (identity.first_name && identity.surname) {
+          return `${identity.surname} ${identity.first_name}`;
+      }
+      // Fallback to flat fields
+      return `${data?.old_surname || ''} ${data?.old_first_name || ''}`;
   };
 
   if (loading) return <GlobalLoader />;
@@ -148,7 +150,7 @@ export default function AdminBvnModificationQueue() {
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Applicant</th>
+                <th className="px-6 py-4 font-medium">Applicant (Old Name)</th>
                 <th className="px-6 py-4 font-medium">BVN</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
@@ -168,7 +170,7 @@ export default function AdminBvnModificationQueue() {
                         <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
                         <td className="px-6 py-4 font-bold text-slate-800">
-                            {item.requestData?.surname} {item.requestData?.firstname}
+                            {getApplicantName(item.requestData)}
                         </td>
                         <td className="px-6 py-4 font-mono text-slate-600">
                             {item.requestData?.bvn}
@@ -214,7 +216,7 @@ export default function AdminBvnModificationQueue() {
               <div className="flex items-center gap-3">
                   <div>
                     <h3 className="font-bold text-xl text-slate-900">
-                        {selectedItem.status === 'PROCESSING' ? 'Process BVN Modification' : 'Request Details'}
+                        {selectedItem.status === 'PROCESSING' ? 'Process Modification' : 'Request Details'}
                     </h3>
                     <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.clientReference} | ID: {selectedItem.id}</p>
                   </div>
@@ -258,96 +260,108 @@ export default function AdminBvnModificationQueue() {
                     <div className="bg-teal-50 p-5 rounded-xl border border-teal-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-teal-200 pb-2">
                             <FileBadge size={16} className="text-teal-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant & Changes</h4>
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Modification Details</h4>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-700">
-                            
-                            {/* BASE IDENTITY */}
+
+                        {/* BASE IDENTITY SECTION */}
+                        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-teal-200 pb-6">
                             <div>
-                                <p><span className="text-slate-500 text-xs uppercase block font-semibold">Current Surname</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.surname}</span></p>
-                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">Current Firstname</span> <span className="text-slate-900">{selectedItem.requestData?.firstname}</span></p>
-                                <p className="mt-2"><span className="text-slate-500 text-xs uppercase block font-semibold">BVN</span> <span className="text-slate-900 font-mono text-lg tracking-widest">{selectedItem.requestData?.bvn}</span></p>
+                                <p className="text-xs uppercase text-slate-500 font-bold mb-1">Bank Enrolled</p>
+                                <p className="text-lg font-bold text-slate-900">{selectedItem.requestData?.bank_name || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase text-slate-500 font-bold mb-1">BVN / NIN</p>
+                                <div className="space-y-1">
+                                    <p className="font-mono text-slate-900">BVN: {selectedItem.requestData?.bvn}</p>
+                                    <p className="font-mono text-slate-500 text-xs">NIN: {selectedItem.requestData?.nin}</p>
+                                </div>
+                            </div>
+                            
+                            {/* SURCHARGE ALERT */}
+                            {selectedItem.requestData?.surcharge_applied && (
+                                <div className="md:col-span-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-center gap-3">
+                                    <AlertTriangle className="text-yellow-600" size={20} />
+                                    <div>
+                                        <p className="font-bold text-yellow-800 text-xs">Major Age Correction Detected</p>
+                                        <p className="text-[10px] text-yellow-700">A surcharge was automatically applied for this request due to >5 years difference.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* DYNAMIC CHANGES DISPLAY */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* COLUMN 1: CURRENT (OLD) DETAILS */}
+                            <div className="space-y-4">
+                                <h5 className="font-bold text-slate-900 text-xs uppercase border-b pb-1">Current Details (On BVN)</h5>
+                                
+                                {/* Identity is ALWAYS shown */}
+                                <div className="bg-white/50 p-3 rounded border border-slate-200">
+                                    <p className="text-[10px] uppercase text-slate-400 font-bold">Full Name</p>
+                                    <p className="font-bold text-slate-800">
+                                        {selectedItem.requestData?.identity?.surname} {selectedItem.requestData?.identity?.first_name} {selectedItem.requestData?.identity?.middle_name}
+                                    </p>
+                                </div>
+
+                                {/* Show Old DOB if DOB change requested */}
+                                {selectedItem.requestData?.changes?.dates && (
+                                    <div className="bg-white/50 p-3 rounded border border-slate-200">
+                                        <p className="text-[10px] uppercase text-slate-400 font-bold">Date of Birth</p>
+                                        <p className="font-mono text-slate-800 flex items-center gap-2">
+                                            <Calendar size={12}/> {selectedItem.requestData?.changes?.dates?.old}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* REQUESTED CHANGES */}
-                            <div className="bg-white/60 p-4 rounded-lg border border-teal-100">
-                                {selectedItem.serviceType.includes('NAME') && (
-                                    <>
-                                        <h5 className="font-bold text-teal-800 text-xs uppercase mb-2 border-b border-teal-100 pb-1">New Name Requested</h5>
-                                        <p><span className="text-[10px] text-slate-400 block uppercase">New Surname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_surname}</span></p>
-                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Firstname</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_firstname}</span></p>
-                                        <p className="mt-2"><span className="text-[10px] text-slate-400 block uppercase">New Middlename</span> <span className="font-bold text-lg text-slate-900">{selectedItem.requestData?.new_middlename || '-'}</span></p>
-                                    </>
+                            {/* COLUMN 2: REQUESTED (NEW) DETAILS */}
+                            <div className="space-y-4">
+                                <h5 className="font-bold text-teal-800 text-xs uppercase border-b border-teal-200 pb-1">Requested Changes</h5>
+
+                                {/* NEW NAME */}
+                                {selectedItem.requestData?.changes?.new_name && (
+                                    <div className="bg-white p-3 rounded border border-teal-200 shadow-sm">
+                                        <p className="text-[10px] uppercase text-teal-600 font-bold mb-1">New Name</p>
+                                        <p className="font-bold text-lg text-slate-900">{selectedItem.requestData.changes.new_name.surname}</p>
+                                        <p className="text-slate-800">{selectedItem.requestData.changes.new_name.first} {selectedItem.requestData.changes.new_name.middle}</p>
+                                    </div>
                                 )}
 
-                                {selectedItem.serviceType.includes('DOB') && (
-                                    <>
-                                        <h5 className="font-bold text-purple-800 text-xs uppercase mb-2 border-b border-purple-100 pb-1">New DOB Requested</h5>
-                                        <span className="font-bold text-slate-900 text-2xl">{selectedItem.requestData?.new_date_of_birth || selectedItem.requestData?.new_dob}</span>
-                                    </>
+                                {/* NEW DOB */}
+                                {selectedItem.requestData?.changes?.dates && (
+                                    <div className="bg-white p-3 rounded border border-teal-200 shadow-sm">
+                                        <p className="text-[10px] uppercase text-teal-600 font-bold mb-1">New Date of Birth</p>
+                                        <p className="font-bold text-xl text-slate-900 font-mono flex items-center gap-2">
+                                            <Calendar size={16} className="text-teal-500"/>
+                                            {selectedItem.requestData.changes.dates.new}
+                                        </p>
+                                    </div>
                                 )}
 
-                                {selectedItem.serviceType.includes('PHONE') && (
-                                    <>
-                                        <h5 className="font-bold text-orange-800 text-xs uppercase mb-2 border-b border-orange-100 pb-1">New Phone Requested</h5>
-                                        <span className="font-bold text-slate-900 text-xl font-mono">{selectedItem.requestData?.new_phone_number || selectedItem.requestData?.new_phone}</span>
-                                    </>
+                                {/* NEW PHONE */}
+                                {selectedItem.requestData?.changes?.phone && (
+                                    <div className="bg-white p-3 rounded border border-teal-200 shadow-sm">
+                                        <p className="text-[10px] uppercase text-teal-600 font-bold mb-1">New Phone Number</p>
+                                        <p className="font-bold text-xl text-slate-900 font-mono flex items-center gap-2">
+                                            <Phone size={16} className="text-teal-500"/>
+                                            {selectedItem.requestData.changes.phone.new}
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    {/* RAW DATA DUMP (Safety Net) */}
+                    {/* RAW DATA DUMP */}
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <div className="flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
                             <Layers size={14} className="text-slate-500" />
-                            <h4 className="font-bold uppercase text-[10px] tracking-wider text-slate-500">Full Raw Data</h4>
+                            <h4 className="font-bold uppercase text-[10px] tracking-wider text-slate-500">Full Raw Payload</h4>
                         </div>
-                        <div className="grid grid-cols-1 gap-2">
-                            {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                if (typeof value === 'object' || !value) return null;
-                                return (
-                                    <div key={key} className="flex justify-between text-xs">
-                                        <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}:</span>
-                                        <span className="text-slate-700 font-mono font-medium truncate ml-2 max-w-[150px] text-right">{String(value)}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                     {/* DOCUMENTS */}
-                     <div>
-                        <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Submitted Documents</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { key: 'court_affidavit', label: 'Affidavit' },
-                                { key: 'newspaper_publication', label: 'Newspaper' },
-                                { key: 'marriage_certificate', label: 'Marriage Cert' },
-                                { key: 'supporting_doc', label: 'Supporting Doc' },
-                                { key: 'birth_certificate', label: 'Birth Cert' },
-                                { key: 'nin_slip', label: 'NIN Slip' },
-                            ].map((doc) => {
-                                const url = getDocUrl(selectedItem.requestData, doc.key);
-                                if (!url) return null;
-                                return (
-                                    <a key={doc.key} href={url} target="_blank" className="block group">
-                                        <div className="bg-slate-100 rounded-lg h-32 flex items-center justify-center border border-slate-200 group-hover:border-teal-400 overflow-hidden relative">
-                                            {/* Preview if Image, Icon if PDF */}
-                                            {url.match(/\.(jpeg|jpg|png)$/i) ? (
-                                                <img src={url} className="object-contain w-full h-full" alt={doc.label} />
-                                            ) : (
-                                                <FileText className="text-slate-400" size={24} />
-                                            )}
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Eye className="text-slate-700" />
-                                            </div>
-                                        </div>
-                                        <span className="text-xs text-center block mt-1 font-bold text-slate-700">{doc.label}</span>
-                                    </a>
-                                );
-                            })}
-                        </div>
+                        <pre className="text-[10px] text-slate-600 overflow-x-auto bg-white p-2 rounded border border-slate-100">
+                            {JSON.stringify(selectedItem.requestData, null, 2)}
+                        </pre>
                     </div>
                 </div>
 
