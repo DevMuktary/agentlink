@@ -331,7 +331,7 @@ export default function AdminBvnModificationQueue() {
                                                     </div>
                                                     {selectedItem.requestData?.surcharge_applied && (
                                                         <div className="mt-2 text-[10px] bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-100">
-                                                            ⚠️ Major correction (>5 years). Surcharge applied.
+                                                            ⚠️ Major correction (&gt;5 years). Surcharge applied.
                                                         </div>
                                                     )}
                                                 </div>
@@ -484,7 +484,7 @@ export default function AdminBvnModificationQueue() {
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
                                     <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
-                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded border border-red-200">Reason: {selectedItem.adminNote}</p>
                                     <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
                                 </>
                             )}
