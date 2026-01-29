@@ -17,9 +17,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'request_id or reference is required' }, { status: 400 });
     }
 
-    // 3. Find Request (Filter by User & BVN Mod Types)
-    const request = await prisma.serviceRequest.findFirst({
-      where: {
+    // 3. Build Query Dynamically (Fixes Prisma issues)
+    let whereQuery: any = {
         userId: user.id,
         serviceType: { 
           in: [
@@ -30,12 +29,22 @@ export async function GET(req: Request) {
             'BVN_MOD_DOB_PHONE', 
             'BVN_MOD_FULL'
           ] 
-        },
-        OR: [
-            { id: requestId || undefined },
-            { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
-        ]
-      },
+        }
+    };
+
+    if (requestId) {
+        whereQuery.id = requestId;
+    } else {
+        // Search inside the JSON column safely
+        whereQuery.requestData = {
+            path: ['clientReference'],
+            equals: clientRef
+        };
+    }
+
+    // 4. Find Request
+    const request = await prisma.serviceRequest.findFirst({
+      where: whereQuery,
       select: {
         id: true,
         status: true,
@@ -49,7 +58,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     }
 
-    // 4. Construct Response
+    // 5. Construct Response
     
     // CASE A: COMPLETED
     if (request.status === 'COMPLETED') {
