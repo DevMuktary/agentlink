@@ -8,6 +8,7 @@ const SURCHARGE_AMOUNT = 4000.00;
 
 // Helper: Calculate Date Difference
 function getYearDifference(date1: string, date2: string): number {
+  if (!date1 || !date2) return 0;
   const d1 = new Date(date1);
   const d2 = new Date(date2);
   if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
@@ -18,125 +19,97 @@ function getYearDifference(date1: string, date2: string): number {
 
 export async function POST(req: Request) {
   try {
-    // 1. SECURITY: Authenticate
+    // 1. SECURITY
     const user = await validateApiKey(req);
-    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
+    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const { 
-      service_code,        
-      bank_code,           
-      reference, 
-      nin, 
-      bvn, 
-      old_details, // Object
-      new_details, // Object
-      new_phone_number 
+      service_code, bank_code, reference, nin, bvn, 
+      // Identity Fields (Required for ALL)
+      old_first_name, old_surname, old_middle_name,
+      // Change Fields (Required based on Service)
+      old_dob, new_dob,
+      old_phone_number, new_phone_number,
+      new_first_name, new_surname, new_middle_name
     } = body;
 
-    // --- 2. GLOBAL VALIDATION (Required for ALL types) ---
-    const missingGlobal = [];
-    if (!service_code) missingGlobal.push('service_code');
-    if (!bank_code) missingGlobal.push('bank_code');
-    if (!reference) missingGlobal.push('reference');
-    if (!nin) missingGlobal.push('nin');
-    if (!bvn) missingGlobal.push('bvn');
-    if (!old_details) missingGlobal.push('old_details');
-    if (!new_details) missingGlobal.push('new_details');
+    // 2. GLOBAL VALIDATION (These are now MANDATORY for EVERY request)
+    const missing = [];
+    if (!service_code) missing.push('service_code');
+    if (!bank_code) missing.push('bank_code');
+    if (!reference) missing.push('reference');
+    if (!nin) missing.push('nin');
+    if (!bvn) missing.push('bvn');
+    
+    // Enforce Identity for visibility
+    if (!old_first_name) missing.push('old_first_name');
+    if (!old_surname) missing.push('old_surname');
+    if (!old_middle_name) missing.push('old_middle_name'); 
 
-    if (missingGlobal.length > 0) {
-        return NextResponse.json({ status: false, error: `Missing Top-Level Fields: ${missingGlobal.join(', ')}` }, { status: 400 });
+    if (missing.length > 0) {
+        return NextResponse.json({ status: false, error: `Missing Identity Fields: ${missing.join(', ')}` }, { status: 400 });
     }
 
-    // --- 3. IDENTIFY SERVICE & BANK ---
+    // 3. SERVICE LOOKUP
     const bankService = await prisma.service.findUnique({ where: { serviceCode: Number(bank_code) } });
-    if (!bankService || !bankService.isActive) return NextResponse.json({ status: false, error: 'Invalid or Inactive Bank Code' }, { status: 400 });
+    if (!bankService || !bankService.isActive) return NextResponse.json({ status: false, error: 'Invalid Bank Code' }, { status: 400 });
 
     const modService = await prisma.service.findUnique({ where: { serviceCode: Number(service_code) } });
-    if (!modService || !modService.isActive) return NextResponse.json({ status: false, error: 'Invalid or Inactive Modification Service Code' }, { status: 400 });
+    if (!modService || !modService.isActive) return NextResponse.json({ status: false, error: 'Invalid Service Code' }, { status: 400 });
 
     const code = modService.code.toString();
-    const errors: string[] = [];
+    const specificErrors: string[] = [];
 
-    // --- 4. STRICT PER-CATEGORY VALIDATION ---
+    // 4. SPECIFIC VALIDATION (Based on what is changing)
     
-    // HELPER: Validate Basic Identity (First, Surname, Middle, DOB)
-    const validateIdentity = (details: any, prefix: string) => {
-        if (!details.first_name) errors.push(`${prefix}.first_name`);
-        if (!details.surname) errors.push(`${prefix}.surname`);
-        if (!details.middle_name) errors.push(`${prefix}.middle_name`);
-        if (!details.dob) errors.push(`${prefix}.dob`);
-    };
-
-    switch (code) {
-        // --- GROUP A: NAME or DOB ONLY (No Phone) ---
-        case 'BVN_MOD_NAME':  // 620
-        case 'BVN_MOD_DOB':   // 621
-            validateIdentity(old_details, 'old_details');
-            validateIdentity(new_details, 'new_details');
-            // We explicitly DO NOT check for phone numbers here
-            break;
-
-        // --- GROUP B: PHONE ONLY ---
-        case 'BVN_MOD_PHONE': // 622
-            validateIdentity(old_details, 'old_details');
-            validateIdentity(new_details, 'new_details');
-            
-            // Phone Specifics
-            if (!old_details.phone_number) errors.push('old_details.phone_number');
-            if (!new_phone_number) errors.push('new_phone_number');
-            break;
-
-        // --- GROUP C: COMBINATIONS (Name+Phone, DOB+Phone, Full) ---
-        case 'BVN_MOD_NAME_PHONE': // 623
-        case 'BVN_MOD_DOB_PHONE':  // 624
-        case 'BVN_MOD_FULL':       // 625
-            validateIdentity(old_details, 'old_details');
-            validateIdentity(new_details, 'new_details');
-            
-            // Phone Specifics
-            if (!old_details.phone_number) errors.push('old_details.phone_number');
-            if (!new_phone_number) errors.push('new_phone_number');
-            break;
-
-        default:
-            return NextResponse.json({ status: false, error: `Service Code ${code} is not implemented yet.` }, { status: 501 });
+    // If Changing Name -> Require NEW Name details
+    if (code.includes('NAME') || code.includes('FULL')) {
+        if (!new_first_name || !new_surname || !new_middle_name) specificErrors.push('new_first_name, new_surname, new_middle_name');
     }
 
-    if (errors.length > 0) {
-        return NextResponse.json({ status: false, error: `Missing Fields for ${modService.name}: ${errors.join(', ')}` }, { status: 400 });
+    // If Changing DOB -> Require Dates
+    if (code.includes('DOB') || code.includes('FULL')) {
+        if (!old_dob) specificErrors.push('old_dob');
+        if (!new_dob) specificErrors.push('new_dob');
     }
 
-    // --- 5. PRICING & SURCHARGE ---
+    // If Changing Phone -> Require New Phone
+    if (code.includes('PHONE') || code.includes('FULL')) {
+        if (!new_phone_number) specificErrors.push('new_phone_number');
+    }
+
+    if (specificErrors.length > 0) {
+        return NextResponse.json({ status: false, error: `Missing Change Fields: ${specificErrors.join(', ')}` }, { status: 400 });
+    }
+
+    // 5. PRICING & SURCHARGE
     let finalCost = Number(modService.price);
     let surchargeApplied = false;
 
-    // Surcharge Logic: If DOB is changing AND gap > 5 years
-    if (old_details.dob !== new_details.dob) {
-        const yearsDiff = getYearDifference(old_details.dob, new_details.dob);
+    if (code.includes('DOB') || code.includes('FULL')) {
+        const yearsDiff = getYearDifference(old_dob, new_dob);
         if (yearsDiff > SURCHARGE_THRESHOLD_YEARS) {
             finalCost += SURCHARGE_AMOUNT;
             surchargeApplied = true;
         }
     }
 
-    // --- 6. CHECK BALANCE ---
+    // 6. CHECK BALANCE
     if (Number(user.walletBalance) < finalCost) {
       return NextResponse.json({ 
           status: false, 
-          error: `Insufficient funds. Cost: ₦${finalCost.toLocaleString()} ${surchargeApplied ? '(Includes Major Age Correction Surcharge)' : ''}` 
+          error: `Insufficient funds. Cost: ₦${finalCost.toLocaleString()} ${surchargeApplied ? '(Includes Age Correction Surcharge)' : ''}` 
       }, { status: 402 });
     }
 
-    // --- 7. TRANSACTION EXECUTION ---
+    // 7. EXECUTE TRANSACTION
     const requestLog = await prisma.$transaction(async (tx) => {
-      // A. Deduct
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: finalCost } }
       });
 
-      // B. Log Transaction (History)
       await tx.transaction.create({
         data: {
             userId: user.id,
@@ -144,58 +117,53 @@ export async function POST(req: Request) {
             type: 'SERVICE_CHARGE',
             status: 'COMPLETED',
             reference: reference, 
-            description: `BVN Mod: ${modService.name}${surchargeApplied ? ' (+ Age Surcharge)' : ''}`,
+            description: `BVN Mod: ${modService.name}`,
             serviceId: modService.code.toString()
         }
       });
 
-      // C. Create Request
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: modService.code,
+          serviceType: modService.code as any,
           status: 'PROCESSING',
           cost: finalCost,
           requestData: {
             bank_name: bankService.name.replace('Bank: ', ''),
-            nin, 
-            bvn,
-            
-            // Validated Data
-            old_details: {
-                ...old_details, // Includes phone if passed
-                phone_number: old_details.phone_number || null // Ensure explicit null if undefined
+            nin, bvn, clientReference: reference,
+            surcharge_applied: surchargeApplied,
+            // Store Identity Cleanly
+            identity: { 
+                first_name: old_first_name, surname: old_surname, middle_name: old_middle_name 
             },
-            new_details: {
-                ...new_details
-            },
-            new_phone_number: new_phone_number || null,
-
-            clientReference: reference,
-            surcharge_applied: surchargeApplied
+            // Store Change Data
+            changes: { 
+                new_name: code.includes('NAME') ? { first: new_first_name, last: new_surname, middle: new_middle_name } : null,
+                dates: code.includes('DOB') ? { old: old_dob, new: new_dob } : null,
+                phone: code.includes('PHONE') ? { old: old_phone_number, new: new_phone_number } : null
+            }
           },
-          adminNote: surchargeApplied ? 'Age Surcharge Applied (>5 years)' : 'Pending Modification'
+          adminNote: surchargeApplied ? 'Age Surcharge Applied' : 'Pending Modification'
         }
       });
     });
 
-    // --- 8. SUCCESS RESPONSE ---
+    // 8. RESPONSE
     return NextResponse.json({
       status: true,
-      message: 'Modification Request Submitted Successfully',
+      message: 'Modification Request Submitted',
       data: {
         request_id: requestLog.id,
         reference: reference,
         status: 'PROCESSING',
         charged_amount: finalCost,
         bank: bankService.name.replace('Bank: ', ''),
-        service: modService.name,
         note: surchargeApplied ? 'Includes surcharge for major age correction' : undefined
       }
     });
 
   } catch (error) {
     console.error("BVN Mod API Error:", error);
-    return NextResponse.json({ status: false, error: 'Server Error processing request' }, { status: 500 });
+    return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
