@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Parse FormData (Changed from JSON to FormData)
+    // 2. Parse FormData
     const formData = await req.formData();
     const getString = (key: string) => formData.get(key) as string | null;
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const agent_code = getString('agent_code');
     const ticket_id = getString('ticket_id');
     const bms_ticket = getString('bms_ticket');
-    const screenshotFile = formData.get('screenshot') as File | null; // Get File
+    const screenshotFile = formData.get('screenshot') as File | null; 
 
     // 3. Basic Validation
     if (!service_code || !reference) {
@@ -42,11 +42,16 @@ export async function POST(req: Request) {
     let screenshotUrl = null;
     let screenshotPublicId = null;
 
-    // 5. CATEGORY SPECIFIC VALIDATION & UPLOAD
+    // 5. CATEGORY SPECIFIC VALIDATION
+    
     // --- CATEGORY A: BY PHONE (Code 630) ---
     if (code === 'BVN_RETRIEVAL_PHONE') {
-        if (!phone_number) {
-            return NextResponse.json({ status: false, error: 'Missing Required Field: phone_number' }, { status: 400 });
+        const missing = [];
+        if (!phone_number) missing.push('phone_number');
+        if (!full_name) missing.push('full_name'); // Now Mandatory
+
+        if (missing.length > 0) {
+            return NextResponse.json({ status: false, error: `Missing Fields for Phone Retrieval: ${missing.join(', ')}` }, { status: 400 });
         }
     }
 
@@ -62,7 +67,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ status: false, error: `Missing Fields for CRM: ${missing.join(', ')}` }, { status: 400 });
         }
         
-        // Upload to Cloudinary
         const upload = await uploadToCloudinary(screenshotFile!, 'agentlink/bvn_retrieval_proofs');
         screenshotUrl = upload.secure_url;
         screenshotPublicId = upload.public_id;
@@ -100,11 +104,10 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: service.code,
+          serviceType: service.code as any, // Cast to enum
           status: 'PROCESSING',
           cost: cost,
           requestData: {
-            // Common
             clientReference: reference,
             service_code,
             
@@ -117,7 +120,6 @@ export async function POST(req: Request) {
             ticket_id: ticket_id || null,
             bms_ticket: bms_ticket || null,
             
-            // Store Cloudinary URL instead of Base64
             screenshotUrl: screenshotUrl || null,
             screenshotPublicId: screenshotPublicId || null
           },
