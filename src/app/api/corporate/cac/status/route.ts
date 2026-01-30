@@ -17,37 +17,50 @@ export async function GET(req: Request) {
         return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
     }
 
-    // 3. Find Request
-    const request = await prisma.serviceRequest.findFirst({
-      where: {
+    // 3. Build Query Dynamically (Fixes Prisma JSON issues)
+    let whereQuery: any = {
         userId: user.id,
-        serviceType: 'CAC_REGISTRATION',
-        OR: [
-            { id: requestId || undefined },
-            { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
-        ]
-      },
+        serviceType: 'CAC_REGISTRATION'
+    };
+
+    if (requestId) {
+        whereQuery.id = requestId;
+    } else {
+        // Search inside the JSON column safely
+        whereQuery.requestData = {
+            path: ['clientReference'],
+            equals: clientRef
+        };
+    }
+
+    // 4. Find Request
+    const request = await prisma.serviceRequest.findFirst({
+      where: whereQuery,
       select: {
-        id: true, status: true, responseData: true, adminNote: true, updatedAt: true
+        id: true, 
+        status: true, 
+        responseData: true, 
+        adminNote: true, 
+        updatedAt: true
       }
     });
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    // 4. Handle Status Responses
+    // 5. Handle Status Responses
     
     // CASE A: COMPLETED (Success)
     if (request.status === 'COMPLETED') {
-        const responseData = request.responseData as any;
+        const responseData = request.responseData as any || {};
         
         return NextResponse.json({
             status: true,
             current_status: 'COMPLETED',
             message: "CAC Registration Successful",
             data: {
-                // We check for both URL (Cloudinary) or Base64 (Legacy/Manual)
-                certificate: responseData?.certificate_url || responseData?.certificate_base64 || null,
-                status_report: responseData?.status_report_url || responseData?.status_report_base64 || null,
+                // Return URLs for both documents
+                certificate: responseData.certificate_url || responseData.certificate_base64 || null,
+                status_report: responseData.status_report_url || responseData.status_report_base64 || null,
             },
             last_updated: request.updatedAt
         });
@@ -56,7 +69,7 @@ export async function GET(req: Request) {
     // CASE B: FAILED
     else if (request.status === 'FAILED') {
         return NextResponse.json({
-            status: true, // API call was successful, but the job failed
+            status: true, // API call success, but job failed
             current_status: 'FAILED',
             message: "Registration Failed",
             reason: request.adminNote || 'Application rejected by CAC',
