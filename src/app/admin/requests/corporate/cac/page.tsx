@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Building2, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, Eye, FileText, User, MapPin, Phone, Mail, Download
+  AlertTriangle, Eye, FileText, User, MapPin, Phone, Mail, Download, FileCheck
 } from 'lucide-react';
 
 export default function AdminCacQueue() {
@@ -14,7 +14,11 @@ export default function AdminCacQueue() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
-  const [resultFile, setResultFile] = useState<File | null>(null);
+  
+  // NEW: Separate states for the two files
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const [statusFile, setStatusFile] = useState<File | null>(null);
+  
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNote, setAdminNote] = useState('');
 
@@ -37,7 +41,11 @@ export default function AdminCacQueue() {
 
   // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
-    if (action === 'APPROVE' && !resultFile) return alert("Please upload the CAC Certificate/Result file.");
+    if (action === 'APPROVE') {
+        if (!certFile || !statusFile) {
+            return alert("Please upload BOTH the Certificate and the Status Report.");
+        }
+    }
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
     if(!confirm(`Confirm ${action} action?`)) return;
@@ -49,8 +57,10 @@ export default function AdminCacQueue() {
       formData.append('action', action);
       formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Approved'));
       
-      if (action === 'APPROVE' && resultFile) {
-        formData.append('file', resultFile);
+      // Append specific files with specific keys
+      if (action === 'APPROVE') {
+        if (certFile) formData.append('file_certificate', certFile);
+        if (statusFile) formData.append('file_status_report', statusFile);
       }
 
       await axios.post('/api/admin/requests/action', formData);
@@ -67,7 +77,8 @@ export default function AdminCacQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
+    setCertFile(null);
+    setStatusFile(null);
     setRejectionReason('');
     setAdminNote('');
   };
@@ -88,10 +99,10 @@ export default function AdminCacQueue() {
         </button>
       </div>
 
-      {/* TABLE CONTAINER - FIXED FOR MOBILE SCROLLING */}
+      {/* TABLE CONTAINER */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto"> {/* Enable Horizontal Scroll */}
-          <table className="w-full text-left text-sm min-w-[900px]"> {/* Force min width to trigger scroll */}
+        <div className="overflow-x-auto"> 
+          <table className="w-full text-left text-sm min-w-[900px]"> 
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
               <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
@@ -164,7 +175,7 @@ export default function AdminCacQueue() {
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* LEFT COLUMN: APPLICATION DATA (Scrollable) */}
+                {/* LEFT COLUMN: APPLICATION DATA */}
                 <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
                     
                     {/* AGENT INFO */}
@@ -279,7 +290,7 @@ export default function AdminCacQueue() {
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: ACTIONS (Sticky) */}
+                {/* RIGHT COLUMN: ACTIONS */}
                 <div className="space-y-6 flex flex-col h-full">
                     {selectedItem.status === 'PROCESSING' ? (
                         <>
@@ -288,12 +299,24 @@ export default function AdminCacQueue() {
                                     <CheckCircle2 className="text-green-600" size={20} /> Approve & Deliver
                                 </h4>
                                 <div className="space-y-4">
+                                    
+                                    {/* UPLOAD 1: CERTIFICATE */}
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Certificate (PDF/Image)</label>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">1. Upload Certificate (Required)</label>
                                         <input 
                                             type="file" 
-                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
+                                            onChange={(e) => setCertFile(e.target.files?.[0] || null)} 
                                             className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer" 
+                                        />
+                                    </div>
+
+                                    {/* UPLOAD 2: STATUS REPORT */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">2. Upload Status Report (Required)</label>
+                                        <input 
+                                            type="file" 
+                                            onChange={(e) => setStatusFile(e.target.files?.[0] || null)} 
+                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer" 
                                         />
                                     </div>
                                     
@@ -310,7 +333,7 @@ export default function AdminCacQueue() {
 
                                     <button 
                                         onClick={() => handleAction('APPROVE')} 
-                                        disabled={processing || !resultFile} 
+                                        disabled={processing || !certFile || !statusFile} 
                                         className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
                                     >
                                         {processing ? 'Processing...' : 'Complete Request'}
@@ -342,17 +365,25 @@ export default function AdminCacQueue() {
                         // READ ONLY VIEW FOR COMPLETED/FAILED
                         <div className={`p-8 rounded-xl border flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                             {selectedItem.status === 'COMPLETED' ? (
-                                <>
-                                    <CheckCircle2 size={64} className="text-green-500 mb-4" />
+                                <div className="w-full space-y-3">
+                                    <CheckCircle2 size={64} className="text-green-500 mb-4 mx-auto" />
                                     <h3 className="text-2xl font-bold text-green-800">Request Approved</h3>
                                     <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     
-                                    {selectedItem.responseData?.resultUrl && (
-                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
+                                    {/* DOWNLOAD CERTIFICATE */}
+                                    {selectedItem.responseData?.certificate_url && (
+                                        <a href={selectedItem.responseData.certificate_url} target="_blank" className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center justify-center gap-2 w-full">
                                             <Download size={18} /> Download Certificate
                                         </a>
                                     )}
-                                </>
+
+                                    {/* DOWNLOAD STATUS REPORT */}
+                                    {selectedItem.responseData?.status_report_url && (
+                                        <a href={selectedItem.responseData.status_report_url} target="_blank" className="bg-white border border-green-200 text-green-700 px-6 py-3 rounded-lg font-bold shadow-sm hover:bg-green-50 transition flex items-center justify-center gap-2 w-full">
+                                            <FileCheck size={18} /> Download Status Report
+                                        </a>
+                                    )}
+                                </div>
                             ) : (
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
