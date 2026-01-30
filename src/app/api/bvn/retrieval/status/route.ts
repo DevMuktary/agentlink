@@ -17,39 +17,58 @@ export async function GET(req: Request) {
         return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
     }
 
-    // 3. Find Request
-    const request = await prisma.serviceRequest.findFirst({
-      where: {
+    // 3. Build Query Dynamically (Prevents Prisma JSON Errors)
+    let whereQuery: any = {
         userId: user.id,
-        serviceType: { in: ['BVN_RETRIEVAL_PHONE', 'BVN_RETRIEVAL_CRM'] },
-        OR: [
-            { id: requestId || undefined },
-            { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
-        ]
-      },
+        serviceType: { in: ['BVN_RETRIEVAL_PHONE', 'BVN_RETRIEVAL_CRM'] }
+    };
+
+    if (requestId) {
+        whereQuery.id = requestId;
+    } else {
+        // Search inside the JSON column safely
+        whereQuery.requestData = {
+            path: ['clientReference'],
+            equals: clientRef
+        };
+    }
+
+    // 4. Find Request
+    const request = await prisma.serviceRequest.findFirst({
+      where: whereQuery,
       select: {
-        id: true, status: true, responseData: true, adminNote: true, updatedAt: true
+        id: true, 
+        status: true, 
+        responseData: true, 
+        requestData: true, // Fetch input data to show what was searched
+        adminNote: true, 
+        updatedAt: true
       }
     });
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    // 4. Handle Status Responses
+    // 5. Handle Status Responses
 
     // CASE A: COMPLETED (Success)
     if (request.status === 'COMPLETED') {
         const resData = request.responseData as any || {};
+        const reqData = request.requestData as any || {};
 
         return NextResponse.json({
             status: true,
             current_status: 'COMPLETED',
             message: "Retrieval Successful",
             data: {
-                // The 11-digit BVN entered by Admin
+                // The Result (BVN)
                 bvn: resData.bvn || resData.number || null,
                 
-                // Optional Image/Slip (Cloudinary URL)
-                image_url: resData.image_url || resData.url || resData.file_url || resData.slip_url || null
+                // Context (What was searched)
+                searched_phone: reqData.phone_number || null,
+                searched_name: reqData.full_name || null,
+
+                // Optional Evidence (If Admin uploaded it)
+                image_url: resData.image_url || resData.url || resData.slip_url || null
             },
             last_updated: request.updatedAt
         });
@@ -61,7 +80,7 @@ export async function GET(req: Request) {
             status: true,
             current_status: 'FAILED',
             message: "Retrieval Failed",
-            reason: request.adminNote || "Retrieval declined",
+            reason: request.adminNote || "Record not found",
             last_updated: request.updatedAt
         });
     }
