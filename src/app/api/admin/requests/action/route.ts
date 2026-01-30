@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { validateApiKey } from '@/lib/api-auth'; // Or your session auth check
-import { getServerSession } from 'next-auth'; // If using session
-import { authOptions } from '@/lib/auth';     // If using session
+import { validateApiKey } from '@/lib/api-auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: Request) {
   try {
-    // 1. Auth (Check Session or API Key depending on your Admin setup)
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'ADMIN') {
-        return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
+    // 1. Auth
+    const user = await validateApiKey(req);
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+      return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
     }
 
     // 2. Parse Data
@@ -20,9 +18,9 @@ export async function POST(req: Request) {
     const note = formData.get('note') as string;
     const file = formData.get('file') as File | null;
     
-    // --- FIX: Capture the Text Input (BVN/NIN) ---
+    // FIX 1: CAPTURE THE BVN TEXT
     const resultText = formData.get('result_text') as string; 
-
+    
     // Custom Refund Logic
     const refundAmountRaw = formData.get('refund_amount');
     const refundAmount = refundAmountRaw ? Number(refundAmountRaw) : null;
@@ -40,12 +38,13 @@ export async function POST(req: Request) {
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     if (request.status !== 'PROCESSING') return NextResponse.json({ status: false, error: 'Request already processed' }, { status: 400 });
 
-    // 4. Handle File Upload (Perform OUTSIDE transaction)
+    // 4. Handle File Upload (Perform OUTSIDE transaction to avoid locking DB)
     let uploadedUrl = null;
 
     if (action === 'APPROVE') {
         if (file) {
             try {
+                // Upload to a specific folder for results
                 const uploadRes = await uploadToCloudinary(file, 'agentlink/results');
                 uploadedUrl = uploadRes.secure_url;
             } catch (error) {
@@ -58,23 +57,23 @@ export async function POST(req: Request) {
     // 5. Handle DB Actions
     const result = await prisma.$transaction(async (tx) => {
         
-        // Start with existing data so we don't wipe previous info
-        let responseData: any = request.responseData || {};
+        // Load existing data so we don't overwrite it
+        let responseData: any = (typeof request.responseData === 'object' && request.responseData !== null) 
+            ? request.responseData 
+            : {};
 
         if (action === 'APPROVE') {
             
-            // --- FIX: Save the BVN/Text to DB ---
+            // FIX 2: SAVE THE TEXT (BVN) TO DATABASE
             if (resultText) {
-                responseData.bvn = resultText;     // For BVN endpoints
-                responseData.number = resultText;  // Generic fallback
-                responseData.nin = resultText;     // For NIN endpoints
+                responseData.bvn = resultText;
+                responseData.number = resultText; // Save as both for safety
             }
 
-            // Save the URL if uploaded
+            // Save the URL we just uploaded
             if (uploadedUrl) {
-                responseData.resultUrl = uploadedUrl;
+                responseData.resultUrl = uploadedUrl; 
                 responseData.slip_url = uploadedUrl;
-                responseData.image_url = uploadedUrl;
             }
 
             // Update Request
@@ -83,7 +82,7 @@ export async function POST(req: Request) {
                 data: {
                     status: 'COMPLETED',
                     adminNote: note,
-                    responseData: responseData, // <--- Now contains the BVN
+                    responseData: responseData, // Saves the JSON with the BVN & URL
                     updatedAt: new Date()
                 }
             });
