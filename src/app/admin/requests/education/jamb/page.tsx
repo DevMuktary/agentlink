@@ -14,7 +14,11 @@ export default function AdminJambQueue() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
+  
+  // Action States
   const [resultFile, setResultFile] = useState<File | null>(null);
+  const [resultText, setResultText] = useState(''); // For Profile Codes
+  
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNote, setAdminNote] = useState('');
   
@@ -34,8 +38,14 @@ export default function AdminJambQueue() {
         '/api/admin/requests/all?service=JAMB_PROFILE_CODE_RETRIEVAL&status=ALL'
       ];
 
-      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
-      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      const results = await Promise.allSettled(endpoints.map(ep => axios.get(ep)));
+      
+      const combined: any[] = [];
+      results.forEach(res => {
+          if (res.status === 'fulfilled' && res.value.data?.status) {
+              combined.push(...res.value.data.data);
+          }
+      });
       
       // Sort: Newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -55,6 +65,7 @@ export default function AdminJambQueue() {
     if (selectedItem) {
         setRefundAmount(selectedItem.cost.toString());
         setResultFile(null);
+        setResultText('');
         setRejectionReason('');
         setAdminNote('');
         setShouldRefund(true);
@@ -63,8 +74,11 @@ export default function AdminJambQueue() {
 
   // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
+    const isProfileRetrieval = selectedItem?.serviceType === 'JAMB_PROFILE_CODE_RETRIEVAL';
+
     if (action === 'APPROVE') {
-        if (!resultFile && !adminNote) return alert("Please upload the Result/Letter OR enter the Profile Code in the notes.");
+        if (isProfileRetrieval && !resultText) return alert("Please enter the Recovered Profile Code.");
+        if (!isProfileRetrieval && !resultFile) return alert("Please upload the Result/Admission Letter PDF.");
     }
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
@@ -77,8 +91,11 @@ export default function AdminJambQueue() {
       formData.append('action', action);
       formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Service Completed'));
       
-      if (action === 'APPROVE' && resultFile) {
-        formData.append('file', resultFile);
+      if (action === 'APPROVE') {
+          // If Text (Profile Code)
+          if (resultText) formData.append('result_text', resultText);
+          // If File (PDF)
+          if (resultFile) formData.append('file', resultFile);
       }
 
       if (action === 'REJECT') {
@@ -100,10 +117,6 @@ export default function AdminJambQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setShouldRefund(true);
   };
 
   // Helper for Badges
@@ -117,7 +130,7 @@ export default function AdminJambQueue() {
 
   // Helper to extract Key ID
   const getDisplayId = (data: any) => {
-      return data?.registrationNumber || data?.regNumber || data?.profileCode || data?.nin || data?.phoneNumber || '-';
+      return data?.registrationNumber || data?.regNumber || data?.profileCode || data?.nin || '-';
   };
 
   if (loading) return <GlobalLoader />;
@@ -144,7 +157,7 @@ export default function AdminJambQueue() {
                 <tr>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Service</th>
-                <th className="px-6 py-4 font-medium">Identifier</th>
+                <th className="px-6 py-4 font-medium">Reg No. / NIN</th>
                 <th className="px-6 py-4 font-medium">Agent</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 text-right font-medium">Action</th>
@@ -234,28 +247,61 @@ export default function AdminJambQueue() {
                         </div>
                     </div>
 
-                    {/* ALL SUBMITTED DATA (Dynamic List) */}
+                    {/* CANDIDATE / JAMB DETAILS */}
                     <div className="bg-green-50 p-5 rounded-xl border border-green-100">
                         <div className="flex items-center gap-2 mb-3 border-b border-green-200 pb-2">
-                            <Layers size={16} className="text-green-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Submitted Data (All Fields)</h4>
+                            <GraduationCap size={16} className="text-green-700" />
+                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Candidate Details</h4>
                         </div>
                         
-                        <div className="grid grid-cols-1 gap-3">
-                            {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                // Skip complex objects or empty values
-                                if (typeof value === 'object' || !value) return null;
-                                
-                                // Format Key (e.g. registrationNumber -> Registration Number)
-                                const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        <div className="space-y-4 text-slate-700">
+                            {/* For Result/Admission/Slip */}
+                            {(selectedItem.requestData?.regNumber || selectedItem.requestData?.registrationNumber) && (
+                                <div>
+                                    <span className="text-slate-500 text-xs uppercase block font-semibold">JAMB Reg Number</span>
+                                    <span className="font-mono font-bold text-xl text-slate-900 tracking-widest">
+                                        {selectedItem.requestData?.regNumber || selectedItem.requestData?.registrationNumber}
+                                    </span>
+                                </div>
+                            )}
 
-                                return (
-                                    <div key={key} className="flex justify-between items-center border-b border-green-100 pb-2 last:border-0">
-                                        <span className="text-slate-500 text-xs font-semibold uppercase">{label}</span>
-                                        <span className="text-slate-900 font-bold text-sm text-right">{String(value)}</span>
+                            {/* For Profile Code Retrieval */}
+                            {selectedItem.requestData?.nin && (
+                                <div>
+                                    <span className="text-slate-500 text-xs uppercase block font-semibold">NIN</span>
+                                    <span className="font-mono font-bold text-xl text-slate-900 tracking-widest">
+                                        {selectedItem.requestData?.nin}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Common Fields */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {selectedItem.requestData?.profileCode && (
+                                    <div>
+                                        <span className="text-slate-500 text-xs uppercase block font-semibold">Profile Code</span>
+                                        <span className="font-medium text-slate-900">{selectedItem.requestData?.profileCode}</span>
                                     </div>
-                                );
-                            })}
+                                )}
+                                {selectedItem.requestData?.examYear && (
+                                    <div>
+                                        <span className="text-slate-500 text-xs uppercase block font-semibold">Exam Year</span>
+                                        <span className="font-medium text-slate-900">{selectedItem.requestData?.examYear}</span>
+                                    </div>
+                                )}
+                                {selectedItem.requestData?.examType && (
+                                    <div>
+                                        <span className="text-slate-500 text-xs uppercase block font-semibold">Exam Type</span>
+                                        <span className="font-medium text-slate-900">{selectedItem.requestData?.examType}</span>
+                                    </div>
+                                )}
+                                 {selectedItem.requestData?.dob && (
+                                    <div>
+                                        <span className="text-slate-500 text-xs uppercase block font-semibold">Date of Birth</span>
+                                        <span className="font-medium text-slate-900">{selectedItem.requestData?.dob}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -271,26 +317,44 @@ export default function AdminJambQueue() {
                                 </h4>
                                 <div className="space-y-4">
                                     
-                                    {/* Upload Option (For Results/Letters) */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Document (PDF/Image)</label>
-                                        <input 
-                                            type="file" 
-                                            onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
-                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer" 
-                                        />
-                                        <p className="text-[10px] text-slate-400 mt-1">Required for Results & Admission Letters</p>
-                                    </div>
+                                    {/* DYNAMIC INPUT: If Profile Code Retrieval -> Text Input. Else -> File Upload */}
+                                    {selectedItem.serviceType === 'JAMB_PROFILE_CODE_RETRIEVAL' ? (
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Recovered Profile Code</label>
+                                            <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500">
+                                                <div className="bg-slate-50 px-3 py-3 border-r border-slate-300 text-slate-500">
+                                                    <Hash size={16} />
+                                                </div>
+                                                <input 
+                                                    type="text" 
+                                                    value={resultText}
+                                                    onChange={(e) => setResultText(e.target.value)}
+                                                    className="w-full p-3 text-sm outline-none font-mono tracking-widest font-bold text-slate-900"
+                                                    placeholder="Enter 10-digit Code" 
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Document (PDF)</label>
+                                            <input 
+                                                type="file" 
+                                                accept="application/pdf,image/*"
+                                                onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
+                                                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer" 
+                                            />
+                                            <p className="text-[10px] text-slate-400 mt-1">Upload the Original Result, Admission Letter, or Slip.</p>
+                                        </div>
+                                    )}
                                     
-                                    {/* Note Option (For Profile Codes) */}
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Response Note / Code</label>
+                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
                                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
-                                            placeholder="Enter Profile Code here (if retrieving)..." 
-                                            rows={3} 
+                                            placeholder="Optional comments..." 
+                                            rows={2} 
                                         />
                                     </div>
 
@@ -299,7 +363,7 @@ export default function AdminJambQueue() {
                                         disabled={processing} 
                                         className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
                                     >
-                                        {processing ? 'Processing...' : 'Complete Request'}
+                                        {processing ? 'Processing...' : 'Complete & Send'}
                                     </button>
                                 </div>
                             </div>
@@ -312,7 +376,7 @@ export default function AdminJambQueue() {
                                         value={rejectionReason} 
                                         onChange={e => setRejectionReason(e.target.value)} 
                                         className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
-                                        placeholder="Reason for rejection (Required)..." 
+                                        placeholder="Reason (e.g. Invalid Reg No)..." 
                                     />
                                     
                                     {/* REFUND CONTROLS */}
@@ -356,19 +420,24 @@ export default function AdminJambQueue() {
                             {selectedItem.status === 'COMPLETED' ? (
                                 <>
                                     <CheckCircle2 size={64} className="text-green-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-green-800">Request Completed</h3>
-                                    <p className="text-green-600 text-sm mb-6">Finished on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    <h3 className="text-2xl font-bold text-green-800">Completed</h3>
+                                    <p className="text-green-600 text-sm mb-6">Process finished on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     
+                                    {/* SHOW PROFILE CODE IF AVAILABLE */}
+                                    {(selectedItem.responseData?.bvn || selectedItem.responseData?.number || selectedItem.responseData?.profile_code) && (
+                                        <div className="bg-green-100 p-4 rounded-lg mb-4 w-full">
+                                            <p className="text-xs text-green-600 uppercase font-bold mb-1">Retrieval Result</p>
+                                            <p className="text-2xl font-mono font-bold text-green-900 tracking-widest">
+                                                {selectedItem.responseData.bvn || selectedItem.responseData.number || selectedItem.responseData.profile_code}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* SHOW DOWNLOAD IF AVAILABLE */}
                                     {selectedItem.responseData?.resultUrl && (
                                         <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
                                             <Download size={18} /> Download Document
                                         </a>
-                                    )}
-
-                                    {selectedItem.adminNote && (
-                                        <div className="mt-4 bg-white/60 p-3 rounded border border-green-200 text-sm text-green-800 max-w-xs break-words">
-                                            <strong>Note:</strong> {selectedItem.adminNote}
-                                        </div>
                                     )}
                                 </>
                             ) : (
