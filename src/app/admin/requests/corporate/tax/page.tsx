@@ -29,15 +29,21 @@ export default function AdminTaxIdQueue() {
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      const [resInd, resCorp] = await Promise.all([
+      // Use allSettled to prevent one endpoint failure from breaking the page
+      const results = await Promise.allSettled([
         axios.get('/api/admin/requests/all?service=TAX_ID_INDIVIDUAL&status=ALL'),
         axios.get('/api/admin/requests/all?service=TAX_ID_NON_INDIVIDUAL&status=ALL')
       ]);
 
-      const combined = [
-        ...(resInd.data.status ? resInd.data.data : []),
-        ...(resCorp.data.status ? resCorp.data.data : [])
-      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const combined: any[] = [];
+      results.forEach(res => {
+          if (res.status === 'fulfilled' && res.value.data?.status) {
+              combined.push(...res.value.data.data);
+          }
+      });
+
+      // Sort by Newest
+      combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       setRequests(combined);
     } catch (error) {
@@ -55,6 +61,9 @@ export default function AdminTaxIdQueue() {
         setRefundAmount(selectedItem.cost.toString());
         setGeneratedTIN('');
         setResultFile(null);
+        setRejectionReason('');
+        setAdminNote('');
+        setShouldRefund(true);
     }
   }, [selectedItem]);
 
@@ -72,9 +81,10 @@ export default function AdminTaxIdQueue() {
       formData.append('action', action);
       
       if (action === 'APPROVE') {
-          // Combine TIN and Note
-          const finalNote = `TIN: ${generatedTIN} | ${adminNote}`;
-          formData.append('note', finalNote);
+          formData.append('note', adminNote || 'Tax ID Generated Successfully');
+          
+          // FIX: Send TIN as result_text so backend saves it to responseData
+          formData.append('result_text', generatedTIN); 
           
           if (resultFile) {
             formData.append('file', resultFile);
@@ -99,11 +109,6 @@ export default function AdminTaxIdQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setGeneratedTIN('');
-    setResultFile(null);
-    setShouldRefund(true);
   };
 
   if (loading) return <GlobalLoader />;
@@ -250,12 +255,7 @@ export default function AdminTaxIdQueue() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-700">
                                 <p><span className="text-slate-600 text-xs uppercase block font-semibold">Business Name</span> <span className="text-slate-900 font-bold text-lg">{selectedItem.requestData?.business_name}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">RC Number</span> <span className="text-slate-900 font-mono">{selectedItem.requestData?.rc_number}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Business Sector</span> <span className="text-slate-900">{selectedItem.requestData?.sector || 'N/A'}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Date of Commencement</span> <span className="text-slate-900">{selectedItem.requestData?.date_of_commencement}</span></p>
-                                <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Office Address</span> <span className="text-slate-900">{selectedItem.requestData?.office_address}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Director Email</span> <span className="text-slate-900">{selectedItem.requestData?.director_email}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Director Phone</span> <span className="text-slate-900">{selectedItem.requestData?.director_phone}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">RC Number / BN</span> <span className="text-slate-900 font-mono text-lg">{selectedItem.requestData?.rc_number}</span></p>
                             </div>
                         </div>
                     ) : (
@@ -266,15 +266,9 @@ export default function AdminTaxIdQueue() {
                                 <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Individual Details</h4>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Full Name</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.title} {selectedItem.requestData?.first_name} {selectedItem.requestData?.surname}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Marital Status</span> <span className="text-slate-900">{selectedItem.requestData?.marital_status}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Full Name</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.first_name} {selectedItem.requestData?.middle_name} {selectedItem.requestData?.surname}</span></p>
+                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">NIN</span> <span className="text-slate-900 font-mono tracking-wide">{selectedItem.requestData?.nin}</span></p>
                                 <p><span className="text-slate-600 text-xs uppercase block font-semibold">Date of Birth</span> <span className="text-slate-900">{selectedItem.requestData?.dob}</span></p>
-                                
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.email}</span></p>
-                                <p><span className="text-slate-600 text-xs uppercase block font-semibold">Occupation</span> <span className="text-slate-900">{selectedItem.requestData?.occupation}</span></p>
-                                
-                                <p className="md:col-span-3 border-t border-teal-200 pt-2 mt-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Address</span> <span className="text-slate-900">{selectedItem.requestData?.address}, {selectedItem.requestData?.lga}, {selectedItem.requestData?.state}</span></p>
                             </div>
                         </div>
                     )}
@@ -391,12 +385,15 @@ export default function AdminTaxIdQueue() {
                                     <h3 className="text-2xl font-bold text-green-800">TIN Generated</h3>
                                     <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     
-                                    <div className="bg-green-100 p-4 rounded-lg text-center mb-4 w-full">
-                                        <p className="text-xs text-green-600 uppercase font-bold mb-1">TIN Number</p>
-                                        <p className="text-xl font-mono font-bold text-green-900 tracking-wider">
-                                            {selectedItem.adminNote?.match(/TIN: (\d+)/)?.[1] || 'See Note'}
-                                        </p>
-                                    </div>
+                                    {/* Show Generated TIN */}
+                                    {(selectedItem.responseData?.tax_id || selectedItem.responseData?.tin || selectedItem.responseData?.number) && (
+                                        <div className="bg-green-100 p-4 rounded-lg text-center mb-4 w-full">
+                                            <p className="text-xs text-green-600 uppercase font-bold mb-1">TIN Number</p>
+                                            <p className="text-xl font-mono font-bold text-green-900 tracking-wider">
+                                                {selectedItem.responseData.tax_id || selectedItem.responseData.tin || selectedItem.responseData.number}
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {selectedItem.responseData?.resultUrl && (
                                         <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-green-700 transition flex items-center gap-2 text-sm">
@@ -408,7 +405,7 @@ export default function AdminTaxIdQueue() {
                                 <>
                                     <XCircle size={64} className="text-red-500 mb-4" />
                                     <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
-                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
+                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded border border-red-200">Reason: {selectedItem.adminNote}</p>
                                     <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
                                 </>
                             )}
