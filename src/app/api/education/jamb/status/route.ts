@@ -8,68 +8,79 @@ export async function GET(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Get Params
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get('request_id');
     const clientRef = searchParams.get('reference');
 
+    // 2. Validate Query
     if (!requestId && !clientRef) {
-        return NextResponse.json({ status: false, error: 'Provide reference or request_id' }, { status: 400 });
+        return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
     }
 
-    // 3. Find Request
-    const request = await prisma.serviceRequest.findFirst({
-        where: {
-            userId: user.id,
-            // FIX: Enums cannot use 'contains'. We must use 'in' with specific Enum values.
-            serviceType: { 
-                in: [
-                    'JAMB_ORIGINAL_RESULT',
-                    'JAMB_ADMISSION_LETTER',
-                    'JAMB_REGISTRATION_SLIP',
-                    'JAMB_PROFILE_CODE_RETRIEVAL',
-                    'JAMB_SERVICES' 
-                ] 
-            },
-            OR: [
-                { id: requestId || undefined },
-                { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
-            ]
+    // 3. Dynamic Query
+    let whereQuery: any = {
+        userId: user.id,
+        serviceType: { 
+            in: [
+                'JAMB_SERVICES',
+                'JAMB_ORIGINAL_RESULT', 
+                'JAMB_ADMISSION_LETTER', 
+                'JAMB_REGISTRATION_SLIP', 
+                'JAMB_PROFILE_CODE_RETRIEVAL'
+            ] 
         }
+    };
+
+    if (requestId) {
+        whereQuery.id = requestId;
+    } else {
+        whereQuery.requestData = { path: ['clientReference'], equals: clientRef };
+    }
+
+    // 4. Find Request
+    const request = await prisma.serviceRequest.findFirst({
+      where: whereQuery,
+      select: {
+        id: true, status: true, responseData: true, adminNote: true, updatedAt: true
+      }
     });
 
-    if (!request) {
-        return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
-    }
+    if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
 
-    // 4. Prepare Response
-    let message = "Processing Request";
-    let data = null;
-
+    // 5. Handle Response
     if (request.status === 'COMPLETED') {
         const resData = request.responseData as any || {};
-        message = "Service Completed Successfully";
         
-        data = {
-            // OPTION A: Admin uploaded a PDF (Result/Admission Letter)
-            document_url: resData.result_url || resData.file_url || resData.url || resData.pdf_url || null,
-            
-            // OPTION B: Admin provided a PIN/Code (Profile Code Retrieval)
-            pin_code: resData.profile_code || resData.pin || resData.code || null,
-        };
-    } else if (request.status === 'FAILED') {
-        message = "Service Failed";
+        return NextResponse.json({
+            status: true,
+            current_status: 'COMPLETED',
+            message: "JAMB Service Completed",
+            data: {
+                // If it was a profile code retrieval
+                profile_code: resData.bvn || resData.number || resData.profile_code || null,
+                
+                // If it was a document service
+                document_url: resData.resultUrl || resData.slip_url || resData.url || null
+            },
+            last_updated: request.updatedAt
+        });
+    } 
+    
+    else if (request.status === 'FAILED') {
+        return NextResponse.json({
+            status: true,
+            current_status: 'FAILED',
+            message: "Service Failed",
+            reason: request.adminNote || "Request rejected",
+            last_updated: request.updatedAt
+        });
     }
 
-    // 5. Return JSON
     return NextResponse.json({
-        status: true,
-        current_status: request.status,
-        message,
-        data: data,
-        service_type: request.serviceType,
-        admin_note: request.adminNote,
-        date: request.createdAt
+      status: true,
+      current_status: request.status,
+      message: "Request is currently being processed",
+      last_updated: request.updatedAt
     });
 
   } catch (error) {
