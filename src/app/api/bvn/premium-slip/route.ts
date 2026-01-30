@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { generateBvnPremiumSlip } from '@/services/providers/dataverify-bvn';
+// Ensure this path matches your actual provider implementation
+import { generateBvnPremiumSlip } from '@/services/providers/dataverify-bvn'; 
 
 export async function POST(req: Request) {
   try {
@@ -10,15 +11,19 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
 
     const body = await req.json();
-    const { bvn, reference } = body;
+    const { bvn } = body;
+
+    // Auto-generate reference if missing
+    const reference = body.reference || `BVN-SLIP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     if (!bvn || bvn.length !== 11) {
-      return NextResponse.json({ status: false, error: 'Invalid BVN Number' }, { status: 400 });
+      return NextResponse.json({ status: false, error: 'Invalid BVN Number (Must be 11 digits)' }, { status: 400 });
     }
 
     // 2. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'BVN_PREMIUM_SLIP' } });
     
+    // Default fallback if not seeded
     const serviceCost = service ? Number(service.price) : 1000;
     const isServiceActive = service ? service.isActive : true;
 
@@ -39,7 +44,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: serviceCost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -68,7 +73,7 @@ export async function POST(req: Request) {
     const result = await generateBvnPremiumSlip(bvn);
 
     if (result.success) {
-      // SUCCESS: Save Result & Return PDF
+      // SUCCESS: Update DB & Return Data
       await prisma.serviceRequest.update({
         where: { id: requestLog.id },
         data: { 
@@ -83,12 +88,13 @@ export async function POST(req: Request) {
         data: {
             user_details: result.data,
             pdf_base64: result.pdf_base64,
-            charged_amount: serviceCost
+            charged_amount: serviceCost,
+            reference: reference
         }
       });
 
     } else {
-      // FAILED: Refund (UPDATED)
+      // FAILED: Refund
       await prisma.$transaction(async (tx) => {
         // A. Refund Wallet
         await tx.user.update({ 
@@ -96,15 +102,15 @@ export async function POST(req: Request) {
             data: { walletBalance: { increment: serviceCost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
+        // B. Log Refund Transaction
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: serviceCost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
-              description: `Refund: BVN Premium Slip Failed (${bvn})`,
+              reference: `${reference}-REFUND`, 
+              description: `Refund: BVN Slip Failed (${bvn})`,
               serviceId: 'BVN_PREMIUM_SLIP'
             }
         });
@@ -118,8 +124,8 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ 
         status: false, 
-        error: result.error, 
-        message: 'Refunded' 
+        error: result.error || 'Slip Generation Failed', 
+        message: 'Wallet Refunded' 
       }, { status: 400 });
     }
 
