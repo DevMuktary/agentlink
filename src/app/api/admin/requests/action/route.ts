@@ -1,120 +1,96 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { validateApiKey } from '@/lib/api-auth';
-import { uploadToCloudinary } from '@/lib/cloudinary'; // <--- ADD THIS IMPORT
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req: Request) {
   try {
-    // 1. Auth
-    const user = await validateApiKey(req);
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
-      return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Parse Data
     const formData = await req.formData();
     const requestId = formData.get('requestId') as string;
-    const action = formData.get('action') as string; // 'APPROVE' | 'REJECT'
+    const action = formData.get('action') as string;
     const note = formData.get('note') as string;
-    const file = formData.get('file') as File | null;
+    const refundAmount = formData.get('refund_amount');
     
-    // Custom Refund Logic
-    const refundAmountRaw = formData.get('refund_amount');
-    const refundAmount = refundAmountRaw ? Number(refundAmountRaw) : null;
+    // CAPTURE THE BVN TEXT
+    const resultText = formData.get('result_text') as string; 
+    
+    const file = formData.get('file') as File | null;
 
     if (!requestId || !action) {
-        return NextResponse.json({ status: false, error: 'Missing ID or Action' }, { status: 400 });
+        return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    // 3. Get Request
     const request = await prisma.serviceRequest.findUnique({
         where: { id: requestId },
         include: { user: true }
     });
 
-    if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
-    if (request.status !== 'PROCESSING') return NextResponse.json({ status: false, error: 'Request already processed' }, { status: 400 });
+    if (!request) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
 
-    // 4. Handle File Upload (Perform OUTSIDE transaction to avoid locking DB)
-    let uploadedUrl = null;
+    // Handle File Upload
+    let fileUrl = null;
+    if (file) {
+        const upload = await uploadToCloudinary(file, 'agentlink/results');
+        fileUrl = upload.secure_url;
+    }
 
-    if (action === 'APPROVE') {
-        if (file) {
-            try {
-                // Upload to a specific folder for results
-                const uploadRes = await uploadToCloudinary(file, 'agentlink/results');
-                uploadedUrl = uploadRes.secure_url;
-            } catch (error) {
-                console.error("Upload Failed:", error);
-                return NextResponse.json({ status: false, error: 'Failed to upload result file' }, { status: 500 });
-            }
+    // Handle Refund
+    if (action === 'REJECT' && refundAmount) {
+        const amount = parseFloat(refundAmount.toString());
+        if (amount > 0) {
+            await prisma.$transaction([
+                prisma.user.update({
+                    where: { id: request.userId },
+                    data: { walletBalance: { increment: amount } }
+                }),
+                prisma.transaction.create({
+                    data: {
+                        userId: request.userId,
+                        amount: amount,
+                        type: 'REFUND',
+                        status: 'COMPLETED',
+                        reference: `REF-${request.id.slice(0,8)}`,
+                        description: `Refund for rejected request ${request.id}`,
+                        serviceId: 'ADMIN_REFUND'
+                    }
+                })
+            ]);
         }
     }
 
-    // 5. Handle DB Actions
-    const result = await prisma.$transaction(async (tx) => {
-        
-        let responseData: any = request.responseData || {};
+    // UPDATE REQUEST STATUS
+    let responseData: any = request.responseData || {};
+    
+    // THIS IS THE FIX: SAVE BVN TO RESPONSE DATA
+    if (resultText) {
+        responseData.bvn = resultText;
+        responseData.number = resultText; // Save as both for safety
+    }
+    
+    if (fileUrl) {
+        responseData.resultUrl = fileUrl;
+        responseData.slip_url = fileUrl;
+    }
 
-        if (action === 'APPROVE') {
-            
-            // Save the URL we just uploaded
-            if (uploadedUrl) {
-                responseData.resultUrl = uploadedUrl; // This matches what the User API looks for
-            }
-
-            // Update Request
-            return await tx.serviceRequest.update({
-                where: { id: requestId },
-                data: {
-                    status: 'COMPLETED',
-                    adminNote: note,
-                    responseData: responseData, // Save the JSON with the URL
-                    updatedAt: new Date()
-                }
-            });
-
-        } else if (action === 'REJECT') {
-            
-            // Refund Logic
-            const amountToRefund = refundAmount !== null ? refundAmount : Number(request.cost);
-
-            if (amountToRefund > 0) {
-                // Credit User Wallet
-                await tx.user.update({
-                    where: { id: request.userId },
-                    data: { walletBalance: { increment: amountToRefund } }
-                });
-
-                // Log Transaction
-                await tx.transaction.create({
-                    data: {
-                        userId: request.userId,
-                        type: 'REFUND',
-                        amount: amountToRefund,
-                        status: 'COMPLETED',
-                        reference: `REFUND-${request.id.slice(0,6)}-${Date.now().toString().slice(-4)}`,
-                        description: `Refund for ${request.serviceType} (${requestId.slice(0,5)})`
-                    }
-                });
-            }
-
-            // Update Request
-            return await tx.serviceRequest.update({
-                where: { id: requestId },
-                data: {
-                    status: 'FAILED',
-                    adminNote: note,
-                    updatedAt: new Date()
-                }
-            });
+    await prisma.serviceRequest.update({
+        where: { id: requestId },
+        data: {
+            status: action === 'APPROVE' ? 'COMPLETED' : 'FAILED',
+            adminNote: note,
+            responseData: responseData, // Save the updated JSON
         }
     });
 
-    return NextResponse.json({ status: true, message: 'Action Successful', data: result });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error("Action Error:", error);
-    return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
+    console.error('Admin Action Error:', error);
+    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }
 }
