@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         if (!nin) missing.push('nin');
         if (!dob) missing.push('dob');
         if (!first_name) missing.push('first_name');
-        if (!middle_name) missing.push('middle_name');
+        // Middle name is often optional, but if required keep it here
         if (!surname) missing.push('surname');
 
         if (missing.length > 0) {
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     else if (code === 'TAX_ID_NON_INDIVIDUAL') {
         const missing = [];
         if (!business_name) missing.push('business_name');
-        if (!rc_number) missing.push('rc_number'); // RC or BN Number
+        if (!rc_number) missing.push('rc_number');
 
         if (missing.length > 0) {
             return NextResponse.json({ status: false, error: `Missing Fields for Non-Individual: ${missing.join(', ')}` }, { status: 400 });
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -87,13 +87,13 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: service.code,
+          serviceType: service.code as any, // Cast to enum
           status: 'PROCESSING',
           cost: cost,
           requestData: {
             clientReference: reference,
             service_code,
-            // Store all potential fields; nulls will be ignored by Prisma JSON
+            // Store fields dynamically
             nin: nin || null,
             dob: dob || null,
             first_name: first_name || null,
