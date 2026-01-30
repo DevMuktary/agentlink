@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+// Ensure this path matches your provider service file
 import { purchaseAirtime } from '@/services/providers/cheapdata-airtime';
 
 export async function POST(req: Request) {
@@ -13,20 +14,26 @@ export async function POST(req: Request) {
     const { network, amount, phone_number, reference } = body;
 
     // 2. Validate Inputs
-    if (!network || !['MTN', 'GLO', 'AIRTEL', '9MOBILE', 'ETISALAT'].includes(network.toUpperCase())) {
-      return NextResponse.json({ status: false, error: 'Invalid or Missing Network (MTN, GLO, AIRTEL, 9MOBILE)' }, { status: 400 });
+    const validNetworks = ['MTN', 'GLO', 'AIRTEL', '9MOBILE', 'ETISALAT'];
+    if (!network || !validNetworks.includes(network.toUpperCase())) {
+      return NextResponse.json({ status: false, error: 'Invalid Network. Use: MTN, GLO, AIRTEL, 9MOBILE' }, { status: 400 });
     }
+    
+    // Enforce minimum limit (usually 50 or 100 depending on provider)
     if (!amount || Number(amount) < 50) {
-      return NextResponse.json({ status: false, error: 'Invalid Amount (Minimum 50)' }, { status: 400 });
+      return NextResponse.json({ status: false, error: 'Invalid Amount (Minimum ₦50)' }, { status: 400 });
     }
+    
     if (!phone_number || phone_number.length < 11) {
       return NextResponse.json({ status: false, error: 'Invalid Phone Number' }, { status: 400 });
     }
+    
     if (!reference) {
       return NextResponse.json({ status: false, error: 'Missing Reference' }, { status: 400 });
     }
 
-    // 3. Check Service Status (AIRTIME)
+    // 3. Check Service Status
+    // We check the generic 'AIRTIME' service to see if the category is active
     const service = await prisma.service.findUnique({ where: { code: 'AIRTIME' } });
     if (!service || !service.isActive) {
       return NextResponse.json({ status: false, error: 'Airtime Service Unavailable' }, { status: 503 });
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -54,7 +61,7 @@ export async function POST(req: Request) {
           type: 'SERVICE_CHARGE',
           status: 'COMPLETED',
           reference: reference, 
-          description: `Airtime: ${network} ₦${cost} for ${phone_number}`,
+          description: `Airtime: ${network} ₦${cost} -> ${phone_number}`,
           serviceId: 'AIRTIME'
         }
       });
@@ -63,11 +70,11 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: 'AIRTIME',
+          serviceType: 'AIRTIME', // Ensure 'AIRTIME' exists in your Prisma Enum
           status: 'PROCESSING',
           cost: cost,
           requestData: { 
-            network, 
+            network: network.toUpperCase(), 
             phone_number, 
             amount, 
             clientReference: reference 
@@ -81,12 +88,12 @@ export async function POST(req: Request) {
     const result = await purchaseAirtime(network, cost, phone_number, reference);
 
     if (result.success) {
-      // SUCCESS: Update DB & Return
+      // SUCCESS: Update Request
       await prisma.serviceRequest.update({
         where: { id: requestLog.id },
         data: { 
             status: 'COMPLETED', 
-            responseData: result.data 
+            responseData: result.data || { message: 'Vending Successful' }
         }
       });
 
@@ -103,7 +110,7 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // FAILED: Refund & Update DB (UPDATED)
+      // FAILED: Refund & Update Request
       await prisma.$transaction(async (tx) => {
         // A. Refund Wallet
         await tx.user.update({ 
@@ -111,14 +118,14 @@ export async function POST(req: Request) {
             data: { walletBalance: { increment: cost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
+        // B. Log Refund Transaction
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: cost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              reference: `${reference}-REFUND`, 
               description: `Refund: Airtime Failed (${network} ${amount})`,
               serviceId: 'AIRTIME'
             }
@@ -133,7 +140,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ 
         status: false, 
-        error: result.error, 
+        error: result.error || 'Transaction Failed', 
         message: 'Transaction Failed - Wallet Refunded' 
       }, { status: 400 });
     }
