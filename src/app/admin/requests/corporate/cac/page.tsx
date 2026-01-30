@@ -15,7 +15,7 @@ export default function AdminCacQueue() {
   
   const [processing, setProcessing] = useState(false);
   
-  // NEW: Separate states for the two files
+  // SEPARATE FILES STATES
   const [certFile, setCertFile] = useState<File | null>(null);
   const [statusFile, setStatusFile] = useState<File | null>(null);
   
@@ -57,7 +57,7 @@ export default function AdminCacQueue() {
       formData.append('action', action);
       formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Approved'));
       
-      // Append specific files with specific keys
+      // Append specific files with specific keys matching the API
       if (action === 'APPROVE') {
         if (certFile) formData.append('file_certificate', certFile);
         if (statusFile) formData.append('file_status_report', statusFile);
