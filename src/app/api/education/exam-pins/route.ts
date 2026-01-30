@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+// Ensure this path matches your provider service file
 import { purchaseExamPin, EXAM_PRODUCT_CODES } from '@/services/providers/cheapdata-exam';
 
 export async function POST(req: Request) {
@@ -11,15 +12,19 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { 
-      service_type, // Enum: EXAM_PIN_WAEC, etc.
+      service_type, // Enum: EXAM_PIN_WAEC, EXAM_PIN_NECO, etc.
       quantity, 
-      phone_number, // Optional, mostly for provider logs
+      phone_number, 
       reference 
     } = body;
 
     // 2. Validate Inputs
+    // Check against the predefined product codes map
     if (!service_type || !EXAM_PRODUCT_CODES[service_type]) {
-      return NextResponse.json({ status: false, error: 'Invalid service_type. Use: EXAM_PIN_WAEC, EXAM_PIN_NECO, etc.' }, { status: 400 });
+      return NextResponse.json({ 
+          status: false, 
+          error: `Invalid service_type. Available: ${Object.keys(EXAM_PRODUCT_CODES).join(', ')}` 
+      }, { status: 400 });
     }
     
     const qty = Number(quantity);
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: totalCost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -70,7 +75,7 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: service_type,
+          serviceType: service_type as any, // Cast to enum
           status: 'PROCESSING',
           cost: totalCost,
           requestData: { 
@@ -94,7 +99,7 @@ export async function POST(req: Request) {
         where: { id: requestLog.id },
         data: { 
             status: 'COMPLETED', 
-            responseData: result.data // Contains the cleaned 'pins' array
+            responseData: { pins: result.data.pins } // Ensure consistent structure
         }
       });
 
@@ -105,14 +110,13 @@ export async function POST(req: Request) {
             service: service.name,
             quantity: qty,
             amount: totalCost,
-            pins: result.data.pins, // The array of pins
-            status: 'COMPLETED',
+            pins: result.data.pins, // Array of strings or objects { pin, serial }
             reference: reference
         }
       });
 
     } else {
-      // FAILED: Refund (UPDATED)
+      // FAILED: Refund
       await prisma.$transaction(async (tx) => {
         // A. Refund Wallet
         await tx.user.update({ 
@@ -120,14 +124,14 @@ export async function POST(req: Request) {
             data: { walletBalance: { increment: totalCost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
+        // B. Log Refund Transaction
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: totalCost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              reference: `${reference}-REFUND`, 
               description: `Refund: Exam Pins Failed (${service.name})`,
               serviceId: service_type
             }
@@ -142,7 +146,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ 
         status: false, 
-        error: result.error, 
+        error: result.error || 'Provider Error', 
         message: 'Transaction Failed - Wallet Refunded' 
       }, { status: 400 });
     }
