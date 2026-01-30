@@ -16,12 +16,16 @@ export async function POST(req: Request) {
     const requestId = formData.get('requestId') as string;
     const action = formData.get('action') as string; // 'APPROVE' | 'REJECT'
     const note = formData.get('note') as string;
-    const file = formData.get('file') as File | null;
     
-    // FIX 1: CAPTURE THE BVN TEXT
+    // --- FILES ---
+    const file = formData.get('file') as File | null; // Generic
+    const fileCert = formData.get('file_certificate') as File | null; // CAC Cert
+    const fileStatus = formData.get('file_status_report') as File | null; // CAC Status
+    
+    // --- TEXT DATA ---
     const resultText = formData.get('result_text') as string; 
     
-    // Custom Refund Logic
+    // --- REFUND ---
     const refundAmountRaw = formData.get('refund_amount');
     const refundAmount = refundAmountRaw ? Number(refundAmountRaw) : null;
 
@@ -38,43 +42,59 @@ export async function POST(req: Request) {
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
     if (request.status !== 'PROCESSING') return NextResponse.json({ status: false, error: 'Request already processed' }, { status: 400 });
 
-    // 4. Handle File Upload (Perform OUTSIDE transaction to avoid locking DB)
+    // 4. Handle File Uploads (Perform OUTSIDE transaction)
     let uploadedUrl = null;
+    let certUrl = null;
+    let statusReportUrl = null;
 
     if (action === 'APPROVE') {
-        if (file) {
-            try {
-                // Upload to a specific folder for results
+        try {
+            // A. Generic File
+            if (file) {
                 const uploadRes = await uploadToCloudinary(file, 'agentlink/results');
                 uploadedUrl = uploadRes.secure_url;
-            } catch (error) {
-                console.error("Upload Failed:", error);
-                return NextResponse.json({ status: false, error: 'Failed to upload result file' }, { status: 500 });
             }
+            // B. CAC Certificate
+            if (fileCert) {
+                const uploadRes = await uploadToCloudinary(fileCert, 'agentlink/cac/certificates');
+                certUrl = uploadRes.secure_url;
+            }
+            // C. CAC Status Report
+            if (fileStatus) {
+                const uploadRes = await uploadToCloudinary(fileStatus, 'agentlink/cac/status_reports');
+                statusReportUrl = uploadRes.secure_url;
+            }
+        } catch (error) {
+            console.error("Upload Failed:", error);
+            return NextResponse.json({ status: false, error: 'Failed to upload files' }, { status: 500 });
         }
     }
 
     // 5. Handle DB Actions
     const result = await prisma.$transaction(async (tx) => {
         
-        // Load existing data so we don't overwrite it
+        // Load existing data
         let responseData: any = (typeof request.responseData === 'object' && request.responseData !== null) 
             ? request.responseData 
             : {};
 
         if (action === 'APPROVE') {
             
-            // FIX 2: SAVE THE TEXT (BVN) TO DATABASE
+            // Save Text Result (e.g. BVN)
             if (resultText) {
                 responseData.bvn = resultText;
-                responseData.number = resultText; // Save as both for safety
+                responseData.number = resultText; 
             }
 
-            // Save the URL we just uploaded
+            // Save Generic URL
             if (uploadedUrl) {
                 responseData.resultUrl = uploadedUrl; 
                 responseData.slip_url = uploadedUrl;
             }
+
+            // Save CAC URLs
+            if (certUrl) responseData.certificate_url = certUrl;
+            if (statusReportUrl) responseData.status_report_url = statusReportUrl;
 
             // Update Request
             return await tx.serviceRequest.update({
@@ -82,7 +102,7 @@ export async function POST(req: Request) {
                 data: {
                     status: 'COMPLETED',
                     adminNote: note,
-                    responseData: responseData, // Saves the JSON with the BVN & URL
+                    responseData: responseData, 
                     updatedAt: new Date()
                 }
             });
@@ -93,7 +113,7 @@ export async function POST(req: Request) {
             const amountToRefund = refundAmount !== null ? refundAmount : Number(request.cost);
 
             if (amountToRefund > 0) {
-                // Credit User Wallet
+                // Credit User
                 await tx.user.update({
                     where: { id: request.userId },
                     data: { walletBalance: { increment: amountToRefund } }
