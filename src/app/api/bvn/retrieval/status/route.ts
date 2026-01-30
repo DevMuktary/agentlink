@@ -97,4 +97,4 @@ export async function GET(req: Request) {
     console.error("BVN Retrieval Status Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
-}
+} 
