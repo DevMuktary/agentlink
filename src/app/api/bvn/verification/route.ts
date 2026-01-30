@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { verifyBvn } from '@/services/providers/confirmident-bvn';
+// Make sure this path matches your actual provider file
+import { verifyBvn } from '@/services/providers/confirmident-bvn'; 
 
 export async function POST(req: Request) {
   try {
@@ -9,18 +10,22 @@ export async function POST(req: Request) {
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized: Invalid API Key' }, { status: 401 });
 
+    // 2. Parse Input
     const body = await req.json();
-    const { bvn, reference } = body;
+    const { bvn } = body;
 
-    // 2. Validate Input
+    // Auto-generate reference if not provided
+    const reference = body.reference || `BVN-VER-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // 3. Validate Input
     if (!bvn || bvn.length !== 11) {
       return NextResponse.json({ status: false, error: 'Invalid BVN (Must be 11 digits)' }, { status: 400 });
     }
 
-    // 3. Get Price (BVN_VERIFICATION)
+    // 4. Get Price
     const service = await prisma.service.findUnique({ where: { code: 'BVN_VERIFICATION' } });
     
-    // Default to 100 if not seeded yet
+    // Default to 100 if not seeded, but check active status
     const serviceCost = service ? Number(service.price) : 100;
     const isServiceActive = service ? service.isActive : true;
 
@@ -28,12 +33,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
     }
 
-    // 4. Check Balance
+    // 5. Check Balance
     if (Number(user.walletBalance) < serviceCost) {
       return NextResponse.json({ status: false, error: 'Insufficient wallet balance' }, { status: 402 });
     }
 
-    // 5. Deduct & Log (PROCESSING)
+    // 6. Deduct & Log (PROCESSING)
     const requestLog = await prisma.$transaction(async (tx) => {
       // A. Deduct
       await tx.user.update({
@@ -41,7 +46,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: serviceCost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -66,7 +71,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // 6. Call Provider
+    // 7. Call Provider
     const result = await verifyBvn(bvn);
 
     if (result.success) {
@@ -80,11 +85,12 @@ export async function POST(req: Request) {
         status: true,
         message: 'BVN Verification Successful',
         data: result.data,
-        charged_amount: serviceCost
+        charged_amount: serviceCost,
+        reference: reference
       });
 
     } else {
-      // FAILED: Refund User & Update DB (UPDATED)
+      // FAILED: Refund User & Update DB
       await prisma.$transaction(async (tx) => {
         // A. Refund Wallet
         await tx.user.update({ 
@@ -92,14 +98,15 @@ export async function POST(req: Request) {
             data: { walletBalance: { increment: serviceCost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
+        // B. Log Refund Transaction
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: serviceCost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              // Use unique ref for refund to avoid collision
+              reference: `${reference}-REFUND`, 
               description: `Refund: BVN Verification Failed (${bvn})`,
               serviceId: 'BVN_VERIFICATION'
             }
@@ -115,7 +122,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ 
         status: false, 
         error: result.error || 'Verification Failed', 
-        message: 'Refunded' 
+        message: 'Wallet Refunded' 
       }, { status: 400 });
     }
 
