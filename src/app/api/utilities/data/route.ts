@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { purchaseData } from '@/services/providers/cheapdata-data';
+// Ensure this path matches your provider logic
+import { purchaseData } from '@/services/providers/cheapdata-data'; 
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     if (!phone_number || phone_number.length < 11) return NextResponse.json({ status: false, error: 'Invalid Phone Number' }, { status: 400 });
     if (!reference) return NextResponse.json({ status: false, error: 'Missing Reference' }, { status: 400 });
 
-    // 3. Find Plan in DB (Source of Truth for Price & Availability)
+    // 3. Find Plan in DB (Source of Truth)
     const plan = await prisma.dataPlan.findUnique({
         where: { productCode: product_code }
     });
@@ -30,16 +31,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ status: false, error: 'This Data Plan is currently unavailable.' }, { status: 503 });
     }
 
-    // 4. Check Balance
+    // 4. Check Price & Balance
     const cost = Number(plan.price);
     
-    // Safety check: Don't sell if price is 0 (unless intended for testing)
+    // Safety: Prevent free sales unless specifically allowed
     if (cost <= 0) {
-        return NextResponse.json({ status: false, error: 'Plan configuration error (Price is zero).' }, { status: 500 });
+        return NextResponse.json({ status: false, error: 'Plan configuration error (Price not set).' }, { status: 500 });
     }
 
     if (Number(user.walletBalance) < cost) {
-      return NextResponse.json({ status: false, error: `Insufficient funds. Plan costs ₦${cost}` }, { status: 402 });
+      return NextResponse.json({ status: false, error: `Insufficient funds. Cost: ₦${cost}` }, { status: 402 });
     }
 
     // 5. Deduct & Log (PROCESSING)
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
           userId: user.id,
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
           type: 'SERVICE_CHARGE',
           status: 'COMPLETED',
           reference: reference, 
-          description: `Data: ${plan.network} ${plan.name} - ${phone_number}`,
+          description: `Data: ${plan.network} ${plan.name} -> ${phone_number}`,
           serviceId: 'DATA'
         }
       });
@@ -67,13 +68,13 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: 'DATA',
+          serviceType: 'DATA', // Ensure 'DATA' is in your Prisma Enum or use generic string if not strictly typed
           status: 'PROCESSING',
           cost: cost,
           requestData: { 
             product_code, 
             network: plan.network, 
-            plan_name: plan.name,
+            plan_name: plan.name, 
             phone_number, 
             clientReference: reference 
           },
@@ -86,10 +87,13 @@ export async function POST(req: Request) {
     const result = await purchaseData(product_code, phone_number, reference);
 
     if (result.success) {
-      // SUCCESS
+      // SUCCESS: Update DB & Return
       await prisma.serviceRequest.update({
         where: { id: requestLog.id },
-        data: { status: 'COMPLETED', responseData: result.data }
+        data: { 
+            status: 'COMPLETED', 
+            responseData: result.data || { message: 'Data Sent Successfully' }
+        }
       });
 
       return NextResponse.json({
@@ -106,7 +110,7 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // FAILED: Refund (UPDATED)
+      // FAILED: Refund (Atomic Transaction)
       await prisma.$transaction(async (tx) => {
         // A. Refund Wallet
         await tx.user.update({ 
@@ -114,14 +118,14 @@ export async function POST(req: Request) {
             data: { walletBalance: { increment: cost } } 
         });
 
-        // B. Log Refund Transaction (ADDED)
+        // B. Log Refund Transaction
         await tx.transaction.create({
             data: {
               userId: user.id,
               amount: cost,
               type: 'REFUND',
               status: 'COMPLETED',
-              reference: `${reference}-REFUND`, // Ensure unique reference
+              reference: `${reference}-REFUND`, 
               description: `Refund: Data Failed (${plan.network} ${plan.name})`,
               serviceId: 'DATA'
             }
@@ -136,7 +140,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ 
         status: false, 
-        error: result.error, 
+        error: result.error || 'Provider Error', 
         message: 'Transaction Failed - Wallet Refunded' 
       }, { status: 400 });
     }
