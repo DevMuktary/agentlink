@@ -2,72 +2,73 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 
+// Helper to map numeric codes to Database Enums
+const SERVICE_MAP: Record<string, string> = {
+    '901': 'JAMB_ORIGINAL_RESULT',
+    '902': 'JAMB_ADMISSION_LETTER',
+    '903': 'JAMB_REGISTRATION_SLIP',
+    '904': 'JAMB_PROFILE_CODE_RETRIEVAL',
+};
+
 export async function POST(req: Request) {
   try {
     // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Parse FormData
-    const formData = await req.formData();
-    const getString = (key: string) => formData.get(key) as string | null;
+    // 2. Parse JSON (Not FormData)
+    const body = await req.json();
+    const { 
+        service_code, 
+        reference,
+        registration_number,
+        exam_year,
+        nin,
+        dob 
+    } = body;
 
-    const service_type = getString('service_type'); // 'JAMB_ORIGINAL_RESULT', 'JAMB_ADMISSION_LETTER', etc.
-    const reference = getString('reference');
-    
-    // 3. Common Validation
-    if (!service_type) return NextResponse.json({ status: false, error: 'Missing service_type' }, { status: 400 });
-    if (!reference) return NextResponse.json({ status: false, error: 'Missing reference' }, { status: 400 });
-
-    // 4. Validate Service & Price
-    const service = await prisma.service.findUnique({ where: { code: service_type as any } });
-    if (!service || !service.isActive) {
-        return NextResponse.json({ status: false, error: 'Service unavailable' }, { status: 503 });
+    // 3. Basic Validation
+    if (!service_code || !reference) {
+        return NextResponse.json({ status: false, error: 'Missing service_code or reference' }, { status: 400 });
     }
 
-    // 5. Service-Specific Validation
-    const requestData: any = { clientReference: reference, service_type };
-    let validationError = null;
+    const serviceType = SERVICE_MAP[service_code.toString()];
+    if (!serviceType) {
+        return NextResponse.json({ status: false, error: 'Invalid JAMB Service Code' }, { status: 400 });
+    }
+
+    // 4. Get Service & Price
+    const service = await prisma.service.findUnique({ where: { code: serviceType as any } });
+    if (!service || !service.isActive) {
+        return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
+    }
+
+    // 5. Service-Specific Input Validation
+    const requestData: any = { clientReference: reference, service_code };
     let descriptionDetail = '';
 
-    if (['JAMB_ORIGINAL_RESULT', 'JAMB_ADMISSION_LETTER', 'JAMB_REGISTRATION_SLIP'].includes(service_type)) {
-        // Document Services
-        const full_name = getString('full_name');
-        const reg_number = getString('reg_number_or_profile');
-        const year = getString('year');
-
-        if (!full_name || !reg_number || !year) {
-            validationError = 'Missing: full_name, reg_number_or_profile, or year';
+    // GROUP A: Documents (Result, Admission, Slip)
+    if (['901', '902', '903'].includes(service_code.toString())) {
+        if (!registration_number || !exam_year) {
+            return NextResponse.json({ status: false, error: 'Missing: registration_number or exam_year' }, { status: 400 });
         }
-        requestData.full_name = full_name;
-        requestData.reg_number = reg_number;
-        requestData.year = year;
-        descriptionDetail = `${service.name} for ${reg_number} (${year})`;
-
-    } else if (service_type === 'JAMB_PROFILE_CODE_RETRIEVAL') {
-        // Retrieval Service
-        const reg_number = getString('reg_number');
-        const phone = getString('phone_number');
-        const email = getString('email');
-
-        // Need at least 2 identifiers to be safe, or just phone/reg
-        if (!phone && !reg_number && !email) {
-            validationError = 'Provide at least one: phone_number, reg_number, or email';
+        requestData.regNumber = registration_number;
+        requestData.examYear = exam_year;
+        descriptionDetail = `${service.name} for ${registration_number} (${exam_year})`;
+    } 
+    // GROUP B: Profile Code Retrieval
+    else if (service_code.toString() === '904') {
+        if (!nin || !dob) {
+            return NextResponse.json({ status: false, error: 'Missing: nin or dob (YYYY-MM-DD)' }, { status: 400 });
         }
-        requestData.reg_number = reg_number;
-        requestData.phone_number = phone;
-        requestData.email = email;
-        descriptionDetail = `JAMB Profile Retrieval (${reg_number || phone})`;
-    } else {
-        validationError = 'Invalid JAMB Service Type';
+        requestData.nin = nin;
+        requestData.dob = dob;
+        descriptionDetail = `JAMB Profile Retrieval (NIN: ${nin})`;
     }
 
-    if (validationError) {
-        return NextResponse.json({ status: false, error: validationError }, { status: 400 });
-    }
+    const cost = Number(service.price);
 
     // 6. Check Balance
-    const cost = Number(service.price);
     if (Number(user.walletBalance) < cost) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
@@ -80,16 +81,16 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: cost } }
       });
 
-      // B. Create Transaction Record (ADDED)
+      // B. Create Transaction Record
       await tx.transaction.create({
         data: {
-            userId: user.id,
-            amount: cost,
-            type: 'SERVICE_CHARGE',
-            status: 'COMPLETED',
-            reference: reference, 
-            description: descriptionDetail || service.name,
-            serviceId: service_type
+          userId: user.id,
+          amount: cost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: descriptionDetail,
+          serviceId: serviceType
         }
       });
 
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: service_type as any,
+          serviceType: serviceType as any,
           status: 'PROCESSING',
           cost: cost,
           requestData: requestData,
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
     // 8. Success Response
     return NextResponse.json({
       status: true,
-      message: 'JAMB Request Submitted',
+      message: 'JAMB Request Submitted Successfully',
       data: {
         request_id: requestLog.id,
         reference: reference,
