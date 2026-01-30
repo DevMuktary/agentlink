@@ -2,81 +2,126 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
     // 1. Authenticate
     const user = await validateApiKey(req);
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { searchParams } = new URL(req.url);
-    const requestId = searchParams.get('request_id');
-    const clientRef = searchParams.get('reference');
+    const body = await req.json();
+    const { 
+      service_code, 
+      reference, 
+      // Individual Fields
+      nin, dob, first_name, middle_name, surname,
+      // Non-Individual Fields
+      business_name, rc_number 
+    } = body;
 
-    // 2. Validate Query
-    if (!requestId && !clientRef) {
-        return NextResponse.json({ status: false, error: 'request_id or reference required' }, { status: 400 });
+    // 2. Basic Checks
+    if (!service_code || !reference) {
+      return NextResponse.json({ status: false, error: 'Missing service_code or reference' }, { status: 400 });
     }
 
-    // 3. Find Request
-    // We check for both Individual and Non-Individual types
-    const request = await prisma.serviceRequest.findFirst({
-      where: {
-        userId: user.id,
-        serviceType: { in: ['TAX_ID_INDIVIDUAL', 'TAX_ID_NON_INDIVIDUAL'] },
-        OR: [
-            { id: requestId || undefined },
-            { requestData: { path: ['clientReference'], equals: clientRef || undefined } }
-        ]
-      },
-      select: {
-        id: true, status: true, responseData: true, adminNote: true, updatedAt: true
+    // 3. Identify Service
+    const service = await prisma.service.findUnique({ where: { serviceCode: Number(service_code) } });
+    
+    if (!service || !service.isActive || !service.code.toString().startsWith('TAX_ID_')) {
+      return NextResponse.json({ status: false, error: 'Invalid Tax ID Service Code' }, { status: 404 });
+    }
+
+    const code = service.code.toString();
+    
+    // 4. TYPE SPECIFIC VALIDATION
+    if (code === 'TAX_ID_INDIVIDUAL') {
+        const missing = [];
+        if (!nin) missing.push('nin');
+        if (!dob) missing.push('dob');
+        if (!first_name) missing.push('first_name');
+        // Middle name is often optional, but if required keep it here
+        if (!surname) missing.push('surname');
+
+        if (missing.length > 0) {
+            return NextResponse.json({ status: false, error: `Missing Fields for Individual: ${missing.join(', ')}` }, { status: 400 });
+        }
+    } 
+    else if (code === 'TAX_ID_NON_INDIVIDUAL') {
+        const missing = [];
+        if (!business_name) missing.push('business_name');
+        if (!rc_number) missing.push('rc_number');
+
+        if (missing.length > 0) {
+            return NextResponse.json({ status: false, error: `Missing Fields for Non-Individual: ${missing.join(', ')}` }, { status: 400 });
+        }
+    }
+
+    const cost = Number(service.price);
+
+    // 5. Check Balance
+    if (Number(user.walletBalance) < cost) {
+      return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
+    }
+
+    // 6. Process Transaction
+    const requestLog = await prisma.$transaction(async (tx) => {
+      // A. Deduct
+      await tx.user.update({
+        where: { id: user.id },
+        data: { walletBalance: { decrement: cost } }
+      });
+
+      // B. Create Transaction Record
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          amount: cost,
+          type: 'SERVICE_CHARGE',
+          status: 'COMPLETED',
+          reference: reference, 
+          description: `Tax ID Request (${code === 'TAX_ID_INDIVIDUAL' ? 'Individual' : 'Corporate'})`,
+          serviceId: service.code.toString()
+        }
+      });
+
+      // C. Create Request
+      return await tx.serviceRequest.create({
+        data: {
+          userId: user.id,
+          serviceType: service.code as any, // Cast to enum
+          status: 'PROCESSING',
+          cost: cost,
+          requestData: {
+            clientReference: reference,
+            service_code,
+            // Store fields dynamically
+            nin: nin || null,
+            dob: dob || null,
+            first_name: first_name || null,
+            middle_name: middle_name || null,
+            surname: surname || null,
+            business_name: business_name || null,
+            rc_number: rc_number || null
+          },
+          adminNote: 'Pending Tax ID Generation'
+        }
+      });
+    });
+
+    // 7. Success Response
+    return NextResponse.json({
+      status: true,
+      message: 'Tax ID Request Submitted Successfully',
+      data: {
+        request_id: requestLog.id,
+        reference: reference,
+        status: 'PROCESSING',
+        charged_amount: cost,
+        service: service.name
       }
     });
 
-    if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
-
-    // 4. Handle Status Responses
-
-    // CASE A: COMPLETED (Success)
-    if (request.status === 'COMPLETED') {
-        const responseData = request.responseData as any;
-
-        return NextResponse.json({
-            status: true,
-            current_status: 'COMPLETED',
-            message: "Tax ID Generated Successfully",
-            data: {
-                // Return the 13-digit Tax ID (Check 'tax_id' or 'tin')
-                tax_id: responseData?.tax_id || responseData?.tin || null,
-                
-                // Return optional slip (Check URL from Cloudinary or Base64)
-                slip: responseData?.slip_url || responseData?.slip_base64 || null
-            },
-            last_updated: request.updatedAt
-        });
-    }
-
-    // CASE B: FAILED
-    else if (request.status === 'FAILED') {
-        return NextResponse.json({
-            status: true,
-            current_status: 'FAILED',
-            message: "Generation Failed",
-            reason: request.adminNote || 'Application rejected',
-            last_updated: request.updatedAt
-        });
-    }
-
-    // CASE C: PROCESSING / PENDING
-    return NextResponse.json({
-      status: true,
-      current_status: request.status,
-      message: "Processing Request",
-      last_updated: request.updatedAt
-    });
-
   } catch (error) {
-    console.error("Tax ID Status Error:", error);
+    console.error("Tax ID Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
