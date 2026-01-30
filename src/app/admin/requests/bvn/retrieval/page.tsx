@@ -33,12 +33,16 @@ export default function AdminBvnRetrievalQueue() {
         '/api/admin/requests/all?service=BVN_RETRIEVAL_CRM&status=ALL',
       ];
 
-      const responses = await Promise.all(endpoints.map(ep => axios.get(ep)));
-      const combined = responses.flatMap(r => r.data.status ? r.data.data : []);
+      // Robust fetching
+      const results = await Promise.allSettled(endpoints.map(ep => axios.get(ep)));
+      const combined: any[] = [];
+      results.forEach(res => {
+          if (res.status === 'fulfilled' && res.value.data?.status) {
+              combined.push(...res.value.data.data);
+          }
+      });
       
-      // Sort: Newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
       setRequests(combined);
     } catch (error) {
         console.error("Failed to fetch queue", error);
@@ -61,7 +65,7 @@ export default function AdminBvnRetrievalQueue() {
     }
   }, [selectedItem]);
 
-  // 2. Handle Action
+  // 2. Handle Action (UPDATED LOGIC HERE)
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
     if (action === 'APPROVE') {
         if (!retrievedBVN && !resultFile) return alert("Please enter the Recovered BVN or upload a slip.");
@@ -78,10 +82,14 @@ export default function AdminBvnRetrievalQueue() {
       formData.append('action', action);
       
       if (action === 'APPROVE') {
-          // Combine BVN and Note
-          const finalNote = retrievedBVN ? `Recovered BVN: ${retrievedBVN} | ${adminNote}` : adminNote;
-          formData.append('note', finalNote);
+          // Send Note separate from Data
+          formData.append('note', adminNote || 'Retrieval Successful');
           
+          // FIX: Send BVN specifically so API saves it to responseData
+          if (retrievedBVN) {
+              formData.append('result_text', retrievedBVN); 
+          }
+
           if (resultFile) {
             formData.append('file', resultFile);
           }
@@ -105,14 +113,8 @@ export default function AdminBvnRetrievalQueue() {
 
   const closeModal = () => {
     setSelectedItem(null);
-    setResultFile(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setRetrievedBVN('');
-    setShouldRefund(true);
   };
 
-  // Helper for Badges
   const getTypeBadge = (type: string) => {
       if (type.includes('PHONE')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Phone Retrieval</span>;
       if (type.includes('CRM')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">CRM Search</span>;
@@ -262,13 +264,26 @@ export default function AdminBvnRetrievalQueue() {
                                     </div>
                                 </div>
                             )}
+                            
+                             {/* CRM Screenshot */}
+                             {selectedItem.requestData?.screenshotUrl && (
+                                <div className="mt-4">
+                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-2">CRM Proof</span>
+                                    <a href={selectedItem.requestData.screenshotUrl} target="_blank" className="block w-full h-32 bg-slate-100 rounded border border-indigo-200 overflow-hidden relative group">
+                                        <img src={selectedItem.requestData.screenshotUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition">
+                                            <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">View Image</span>
+                                        </div>
+                                    </a>
+                                </div>
+                            )}
 
                             {/* Show full raw data if complex */}
                             <div className="mt-4 pt-4 border-t border-indigo-200">
                                 <span className="text-[10px] text-slate-400 uppercase font-bold mb-2 block">All Submitted Data</span>
                                 <div className="grid grid-cols-1 gap-2">
                                     {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                        if (typeof value === 'object' || !value || key === 'phoneNumber' || key === 'name') return null;
+                                        if (typeof value === 'object' || !value || key === 'phoneNumber' || key === 'name' || key.includes('Url')) return null;
                                         return (
                                             <div key={key} className="flex justify-between text-xs">
                                                 <span className="text-slate-500 capitalize">{key.replace(/_/g, ' ')}:</span>
@@ -397,12 +412,12 @@ export default function AdminBvnRetrievalQueue() {
                                     <h3 className="text-2xl font-bold text-green-800">BVN Recovered</h3>
                                     <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     
-                                    {/* Show extracted BVN from note if available */}
-                                    {selectedItem.adminNote?.includes('Recovered BVN:') && (
+                                    {/* Show BVN if in ResponseData */}
+                                    {(selectedItem.responseData?.bvn || selectedItem.responseData?.number) && (
                                         <div className="bg-green-100 p-4 rounded-lg mb-4 w-full">
-                                            <p className="text-xs text-green-600 uppercase font-bold mb-1">BVN Number</p>
-                                            <p className="text-2xl font-mono font-bold text-green-900 tracking-widest">
-                                                {selectedItem.adminNote.match(/Recovered BVN: (\d+)/)?.[1] || '---'}
+                                            <p className="text-xs text-green-600 uppercase font-bold mb-1">Recovered BVN</p>
+                                            <p className="text-3xl font-mono font-bold text-green-900 tracking-widest">
+                                                {selectedItem.responseData.bvn || selectedItem.responseData.number}
                                             </p>
                                         </div>
                                     )}
