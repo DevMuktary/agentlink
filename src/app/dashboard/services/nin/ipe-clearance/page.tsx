@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Clock, CheckCircle2, XCircle, Search, RefreshCw, 
-  ShieldCheck, Eye, Copy, AlertCircle, FileText
+  ShieldCheck, Eye, Copy, AlertCircle
 } from 'lucide-react';
 
 export default function IpeHistoryPage() {
@@ -46,6 +46,7 @@ export default function IpeHistoryPage() {
   };
 
   const copyToClipboard = (text: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     alert('Copied to clipboard!');
   };
@@ -142,7 +143,7 @@ export default function IpeHistoryPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
-                        onClick={() => setSelectedResult(item)}
+                        onClick={() => setSelectedResult(item)} 
                         className="inline-flex items-center justify-center bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5 mr-1.5" /> View
@@ -203,20 +204,20 @@ export default function IpeHistoryPage() {
                 
                 {/* Show NEW ID if Completed */}
                 {selectedResult.status === 'COMPLETED' && selectedResult.responseData && (
-                   <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                     <span className="text-blue-600 dark:text-blue-400 text-xs uppercase tracking-wide font-bold">New Tracking ID</span>
-                     <div className="flex items-center justify-between mt-1">
-                        <p className="font-mono text-xl font-bold text-gray-900 dark:text-white">
-                          {selectedResult.responseData.new_tracking_id || selectedResult.responseData.tracking_id || '---'}
-                        </p>
-                        <button 
-                          onClick={() => copyToClipboard(selectedResult.responseData.new_tracking_id || selectedResult.responseData.tracking_id)}
-                          className="p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-md transition"
-                        >
-                          <Copy className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        </button>
-                     </div>
-                   </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                      <span className="text-blue-600 dark:text-blue-400 text-xs uppercase tracking-wide font-bold">New Tracking ID</span>
+                      <div className="flex items-center justify-between mt-1">
+                         <p className="font-mono text-xl font-bold text-gray-900 dark:text-white">
+                           {selectedResult.responseData.new_tracking_id || selectedResult.responseData.tracking_id || '---'}
+                         </p>
+                         <button 
+                           onClick={() => copyToClipboard(selectedResult.responseData.new_tracking_id || selectedResult.responseData.tracking_id)}
+                           className="p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-md transition"
+                         >
+                           <Copy className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                         </button>
+                      </div>
+                    </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
@@ -247,6 +248,7 @@ export default function IpeHistoryPage() {
 
 function DetailBox({ label, value, copyable = false }: { label: string, value: any, copyable?: boolean }) {
   const copy = () => {
+    if(!value) return;
     navigator.clipboard.writeText(value);
     alert('Copied!');
   };
