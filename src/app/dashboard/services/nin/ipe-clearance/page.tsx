@@ -97,7 +97,7 @@ export default function IpeHistoryPage() {
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Date Submitted</th>
-                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Old Tracking ID</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Tracking ID</th>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Cost</th>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Status</th>
                 <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-right">Details</th>
@@ -190,29 +190,36 @@ export default function IpeHistoryPage() {
               }`}>
                 <div className="flex gap-3">
                   <AlertCircle className="w-5 h-5 shrink-0" />
-                  <p className="text-sm font-medium">
+                  <p className="text-sm font-medium break-all">
                     {selectedResult.status === 'PROCESSING' 
-                      ? 'This request is currently being processed by the provider. Please check back later.' 
-                      : selectedResult.responseData?.message || selectedResult.responseData?.error || 'Transaction completed.'}
+                      ? 'This request is currently being processed by the provider.' 
+                      : selectedResult.responseData?.message || selectedResult.responseData?.status || 'Transaction completed.'}
                   </p>
                 </div>
               </div>
 
               {/* Data Grid */}
               <div className="grid grid-cols-1 gap-4 text-sm">
-                <DetailBox label="Old Tracking ID" value={selectedResult.requestData?.trackingId} copyable />
                 
-                {/* Show NEW ID if Completed */}
+                {/* 1. SHOW IPE RESULT/REPLY (Corrected Logic) */}
                 {selectedResult.status === 'COMPLETED' && selectedResult.responseData && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                      <span className="text-blue-600 dark:text-blue-400 text-xs uppercase tracking-wide font-bold">New Tracking ID</span>
+                      <span className="text-blue-600 dark:text-blue-400 text-xs uppercase tracking-wide font-bold">Clearance Result (Reply)</span>
                       <div className="flex items-center justify-between mt-1">
-                         <p className="font-mono text-xl font-bold text-gray-900 dark:text-white">
-                           {selectedResult.responseData.new_tracking_id || selectedResult.responseData.tracking_id || '---'}
+                         <p className="font-mono text-lg font-bold text-gray-900 dark:text-white break-all">
+                           {/* Checks 'reply', then 'new_tracking_id', then 'tracking_id' */}
+                           {selectedResult.responseData.reply || 
+                            selectedResult.responseData.new_tracking_id || 
+                            selectedResult.responseData.tracking_id || 
+                            '---'}
                          </p>
                          <button 
-                           onClick={() => copyToClipboard(selectedResult.responseData.new_tracking_id || selectedResult.responseData.tracking_id)}
-                           className="p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-md transition"
+                           onClick={() => copyToClipboard(
+                             selectedResult.responseData.reply || 
+                             selectedResult.responseData.new_tracking_id || 
+                             selectedResult.responseData.tracking_id
+                           )}
+                           className="p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-md transition shrink-0 ml-2"
                          >
                            <Copy className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                          </button>
@@ -220,12 +227,37 @@ export default function IpeHistoryPage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailBox label="Service Type" value="IPE Clearance" />
-                  <DetailBox label="Amount Charged" value={`₦${Number(selectedResult.cost).toLocaleString()}`} />
-                  <DetailBox label="Date" value={new Date(selectedResult.createdAt).toLocaleString()} />
-                  <DetailBox label="Reference" value={selectedResult.requestData?.clientReference || 'N/A'} />
+                {/* 2. Standard Details */}
+                <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-3 border border-gray-100 dark:border-gray-700">
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-600 pb-2">
+                        <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Tracking ID (Input)</span>
+                        <span className="font-mono font-medium text-gray-900 dark:text-white">
+                            {selectedResult.requestData?.trackingId || 'N/A'}
+                        </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-600 pb-2">
+                        <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Amount Charged</span>
+                        <span className="font-bold text-gray-900 dark:text-white">
+                            ₦{Number(selectedResult.cost).toLocaleString()}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-600 pb-2">
+                        <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Date</span>
+                        <span className="text-gray-900 dark:text-white text-right">
+                            {new Date(selectedResult.createdAt).toLocaleString()}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Reference</span>
+                        <span className="font-mono text-gray-900 dark:text-white text-xs">
+                            {selectedResult.requestData?.clientReference || 'N/A'}
+                        </span>
+                    </div>
                 </div>
+
               </div>
             </div>
 
@@ -242,26 +274,6 @@ export default function IpeHistoryPage() {
         </div>
       )}
 
-    </div>
-  );
-}
-
-function DetailBox({ label, value, copyable = false }: { label: string, value: any, copyable?: boolean }) {
-  const copy = () => {
-    if(!value) return;
-    navigator.clipboard.writeText(value);
-    alert('Copied!');
-  };
-
-  return (
-    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg relative group">
-      <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">{label}</span>
-      <p className="font-semibold text-gray-900 dark:text-white mt-0.5 truncate pr-8">{value || 'N/A'}</p>
-      {copyable && value && (
-        <button onClick={copy} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-600 rounded shadow-sm hover:text-blue-600">
-          <Copy className="w-3.5 h-3.5" />
-        </button>
-      )}
     </div>
   );
 }
