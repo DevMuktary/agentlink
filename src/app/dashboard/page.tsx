@@ -1,21 +1,11 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  History,
-  ShieldCheck, 
-  UserCheck, 
-  Fingerprint, 
-  FileBadge, 
-  RefreshCcw, 
-  Search,
-  School,
-  Landmark,
-  Receipt,
-  Building2,
-  GraduationCap,
-  Wifi,
-  Smartphone
+  History, ShieldCheck, UserCheck, Fingerprint, FileBadge, 
+  RefreshCcw, Search, School, Landmark, Receipt, Building2, 
+  GraduationCap, Wifi, Smartphone, Zap, Wallet, ChevronRight, Plus
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -46,8 +36,8 @@ export default function UserDashboard() {
   if (loading) return <GlobalLoader />;
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Partner';
-
   const balanceValue = user?.walletBalance ? Number(user.walletBalance) : 0;
+  
   const formattedBalance = balanceValue.toLocaleString('en-NG', {
     style: 'currency',
     currency: 'NGN',
@@ -55,123 +45,137 @@ export default function UserDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20 font-sans text-slate-900">
+    <div className="space-y-8 animate-in fade-in duration-500">
       
-      {/* 1. WELCOME & WALLET SECTION */}
-      <div className="bg-white px-5 pt-4 pb-8 rounded-b-[2rem] shadow-sm border-b border-gray-100 mb-8">
+      {/* 1. HEADER & WALLET SECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Welcome Text (Avatar removed) */}
-        <div className="mb-6">
-          <h1 className="text-xl font-bold text-slate-900">
-            Welcome, {firstName} 👋
+        {/* Welcome Message */}
+        <div className="lg:col-span-2 flex flex-col justify-center">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            Welcome back, {firstName} 👋
           </h1>
-          <p className="text-sm text-slate-500">API Activity Overview</p>
+          <p className="text-slate-500 mt-2 text-lg">
+            Manage your AgentHub identity and utility services from one central dashboard.
+          </p>
         </div>
 
         {/* Wallet Card */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#0F172A] to-[#334155] rounded-2xl p-6 text-white shadow-xl shadow-slate-200">
-          <div className="relative z-10">
-            <p className="text-slate-300 text-sm font-medium mb-1">API Wallet Balance</p>
-            <h2 className="text-3xl font-bold tracking-tight mb-6">{formattedBalance}</h2>
+        <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-200 group">
+          <div className="relative z-10 flex flex-col h-full justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">
+                <Wallet size={14} /> Agent Wallet
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight text-white">{formattedBalance}</h2>
+            </div>
             
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               <Link 
                 href="/dashboard/wallet"
-                className="flex-1 bg-white text-slate-900 py-3 rounded-xl text-sm font-semibold text-center hover:bg-gray-50 transition-colors"
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
               >
-                Fund Wallet
+                <Plus size={16} /> Fund Wallet
               </Link>
               <Link 
                 href="/dashboard/wallet"
-                className="flex-1 bg-white/10 backdrop-blur-md text-white py-3 rounded-xl text-sm font-semibold text-center hover:bg-white/20 transition-colors border border-white/10"
+                className="px-4 bg-slate-800 text-slate-300 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-slate-700 transition-colors border border-slate-700"
               >
                 History
               </Link>
             </div>
           </div>
-          <div className="absolute -right-6 -top-6 h-32 w-32 bg-white/5 rounded-full blur-2xl"></div>
-          <div className="absolute -left-6 -bottom-6 h-24 w-24 bg-blue-500/20 rounded-full blur-xl"></div>
+
+          {/* Decorative Background Elements */}
+          <div className="absolute right-0 top-0 h-32 w-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-1000"></div>
+          <div className="absolute bottom-0 left-0 h-24 w-24 bg-purple-500/10 rounded-full blur-2xl"></div>
         </div>
       </div>
 
-      {/* 2. SERVICES HISTORY GRID */}
-      <div className="space-y-10">
+      <hr className="border-slate-200" />
+
+      {/* 2. SERVICES GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
-        <CategorySection title="Identity Logs" icon={<Fingerprint size={18} className="text-blue-600"/>}>
-          <HistoryItem title="NIN Verification Logs" href="/dashboard/services/nin-verification" icon={<UserCheck size={20} />} color="bg-blue-50 text-blue-600"/>
-          <HistoryItem title="NIN Validation History" href="/dashboard/services/nin/validation" icon={<Search size={20} />} color="bg-blue-50 text-blue-600"/>
-          <HistoryItem title="VNIN Slip History" href="/dashboard/services/nin-slips" icon={<FileBadge size={20} />} color="bg-indigo-50 text-indigo-600"/>
-          <HistoryItem title="Modification History" href="/dashboard/services/nin/modification" icon={<FileTextIcon />} color="bg-orange-50 text-orange-600"/>
-          <HistoryItem title="IPE Clearance Logs" href="/dashboard/services/nin/ipe-clearance" icon={<ShieldCheck size={20} />} color="bg-red-50 text-red-600"/>
-        </CategorySection>
+        {/* IDENTITY */}
+        <ServiceCategory title="Identity Services" icon={<Fingerprint className="text-blue-600" />} color="blue">
+          <ServiceLink title="NIN Verification" href="/dashboard/services/nin-verification" />
+          <ServiceLink title="NIN Validation" href="/dashboard/services/nin/validation" />
+          <ServiceLink title="VNIN Slip" href="/dashboard/services/nin-slips" />
+          <ServiceLink title="Modifications" href="/dashboard/services/nin/modification" />
+          <ServiceLink title="IPE Clearance" href="/dashboard/services/nin/ipe-clearance" />
+        </ServiceCategory>
 
-        <CategorySection title="Banking Logs" icon={<Landmark size={18} className="text-teal-600"/>}>
-          <HistoryItem title="BVN Verification Logs" href="/dashboard/services/bvn/verification" icon={<ShieldCheck size={20} />} color="bg-teal-50 text-teal-600"/>
-          <HistoryItem title="VNIN to NIBSS History" href="/dashboard/services/bvn/vnin-to-nibss" icon={<RefreshCcw size={20} />} color="bg-teal-50 text-teal-600"/>
-          <HistoryItem title="Enrollment History" href="/dashboard/services/bvn/enrollment" icon={<UserCheck size={20} />} color="bg-teal-50 text-teal-600"/>
-          <HistoryItem title="BVN Modification Logs" href="/dashboard/services/bvn/modification" icon={<FileTextIcon />} color="bg-teal-50 text-teal-600"/>
-          <HistoryItem title="Premium Slip History" href="/dashboard/services/bvn/premium-slip" icon={<FileBadge size={20} />} color="bg-emerald-50 text-emerald-600"/>
-          <HistoryItem title="Retrieval History" href="/dashboard/services/bvn/retrieval" icon={<Search size={20} />} color="bg-teal-50 text-teal-600"/>
-        </CategorySection>
+        {/* BANKING */}
+        <ServiceCategory title="Banking Services" icon={<Landmark className="text-teal-600" />} color="teal">
+          <ServiceLink title="BVN Verification" href="/dashboard/services/bvn/verification" />
+          <ServiceLink title="VNIN to NIBSS" href="/dashboard/services/bvn/vnin-to-nibss" />
+          <ServiceLink title="BVN Enrollment" href="/dashboard/services/bvn/enrollment" />
+          <ServiceLink title="BVN Modification" href="/dashboard/services/bvn/modification" />
+          <ServiceLink title="Premium Slips" href="/dashboard/services/bvn/premium-slip" />
+          <ServiceLink title="BVN Retrieval" href="/dashboard/services/bvn/retrieval" />
+        </ServiceCategory>
 
-        <CategorySection title="Corporate Logs" icon={<Building2 size={18} className="text-purple-600"/>}>
-          <HistoryItem title="CAC Registration Logs" href="/dashboard/services/cac" icon={<Building2 size={20} />} color="bg-purple-50 text-purple-600"/>
-          <HistoryItem title="Tax ID Logs" href="/dashboard/services/tax-id" icon={<Receipt size={20} />} color="bg-purple-50 text-purple-600"/>
-        </CategorySection>
+        {/* CORPORATE */}
+        <ServiceCategory title="Corporate Affairs" icon={<Building2 className="text-purple-600" />} color="purple">
+          <ServiceLink title="CAC Registration" href="/dashboard/services/cac" />
+          <ServiceLink title="Tax ID (TIN)" href="/dashboard/services/tax-id" />
+        </ServiceCategory>
 
-        <CategorySection title="Education Logs" icon={<GraduationCap size={18} className="text-pink-600"/>}>
-          <HistoryItem title="JAMB Services History" href="/dashboard/services/education/jamb" icon={<School size={20} />} color="bg-pink-50 text-pink-600"/>
-          <HistoryItem title="Exam Pins History" href="/dashboard/services/education/exam-pins" icon={<FileBadge size={20} />} color="bg-pink-50 text-pink-600"/>
-        </CategorySection>
+        {/* EDUCATION */}
+        <ServiceCategory title="Education" icon={<GraduationCap className="text-pink-600" />} color="pink">
+          <ServiceLink title="JAMB Services" href="/dashboard/services/education/jamb" />
+          <ServiceLink title="Exam Pins" href="/dashboard/services/education/exam-pins" />
+        </ServiceCategory>
 
-        <CategorySection title="Utility Logs" icon={<Wifi size={18} className="text-cyan-600"/>}>
-          <HistoryItem title="Airtime History" href="/dashboard/services/utilities" icon={<Smartphone size={20} />} color="bg-cyan-50 text-cyan-600"/>
-          <HistoryItem title="Data Bundle History" href="/dashboard/services/utilities/data" icon={<Wifi size={20} />} color="bg-cyan-50 text-cyan-600"/>
-        </CategorySection>
+        {/* UTILITIES */}
+        <ServiceCategory title="Utilities & Bills" icon={<Zap className="text-orange-600" />} color="orange">
+          <ServiceLink title="Airtime Vending" href="/dashboard/services/utilities" />
+          <ServiceLink title="Data Bundles" href="/dashboard/services/utilities/data" />
+        </ServiceCategory>
+
       </div>
     </div>
   );
 }
 
-// --- COMPONENTS ---
-function CategorySection({ title, icon, children }: { title: string, icon: any, children: React.ReactNode }) {
+// --- SUB COMPONENTS ---
+
+function ServiceCategory({ title, icon, color, children }: { title: string, icon: React.ReactNode, color: string, children: React.ReactNode }) {
+  const colorMap: any = {
+    blue: 'bg-blue-50 border-blue-100',
+    teal: 'bg-teal-50 border-teal-100',
+    purple: 'bg-purple-50 border-purple-100',
+    pink: 'bg-pink-50 border-pink-100',
+    orange: 'bg-orange-50 border-orange-100',
+  };
+
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-2 mb-4 ml-1 border-b border-gray-100 pb-2">
-        {icon}
-        <h3 className="font-bold text-slate-800 uppercase text-xs tracking-wider">{title}</h3>
+    <div className={`rounded-2xl border p-5 ${colorMap[color] || 'bg-white border-slate-100'} flex flex-col h-full`}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-100">
+          {icon}
+        </div>
+        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="space-y-2 flex-1">
         {children}
       </div>
     </div>
   );
 }
 
-function HistoryItem({ title, href, icon, color }: { title: string, href: string, icon: any, color: string }) {
+function ServiceLink({ title, href }: { title: string, href: string }) {
   return (
-    <Link href={href} className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98] group">
-      <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${color}`}>
-        {icon}
+    <Link 
+      href={href} 
+      className="flex items-center justify-between group bg-white hover:bg-slate-50 border border-slate-200/60 p-3 rounded-lg transition-all duration-200 hover:shadow-sm"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-1.5 w-1.5 rounded-full bg-slate-300 group-hover:bg-slate-900 transition-colors"></div>
+        <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">{title}</span>
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-slate-700 group-hover:text-slate-900 transition-colors">{title}</h4>
-      </div>
-      <div className="text-gray-300 group-hover:text-blue-500 transition-colors">
-        <History size={16} />
-      </div>
+      <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-600 transition-transform group-hover:translate-x-1" />
     </Link>
-  );
-}
-
-function FileTextIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" x2="8" y1="13" y2="13"/>
-      <line x1="16" x2="8" y1="17" y2="17"/>
-      <line x1="10" x2="8" y1="9" y2="9"/>
-    </svg>
   );
 }
