@@ -3,15 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  History, ShieldCheck, UserCheck, Fingerprint, FileBadge, 
-  RefreshCcw, Search, School, Landmark, Receipt, Building2, 
-  GraduationCap, Wifi, Smartphone, Zap, Wallet, ChevronRight, Plus
+  Wallet, ArrowUpRight, ArrowDownLeft, Activity, 
+  CreditCard, Search, Zap, Building2, ChevronRight, 
+  MoreHorizontal, FileText, CheckCircle2, XCircle, Clock
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Mocking recent transactions for visual demo (Connect to your /api/transactions later)
+  const recentTransactions = [
+    { id: 'TX-10293', service: 'NIN Verification', amount: 100, status: 'SUCCESS', date: 'Just now' },
+    { id: 'TX-10292', service: 'Airtime Vending', amount: 500, status: 'FAILED', date: '2 mins ago' },
+    { id: 'TX-10291', service: 'CAC Registration', amount: 15000, status: 'PENDING', date: '1 hour ago' },
+    { id: 'TX-10290', service: 'Data Bundle (MTN)', amount: 2500, status: 'SUCCESS', date: '3 hours ago' },
+  ];
 
   useEffect(() => {
     async function fetchUser() {
@@ -45,137 +53,137 @@ export default function UserDashboard() {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 font-sans text-slate-900">
       
-      {/* 1. HEADER & WALLET SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 1. TOP HEADER & METRICS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 text-sm">Overview of your wallet and api activities.</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/dashboard/wallet" className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
+            <Wallet size={16} /> Fund Wallet
+          </Link>
+        </div>
+      </div>
+
+      {/* 2. FINANCIAL OVERVIEW CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Welcome Message */}
-        <div className="lg:col-span-2 flex flex-col justify-center">
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Welcome back, {firstName} 👋
-          </h1>
-          <p className="text-slate-500 mt-2 text-lg">
-            Manage your AgentHub identity and utility services from one central dashboard.
+        {/* Main Wallet Card */}
+        <div className="bg-black text-white p-6 rounded-2xl shadow-xl flex flex-col justify-between h-40 relative overflow-hidden group">
+          <div className="z-10">
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Available Balance</p>
+            <h2 className="text-3xl font-bold font-mono tracking-tight">{formattedBalance}</h2>
+          </div>
+          <div className="z-10 flex gap-4 text-sm font-medium text-slate-300">
+            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Active</span>
+            <span className="flex items-center gap-1"><CreditCard size={14} /> NGN Wallet</span>
+          </div>
+          {/* Decor */}
+          <div className="absolute right-0 top-0 h-32 w-32 bg-slate-800/50 rounded-full blur-3xl -mr-10 -mt-10"></div>
+        </div>
+
+        {/* Quick Stats 1 */}
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col justify-center h-40">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+              <Activity size={20} />
+            </div>
+            <span className="text-slate-500 text-sm font-medium">Total Transactions</span>
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900">1,204</h3>
+          <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+            <ArrowUpRight size={12} /> +12% this month
           </p>
         </div>
 
-        {/* Wallet Card */}
-        <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-200 group">
-          <div className="relative z-10 flex flex-col h-full justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">
-                <Wallet size={14} /> Agent Wallet
-              </div>
-              <h2 className="text-3xl font-bold tracking-tight text-white">{formattedBalance}</h2>
+        {/* Quick Stats 2 */}
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col justify-center h-40">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+              <Zap size={20} />
             </div>
-            
-            <div className="flex gap-3 mt-6">
-              <Link 
-                href="/dashboard/wallet"
-                className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-              >
-                <Plus size={16} /> Fund Wallet
-              </Link>
-              <Link 
-                href="/dashboard/wallet"
-                className="px-4 bg-slate-800 text-slate-300 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-slate-700 transition-colors border border-slate-700"
-              >
-                History
-              </Link>
-            </div>
+            <span className="text-slate-500 text-sm font-medium">Services Used</span>
           </div>
-
-          {/* Decorative Background Elements */}
-          <div className="absolute right-0 top-0 h-32 w-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-1000"></div>
-          <div className="absolute bottom-0 left-0 h-24 w-24 bg-purple-500/10 rounded-full blur-2xl"></div>
+          <h3 className="text-2xl font-bold text-slate-900">8 Services</h3>
+          <p className="text-xs text-slate-400 mt-1">Most used: NIN Verification</p>
         </div>
       </div>
 
-      <hr className="border-slate-200" />
+      {/* 3. QUICK ACTIONS (The "Do It Now" Section) */}
+      <div>
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <QuickAction href="/dashboard/services/nin-verification" icon={<Search size={24} />} title="Verify NIN" desc="Lookup Identity" />
+          <QuickAction href="/dashboard/services/utilities/data" icon={<Zap size={24} />} title="Buy Data" desc="SME & Corporate" />
+          <QuickAction href="/dashboard/services/cac" icon={<Building2 size={24} />} title="CAC Reg" desc="Business Name" />
+          <QuickAction href="/dashboard/services/nin-slips" icon={<FileText size={24} />} title="Print Slip" desc="NIN & BVN" />
+        </div>
+      </div>
 
-      {/* 2. SERVICES GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* 4. RECENT TRANSACTIONS TABLE */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <h3 className="font-bold text-slate-900">Recent Transactions</h3>
+          <Link href="/dashboard/transactions" className="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1">
+            View All <ChevronRight size={14} />
+          </Link>
+        </div>
         
-        {/* IDENTITY */}
-        <ServiceCategory title="Identity Services" icon={<Fingerprint className="text-blue-600" />} color="blue">
-          <ServiceLink title="NIN Verification" href="/dashboard/services/nin-verification" />
-          <ServiceLink title="NIN Validation" href="/dashboard/services/nin/validation" />
-          <ServiceLink title="VNIN Slip" href="/dashboard/services/nin-slips" />
-          <ServiceLink title="Modifications" href="/dashboard/services/nin/modification" />
-          <ServiceLink title="IPE Clearance" href="/dashboard/services/nin/ipe-clearance" />
-        </ServiceCategory>
-
-        {/* BANKING */}
-        <ServiceCategory title="Banking Services" icon={<Landmark className="text-teal-600" />} color="teal">
-          <ServiceLink title="BVN Verification" href="/dashboard/services/bvn/verification" />
-          <ServiceLink title="VNIN to NIBSS" href="/dashboard/services/bvn/vnin-to-nibss" />
-          <ServiceLink title="BVN Enrollment" href="/dashboard/services/bvn/enrollment" />
-          <ServiceLink title="BVN Modification" href="/dashboard/services/bvn/modification" />
-          <ServiceLink title="Premium Slips" href="/dashboard/services/bvn/premium-slip" />
-          <ServiceLink title="BVN Retrieval" href="/dashboard/services/bvn/retrieval" />
-        </ServiceCategory>
-
-        {/* CORPORATE */}
-        <ServiceCategory title="Corporate Affairs" icon={<Building2 className="text-purple-600" />} color="purple">
-          <ServiceLink title="CAC Registration" href="/dashboard/services/cac" />
-          <ServiceLink title="Tax ID (TIN)" href="/dashboard/services/tax-id" />
-        </ServiceCategory>
-
-        {/* EDUCATION */}
-        <ServiceCategory title="Education" icon={<GraduationCap className="text-pink-600" />} color="pink">
-          <ServiceLink title="JAMB Services" href="/dashboard/services/education/jamb" />
-          <ServiceLink title="Exam Pins" href="/dashboard/services/education/exam-pins" />
-        </ServiceCategory>
-
-        {/* UTILITIES */}
-        <ServiceCategory title="Utilities & Bills" icon={<Zap className="text-orange-600" />} color="orange">
-          <ServiceLink title="Airtime Vending" href="/dashboard/services/utilities" />
-          <ServiceLink title="Data Bundles" href="/dashboard/services/utilities/data" />
-        </ServiceCategory>
-
-      </div>
-    </div>
-  );
-}
-
-// --- SUB COMPONENTS ---
-
-function ServiceCategory({ title, icon, color, children }: { title: string, icon: React.ReactNode, color: string, children: React.ReactNode }) {
-  const colorMap: any = {
-    blue: 'bg-blue-50 border-blue-100',
-    teal: 'bg-teal-50 border-teal-100',
-    purple: 'bg-purple-50 border-purple-100',
-    pink: 'bg-pink-50 border-pink-100',
-    orange: 'bg-orange-50 border-orange-100',
-  };
-
-  return (
-    <div className={`rounded-2xl border p-5 ${colorMap[color] || 'bg-white border-slate-100'} flex flex-col h-full`}>
-      <div className="flex items-center gap-3 mb-4">
-        <div className="bg-white p-2 rounded-lg shadow-sm border border-slate-100">
-          {icon}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-4">Service</th>
+                <th className="px-6 py-4">Transaction ID</th>
+                <th className="px-6 py-4">Amount</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {recentTransactions.map((tx) => (
+                <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-slate-900">{tx.service}</td>
+                  <td className="px-6 py-4 text-slate-500 font-mono text-xs">{tx.id}</td>
+                  <td className="px-6 py-4 text-slate-900 font-semibold">₦{tx.amount.toLocaleString()}</td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={tx.status} />
+                  </td>
+                  <td className="px-6 py-4 text-slate-400 text-xs">{tx.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">{title}</h3>
       </div>
-      <div className="space-y-2 flex-1">
-        {children}
-      </div>
+
     </div>
   );
 }
 
-function ServiceLink({ title, href }: { title: string, href: string }) {
+// --- COMPONENTS ---
+
+function QuickAction({ href, icon, title, desc }: { href: string, icon: any, title: string, desc: string }) {
   return (
-    <Link 
-      href={href} 
-      className="flex items-center justify-between group bg-white hover:bg-slate-50 border border-slate-200/60 p-3 rounded-lg transition-all duration-200 hover:shadow-sm"
-    >
-      <div className="flex items-center gap-3">
-        <div className="h-1.5 w-1.5 rounded-full bg-slate-300 group-hover:bg-slate-900 transition-colors"></div>
-        <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">{title}</span>
+    <Link href={href} className="flex flex-col p-5 bg-white border border-slate-200 rounded-xl hover:border-slate-900 hover:shadow-md transition-all group">
+      <div className="mb-3 text-slate-500 group-hover:text-slate-900 transition-colors">
+        {icon}
       </div>
-      <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-600 transition-transform group-hover:translate-x-1" />
+      <h4 className="font-bold text-slate-900">{title}</h4>
+      <p className="text-xs text-slate-500">{desc}</p>
     </Link>
   );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'SUCCESS') {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><CheckCircle2 size={12} /> Success</span>;
+  }
+  if (status === 'FAILED') {
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"><XCircle size={12} /> Failed</span>;
+  }
+  return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><Clock size={12} /> Pending</span>;
 }
