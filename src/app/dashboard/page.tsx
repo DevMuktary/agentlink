@@ -4,61 +4,53 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Wallet, ArrowUpRight, ArrowDownLeft, Activity, 
-  CreditCard, Search, Zap, Building2, ChevronRight, 
-  MoreHorizontal, FileText, CheckCircle2, XCircle, Clock
+  CheckCircle2, XCircle, Clock, MoreHorizontal,
+  CreditCard, Smartphone, UserCheck, RefreshCw
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  // Mocking recent transactions for visual demo (Connect to your /api/transactions later)
-  const recentTransactions = [
-    { id: 'TX-10293', service: 'NIN Verification', amount: 100, status: 'SUCCESS', date: 'Just now' },
-    { id: 'TX-10292', service: 'Airtime Vending', amount: 500, status: 'FAILED', date: '2 mins ago' },
-    { id: 'TX-10291', service: 'CAC Registration', amount: 15000, status: 'PENDING', date: '1 hour ago' },
-    { id: 'TX-10290', service: 'Data Bundle (MTN)', amount: 2500, status: 'SUCCESS', date: '3 hours ago' },
-  ];
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   useEffect(() => {
-    async function fetchUser() {
+    async function fetchData() {
       try {
-        const res = await fetch('/api/user/me');
-        const data = await res.json();
+        // Fetch User
+        const userRes = await fetch('/api/user/me');
+        const userData = await userRes.json();
         
-        if (data && data.id) {
-          setUser(data);
-        } else if (data.status && data.data) {
-          setUser(data.data);
+        // Fetch Recent Transactions (Limit 5)
+        const txRes = await fetch('/api/user/transactions?limit=5'); // Assuming you have/will create this
+        // Mocking transactions for now if API isn't ready
+        const txData = { data: [] }; 
+
+        if (userData.status || userData.id) {
+          setUser(userData.data || userData);
         }
+        setTransactions(txData.data || []);
       } catch (error) {
-        console.error('Failed to load user', error);
+        console.error('Error fetching dashboard data', error);
       } finally {
         setLoading(false);
       }
     }
-    fetchUser();
+    fetchData();
   }, []);
 
   if (loading) return <GlobalLoader />;
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Partner';
-  const balanceValue = user?.walletBalance ? Number(user.walletBalance) : 0;
-  
-  const formattedBalance = balanceValue.toLocaleString('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    minimumFractionDigits: 2
-  });
+  const balance = user?.walletBalance ? Number(user.walletBalance) : 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 font-sans text-slate-900">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       
-      {/* 1. TOP HEADER & METRICS */}
+      {/* 1. HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-500 text-sm">Overview of your wallet and api activities.</p>
         </div>
         <div className="flex gap-2">
@@ -68,122 +60,116 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* 2. FINANCIAL OVERVIEW CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Main Wallet Card */}
-        <div className="bg-black text-white p-6 rounded-2xl shadow-xl flex flex-col justify-between h-40 relative overflow-hidden group">
-          <div className="z-10">
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Available Balance</p>
-            <h2 className="text-3xl font-bold font-mono tracking-tight">{formattedBalance}</h2>
+      {/* 2. STATS CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Balance Card */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><Wallet size={20} /></div>
+            <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">+ Active</span>
           </div>
-          <div className="z-10 flex gap-4 text-sm font-medium text-slate-300">
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Active</span>
-            <span className="flex items-center gap-1"><CreditCard size={14} /> NGN Wallet</span>
-          </div>
-          {/* Decor */}
-          <div className="absolute right-0 top-0 h-32 w-32 bg-slate-800/50 rounded-full blur-3xl -mr-10 -mt-10"></div>
+          <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Wallet Balance</p>
+          <h2 className="text-3xl font-bold text-slate-900 mt-1">
+            ₦{balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+          </h2>
         </div>
 
-        {/* Quick Stats 1 */}
-        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col justify-center h-40">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-              <Activity size={20} />
-            </div>
-            <span className="text-slate-500 text-sm font-medium">Total Transactions</span>
+        {/* Total Spent (Mock Logic) */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-2 bg-orange-50 rounded-lg text-orange-600"><ArrowUpRight size={20} /></div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900">1,204</h3>
-          <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-            <ArrowUpRight size={12} /> +12% this month
-          </p>
+          <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Total Spent (30d)</p>
+          <h2 className="text-3xl font-bold text-slate-900 mt-1">₦0.00</h2>
         </div>
 
-        {/* Quick Stats 2 */}
-        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col justify-center h-40">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
-              <Zap size={20} />
-            </div>
-            <span className="text-slate-500 text-sm font-medium">Services Used</span>
+        {/* Request Count */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><Activity size={20} /></div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900">8 Services</h3>
-          <p className="text-xs text-slate-400 mt-1">Most used: NIN Verification</p>
+          <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Total Requests</p>
+          <h2 className="text-3xl font-bold text-slate-900 mt-1">0</h2>
         </div>
       </div>
 
-      {/* 3. QUICK ACTIONS (The "Do It Now" Section) */}
-      <div>
-        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <QuickAction href="/dashboard/services/nin-verification" icon={<Search size={24} />} title="Verify NIN" desc="Lookup Identity" />
-          <QuickAction href="/dashboard/services/utilities/data" icon={<Zap size={24} />} title="Buy Data" desc="SME & Corporate" />
-          <QuickAction href="/dashboard/services/cac" icon={<Building2 size={24} />} title="CAC Reg" desc="Business Name" />
-          <QuickAction href="/dashboard/services/nin-slips" icon={<FileText size={24} />} title="Print Slip" desc="NIN & BVN" />
-        </div>
-      </div>
-
-      {/* 4. RECENT TRANSACTIONS TABLE */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="font-bold text-slate-900">Recent Transactions</h3>
-          <Link href="/dashboard/transactions" className="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1">
-            View All <ChevronRight size={14} />
-          </Link>
-        </div>
+      {/* 3. MAIN CONTENT SPLIT */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-4">Service</th>
-                <th className="px-6 py-4">Transaction ID</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {recentTransactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-900">{tx.service}</td>
-                  <td className="px-6 py-4 text-slate-500 font-mono text-xs">{tx.id}</td>
-                  <td className="px-6 py-4 text-slate-900 font-semibold">₦{tx.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={tx.status} />
-                  </td>
-                  <td className="px-6 py-4 text-slate-400 text-xs">{tx.date}</td>
+        {/* LEFT: Quick Actions */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 h-fit">
+          <h3 className="font-bold text-slate-900 mb-4 text-sm uppercase">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <QuickAction href="/dashboard/services/nin-verification" icon={<UserCheck size={18}/>} label="Verify NIN" color="bg-blue-50 text-blue-600" />
+            <QuickAction href="/dashboard/services/utilities/data" icon={<Activity size={18}/>} label="Buy Data" color="bg-green-50 text-green-600" />
+            <QuickAction href="/dashboard/services/utilities" icon={<Smartphone size={18}/>} label="Airtime" color="bg-orange-50 text-orange-600" />
+            <QuickAction href="/dashboard/services/bvn/verification" icon={<CreditCard size={18}/>} label="Verify BVN" color="bg-teal-50 text-teal-600" />
+          </div>
+        </div>
+
+        {/* RIGHT: Recent Transactions Table */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+            <h3 className="font-bold text-slate-900 text-sm uppercase">Recent Transactions</h3>
+            <Link href="/dashboard/transactions" className="text-xs text-blue-600 hover:underline font-medium">View All</Link>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-3">Service</th>
+                  <th className="px-5 py-3">Reference</th>
+                  <th className="px-5 py-3">Amount</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-400">
+                      No recent transactions found.
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((tx: any) => (
+                    <tr key={tx.id} className="hover:bg-slate-50">
+                      <td className="px-5 py-3 font-medium text-slate-700">{tx.serviceId}</td>
+                      <td className="px-5 py-3 font-mono text-xs text-slate-500">{tx.reference}</td>
+                      <td className="px-5 py-3 font-bold text-slate-900">₦{Number(tx.amount).toLocaleString()}</td>
+                      <td className="px-5 py-3">
+                        <StatusBadge status={tx.status} />
+                      </td>
+                      <td className="px-5 py-3 text-slate-500 text-xs">
+                        {new Date(tx.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
+      </div>
     </div>
   );
 }
 
-// --- COMPONENTS ---
+// --- SUB COMPONENTS ---
 
-function QuickAction({ href, icon, title, desc }: { href: string, icon: any, title: string, desc: string }) {
+function QuickAction({ href, icon, label, color }: any) {
   return (
-    <Link href={href} className="flex flex-col p-5 bg-white border border-slate-200 rounded-xl hover:border-slate-900 hover:shadow-md transition-all group">
-      <div className="mb-3 text-slate-500 group-hover:text-slate-900 transition-colors">
-        {icon}
-      </div>
-      <h4 className="font-bold text-slate-900">{title}</h4>
-      <p className="text-xs text-slate-500">{desc}</p>
+    <Link href={href} className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-100 hover:border-slate-300 hover:shadow-sm transition bg-slate-50/50">
+      <div className={`p-2 rounded-full mb-2 ${color}`}>{icon}</div>
+      <span className="text-xs font-semibold text-slate-700">{label}</span>
     </Link>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'SUCCESS') {
-    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><CheckCircle2 size={12} /> Success</span>;
-  }
-  if (status === 'FAILED') {
-    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"><XCircle size={12} /> Failed</span>;
-  }
-  return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><Clock size={12} /> Pending</span>;
+  if (status === 'COMPLETED') return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700"><CheckCircle2 size={12} /> Success</span>;
+  if (status === 'FAILED') return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700"><XCircle size={12} /> Failed</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700"><Clock size={12} /> Pending</span>;
 }
