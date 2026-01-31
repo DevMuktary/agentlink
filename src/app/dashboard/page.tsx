@@ -6,7 +6,7 @@ import {
   Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, 
   CreditCard, Smartphone, Wifi, UserCheck, 
   Building2, GraduationCap, ChevronRight, Clock, 
-  CheckCircle2, XCircle, AlertCircle
+  CheckCircle2, XCircle, AlertCircle, History
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -21,14 +21,15 @@ export default function UserDashboard() {
       try {
         const [userRes, txRes] = await Promise.all([
             fetch('/api/user/me'),
-            fetch('/api/user/transactions?limit=5') // Assuming this endpoint exists, or we mock for UI structure if not created yet
+            fetch('/api/user/transactions?limit=5') 
         ]);
 
-        const userData = await userRes.json();
-        // If tx endpoint exists use it, otherwise empty array
+        const userData = userRes.ok ? await userRes.json() : null;
         const txData = txRes.ok ? await txRes.json() : { data: [] }; 
         
-        setUser(userData.id ? userData : userData.data);
+        if (userData) {
+            setUser(userData.id ? userData : userData.data);
+        }
         setTransactions(txData.data || []);
       } catch (error) {
         console.error('Dashboard Data Error', error);
@@ -158,7 +159,10 @@ export default function UserDashboard() {
                 <tr>
                   <td colSpan={5} className="px-5 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                        <History size={32} className="opacity-20" />
+                        {/* FIX: Wrapped Icon in a DIV to prevent passing props directly to SVG if conflicting */}
+                        <div className="opacity-20">
+                            <History size={32} />
+                        </div>
                         <p>No recent transactions found.</p>
                     </div>
                   </td>
