@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Wallet, Plus, ArrowUpRight, ArrowDownLeft, 
   Smartphone, Wifi, UserCheck, CreditCard, 
-  Building2, GraduationCap, CheckCircle2, Clock, ChevronRight, 
+  Building2, GraduationCap, CheckCircle2, XCircle, Clock, ChevronRight, 
   Search, Bell, MoreHorizontal, ShieldCheck, Zap
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
