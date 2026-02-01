@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   CheckCircle2, XCircle, Search, FileCog, 
-  Building2, Smartphone, AlertCircle, Eye
+  Building2, Smartphone, AlertCircle, Eye, User, Calendar
 } from 'lucide-react';
 
 export default function BvnModificationHistory() {
@@ -44,6 +44,10 @@ export default function BvnModificationHistory() {
     }
   }, [searchQuery, requests]);
 
+  // HELPER: Safely extract data based on API structure
+  const getOld = (item: any) => item?.requestData?.identity || {};
+  const getNew = (item: any) => item?.requestData?.changes || {};
+
   if (loading) return <GlobalLoader />;
 
   return (
@@ -65,7 +69,7 @@ export default function BvnModificationHistory() {
             placeholder="Search BVN..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full md:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+            className="w-full md:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -74,42 +78,41 @@ export default function BvnModificationHistory() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+            <thead className="bg-gray-50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-gray-700">
               <tr>
-                <th className="px-6 py-4 font-semibold text-gray-500">Date</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">Service</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">Bank</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">BVN</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">Status</th>
-                <th className="px-6 py-4 font-semibold text-gray-500 text-right">Action</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Date</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Service</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Bank</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">BVN</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Status</th>
+                <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {filteredRequests.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
                       {new Date(item.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 font-medium text-blue-600">
-                      {/* Convert Enum Code to Readable Name */}
+                    <td className="px-6 py-4 font-medium text-blue-600 dark:text-blue-400">
                       {item.serviceType.replace('BVN_MOD_', '').replace(/_/g, ' ')}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 flex items-center gap-2">
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300 flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-gray-400" />
                       {item.requestData?.bank_name || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4 font-mono">{item.requestData?.bvn}</td>
+                    <td className="px-6 py-4 font-mono text-gray-700 dark:text-gray-300">{item.requestData?.bvn}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                        item.status === 'FAILED' ? 'bg-red-100 text-red-700' :
-                        'bg-blue-100 text-blue-700'
+                        item.status === 'COMPLETED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        item.status === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
                         {item.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => setSelectedItem(item)} className="text-blue-600 hover:text-blue-700 text-xs font-medium border border-blue-200 bg-blue-50 px-3 py-1 rounded-md">
+                      <button onClick={() => setSelectedItem(item)} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 text-xs font-medium border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-md">
                         View
                       </button>
                     </td>
@@ -123,10 +126,10 @@ export default function BvnModificationHistory() {
       {/* Details Modal */}
       {selectedItem && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-900 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] flex flex-col border border-gray-200 dark:border-slate-800">
             
-            <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-              <h3 className="font-bold text-lg">Modification Details</h3>
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-800/50">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Modification Details</h3>
               <button onClick={() => setSelectedItem(null)}><XCircle className="w-6 h-6 text-gray-400 hover:text-red-500" /></button>
             </div>
             
@@ -137,40 +140,97 @@ export default function BvnModificationHistory() {
                  <span className="font-bold text-blue-800 dark:text-blue-200">{selectedItem.requestData?.bank_name}</span>
               </div>
 
-              {/* Data Comparison */}
+              {/* Data Comparison Grid */}
               <div className="grid grid-cols-2 gap-4 text-sm">
-                 <div className="p-3 border border-red-200 bg-red-50/50 rounded-lg">
-                    <span className="block text-xs font-bold text-red-400 mb-2 uppercase">Old Details (BVN)</span>
-                    <p><span className="text-gray-500">Name:</span> {selectedItem.requestData?.old_details?.first_name} {selectedItem.requestData?.old_details?.surname}</p>
-                    <p><span className="text-gray-500">DOB:</span> {selectedItem.requestData?.old_details?.dob}</p>
+                 {/* OLD DETAILS (From 'identity' object in API) */}
+                 <div className="p-3 border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 rounded-lg">
+                    <span className="block text-xs font-bold text-red-400 mb-2 uppercase border-b border-red-200 pb-1">Old Details (BVN)</span>
+                    
+                    <div className="space-y-2">
+                        <div>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 block">Name</span>
+                            <span className="font-medium text-gray-900 dark:text-gray-200">
+                                {getOld(selectedItem).first_name} {getOld(selectedItem).surname}
+                            </span>
+                        </div>
+                        {getNew(selectedItem).dates?.old && (
+                            <div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 block">DOB</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-200">
+                                    {getNew(selectedItem).dates?.old}
+                                </span>
+                            </div>
+                        )}
+                         {getNew(selectedItem).phone?.old && (
+                            <div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 block">Phone</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-200">
+                                    {getNew(selectedItem).phone?.old}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                  </div>
-                 <div className="p-3 border border-green-200 bg-green-50/50 rounded-lg">
-                    <span className="block text-xs font-bold text-green-500 mb-2 uppercase">New Details (NIN)</span>
-                    <p><span className="text-gray-500">Name:</span> {selectedItem.requestData?.new_details?.first_name} {selectedItem.requestData?.new_details?.surname}</p>
-                    <p><span className="text-gray-500">DOB:</span> {selectedItem.requestData?.new_details?.dob}</p>
+
+                 {/* NEW DETAILS (From 'changes' object in API) */}
+                 <div className="p-3 border border-green-200 dark:border-green-900/50 bg-green-50/50 dark:bg-green-900/10 rounded-lg">
+                    <span className="block text-xs font-bold text-green-500 mb-2 uppercase border-b border-green-200 pb-1">New Details (Requested)</span>
+                    
+                    <div className="space-y-2">
+                        {getNew(selectedItem).new_name ? (
+                             <div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 block">Name</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-200">
+                                    {getNew(selectedItem).new_name.first} {getNew(selectedItem).new_name.last}
+                                </span>
+                            </div>
+                        ) : (
+                            <span className="text-xs italic text-gray-400">No Name Change</span>
+                        )}
+
+                        {getNew(selectedItem).dates?.new ? (
+                             <div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 block">DOB</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-200">
+                                    {getNew(selectedItem).dates?.new}
+                                </span>
+                            </div>
+                        ) : (
+                             <span className="text-xs italic text-gray-400 block mt-2">No DOB Change</span>
+                        )}
+
+                        {getNew(selectedItem).phone?.new ? (
+                             <div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 block">Phone</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-200">
+                                    {getNew(selectedItem).phone?.new}
+                                </span>
+                            </div>
+                        ) : (
+                             <span className="text-xs italic text-gray-400 block mt-2">No Phone Change</span>
+                        )}
+                    </div>
                  </div>
               </div>
 
-              {selectedItem.requestData?.new_phone_number && (
-                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800">
-                    <Smartphone className="w-4 h-4" />
-                    <span className="text-sm font-medium">New Phone: {selectedItem.requestData.new_phone_number}</span>
-                 </div>
-              )}
-
               {/* Status Section */}
               {selectedItem.status === 'COMPLETED' ? (
-                 <div className="p-4 bg-green-50 text-green-700 border border-green-200 rounded-lg text-center">
+                 <div className="p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900/30 rounded-lg text-center">
                     <CheckCircle2 className="w-8 h-8 mx-auto mb-2" />
                     <p className="font-bold">Modification Successful</p>
                     {(selectedItem.responseData?.image || selectedItem.responseData?.url) && (
-                      <a href={selectedItem.responseData?.image || selectedItem.responseData?.url} target="_blank" className="mt-3 block w-full py-2 bg-green-600 text-white rounded text-sm font-bold">
+                      <a 
+                        href={selectedItem.responseData?.image || selectedItem.responseData?.url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="mt-3 block w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition"
+                      >
                         View Document
                       </a>
                     )}
                  </div>
               ) : selectedItem.status === 'FAILED' ? (
-                 <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg flex gap-2">
+                 <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-lg flex gap-2">
                     <AlertCircle className="w-5 h-5 shrink-0" />
                     <div>
                         <p className="font-bold">Modification Failed</p>
@@ -178,7 +238,9 @@ export default function BvnModificationHistory() {
                     </div>
                  </div>
               ) : (
-                 <div className="text-center text-gray-500 text-sm py-4">Request is currently under review.</div>
+                 <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-100 dark:border-slate-800">
+                    Request is currently under review by an administrator.
+                 </div>
               )}
 
             </div>
