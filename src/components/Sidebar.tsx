@@ -74,24 +74,25 @@ export default function Sidebar() {
   return (
     <>
       {/* MOBILE HEADER */}
-      <div className="lg:hidden fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-[60] px-4 h-16 flex items-center justify-between shadow-sm">
+      {/* Added dark:bg-slate-900 and dark:border-slate-800 */}
+      <div className="lg:hidden fixed top-0 left-0 w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 z-[60] px-4 h-16 flex items-center justify-between shadow-sm transition-colors duration-300">
         
         {/* LEFT SIDE: Hamburger + Logo */}
         <div className="flex items-center gap-3">
-           {/* Hamburger Toggle (First) */}
+           {/* Hamburger Toggle */}
            <button 
             onClick={() => setIsOpen(!isOpen)} 
-            className="p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+            className="p-2 -ml-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           
-          {/* Logo (Second) */}
-          <span className="font-bold text-lg text-blue-700 tracking-tight">AgentLink</span>
+          {/* Logo - Changed to AgentHub */}
+          <span className="font-bold text-lg text-blue-700 dark:text-blue-500 tracking-tight">AgentHub</span>
         </div>
         
         {/* RIGHT SIDE: User Avatar */}
-        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-xs font-bold text-blue-700 border border-blue-200">
+        <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
            U
         </div>
       </div>
@@ -100,9 +101,10 @@ export default function Sidebar() {
       <aside className={`fixed top-0 left-0 z-[50] h-screen w-64 bg-slate-900 text-white transition-transform duration-300 ease-in-out lg:translate-x-0 pt-16 lg:pt-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col overflow-y-auto no-scrollbar">
           
-          {/* Desktop Logo Area (Hidden on Mobile) */}
+          {/* Desktop Logo Area */}
           <div className="hidden lg:flex items-center justify-center h-16 border-b border-gray-800 bg-slate-950 sticky top-0 z-10">
-            <h1 className="text-xl font-bold tracking-wider text-blue-400">AgentLink</h1>
+            {/* Changed to AgentHub */}
+            <h1 className="text-xl font-bold tracking-wider text-blue-400">AgentHub</h1>
           </div>
           
           {/* Navigation Links */}
