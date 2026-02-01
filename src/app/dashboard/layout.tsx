@@ -6,8 +6,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    // ADDED: dark:bg-black dark:text-slate-50
-    <div className="min-h-screen bg-slate-50 dark:bg-black font-sans text-slate-900 dark:text-slate-50 transition-colors duration-300">
+    // CHANGED: dark:bg-black -> dark:bg-slate-900 (Deep Blue)
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-50 transition-colors duration-300">
       <Sidebar />
 
       <main className="lg:pl-64 pt-20 lg:pt-8 min-h-screen transition-all duration-300">
