@@ -3,32 +3,39 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key-change-me';
-
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    // 1. Find User
+    // 1. Validate Environment
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET is not defined');
+      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+    }
+
+    // 2. Find User
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // 2. Generate Token
+    // 3. Generate Token
     const token = jwt.sign(
       { userId: user.id, role: user.role, email: user.email },
       JWT_SECRET,
-      { expiresIn: '1d' } // Expires in 1 day
+      { expiresIn: '1d' }
     );
 
-    // 3. Set Cookie
+    // 4. Set Cookie and Return
     const response = NextResponse.json({ message: 'Login successful', role: user.role });
+    
     response.cookies.set('token', token, {
-      httpOnly: true, // Javascript cannot read this (Security)
+      httpOnly: true, 
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24, // 1 day
       path: '/',
+      sameSite: 'strict',
     });
 
     return response;
