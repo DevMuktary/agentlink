@@ -1,9 +1,7 @@
-import axios from 'axios';
+import { SendMailClient } from "zeptomail";
 
 // --- CONFIGURATION ---
-// IMPORTANT: Replace this with the verified email from your ZeptoMail "Email Agents" settings.
-// If this does not match exactly, you will get a 403 Forbidden error.
-const SENDER_EMAIL = "no-reply@agenthub.ng"; 
+const SENDER_EMAIL = "noreply@agenthub.ng"; // Ensure this matches your ZeptoMail verified sender
 const SENDER_NAME = "AgentHub Support";
 
 interface EmailPayload {
@@ -16,32 +14,55 @@ interface EmailPayload {
 // --- SEND FUNCTION ---
 export async function sendEmail({ to, name, subject, html }: EmailPayload) {
   try {
-    const response = await axios.post(
-      `https://${process.env.ZEPTOMAIL_URL}`,
-      {
-        from: { address: SENDER_EMAIL, name: SENDER_NAME },
-        to: [{ email_address: { address: to, name: name } }],
-        subject: subject,
-        htmlbody: html,
-      },
-      {
-        headers: {
-          'Authorization': `Zoho-enczapikey ${process.env.ZEPTOMAIL_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      }
-    );
-    return response.data;
-  } catch (error: any) {
-    // --- IMPROVED ERROR LOGGING ---
-    if (axios.isAxiosError(error)) {
-      console.error("❌ ZeptoMail API Error:");
-      console.error("Status:", error.response?.status);
-      console.error("Reason:", JSON.stringify(error.response?.data, null, 2)); // <--- This reveals the real message
-    } else {
-      console.error("❌ ZeptoMail Unexpected Error:", error);
+    // 1. Setup URL (Default to US if missing, but respects your .env)
+    // Note: The library expects the base URL ending in /email (e.g. .../v1.1/email)
+    let url = process.env.ZEPTOMAIL_URL || "https://api.zeptomail.com/v1.1/email";
+    
+    // Fix: If user put /send at the end (common mistake), remove it for the library
+    if (url.endsWith('/send')) {
+        url = url.replace('/send', '');
     }
+    // Fix: Ensure protocol
+    if (!url.startsWith('http')) {
+        url = `https://${url}`;
+    }
+
+    // 2. Setup Token
+    let token = process.env.ZEPTOMAIL_TOKEN || "";
+    // Fix: The library needs the full "Zoho-enczapikey ..." string. 
+    // We check if your env var already has it, if not, we add it.
+    if (!token.startsWith("Zoho-enczapikey")) {
+        token = `Zoho-enczapikey ${token}`;
+    }
+
+    // 3. Initialize Client
+    const client = new SendMailClient({ url, token });
+
+    console.log(`🚀 Sending ZeptoMail to: ${to}`);
+
+    // 4. Send
+    const response = await client.sendMail({
+      from: {
+        address: SENDER_EMAIL,
+        name: SENDER_NAME,
+      },
+      to: [
+        {
+          email_address: {
+            address: to,
+            name: name,
+          },
+        },
+      ],
+      subject: subject,
+      htmlbody: html,
+    });
+
+    console.log("✅ Email Sent Successfully");
+    return response;
+
+  } catch (error: any) {
+    console.error("❌ ZeptoMail Error:", JSON.stringify(error, null, 2));
     return null;
   }
 }
@@ -80,7 +101,7 @@ const wrapEmail = (content: string) => `
 </html>
 `;
 
-// 2. TEMPLATE: User Registration Received
+// 2. TEMPLATES
 export const emailTemplates = {
   registrationReceived: (name: string) => wrapEmail(`
     <h2 style="color: #0f172a; margin-top: 0;">Registration Received</h2>
