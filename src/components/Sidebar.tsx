@@ -19,7 +19,6 @@ const menuItems = [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Wallet & Finance", href: "/dashboard/wallet", icon: Wallet },
       { name: "API & Developers", href: "/dashboard/developers", icon: Code2 },
-      { name: "Registration Requests", href: "/admin/users/requests", icon: UserPlus},
     ]
   },
   {
