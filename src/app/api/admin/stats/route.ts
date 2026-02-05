@@ -10,23 +10,31 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
     }
 
-    // 1. Total Users (Using 'AGENT' as the standard user role)
+    // 1. Total Users (ONLY APPROVED)
     const totalUsers = await prisma.user.count({
-        where: { role: 'AGENT' }
+        where: { 
+            role: 'AGENT',
+            isActive: true // <--- Now only counts active users
+        }
     });
 
-    // 2. Wallet Liability (Sum of all AGENT balances)
+    // 2. New User Requests (Pending Approval)
+    const pendingRegistrations = await prisma.user.count({
+        where: { isActive: false }
+    });
+
+    // 3. Wallet Liability (Sum of all AGENT balances)
     const walletSum = await prisma.user.aggregate({
         _sum: { walletBalance: true },
         where: { role: 'AGENT' }
     });
 
-    // 3. Pending Requests (Total)
+    // 4. Pending Service Requests (Total)
     const pendingRequests = await prisma.serviceRequest.count({
         where: { status: 'PROCESSING' }
     });
 
-    // --- 4. Queue Breakdowns ---
+    // --- 5. Queue Breakdowns ---
     
     // CAC
     const cacCount = await prisma.serviceRequest.count({ 
@@ -43,13 +51,13 @@ export async function GET(req: Request) {
         where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }
     });
     
-    // BVN MODIFICATION (Fixed to match Schema: BVN_MOD_...)
+    // BVN MODIFICATION
     const bvnModCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
             serviceType: { 
                 in: [
-                    'BVN_MODIFICATION', // Generic
+                    'BVN_MODIFICATION', 
                     'BVN_MOD_NAME', 
                     'BVN_MOD_DOB', 
                     'BVN_MOD_PHONE', 
@@ -61,7 +69,7 @@ export async function GET(req: Request) {
         }
     });
 
-    // BVN RETRIEVAL (Grouped all retrieval types)
+    // BVN RETRIEVAL
     const bvnRetrievalCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
@@ -79,7 +87,7 @@ export async function GET(req: Request) {
         where: { status: 'PROCESSING', serviceType: 'VNIN_TO_NIBSS' }
     });
 
-    // NIN MODIFICATION (Removed DOB as it wasn't in the provided schema snippet, kept others)
+    // NIN MODIFICATION
     const ninModCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
@@ -93,7 +101,7 @@ export async function GET(req: Request) {
         }
     });
     
-    // NIN VALIDATION (Grouped specific validation types)
+    // NIN VALIDATION
     const ninValidationCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
@@ -123,7 +131,7 @@ export async function GET(req: Request) {
         }
     });
 
-    // 5. Total Revenue (Sum of COMPLETED transactions)
+    // 6. Total Revenue (Sum of COMPLETED transactions)
     const revenueSum = await prisma.serviceRequest.aggregate({
         _sum: { cost: true },
         where: { status: 'COMPLETED' }
@@ -133,6 +141,7 @@ export async function GET(req: Request) {
         status: true,
         data: {
             totalUsers: totalUsers || 0,
+            pendingRegistrations: pendingRegistrations || 0, // New field for admin dashboard
             walletLiability: Number(walletSum._sum.walletBalance) || 0,
             pendingRequests: pendingRequests || 0,
             totalRevenue: Number(revenueSum._sum.cost) || 0,
