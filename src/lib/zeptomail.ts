@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 // --- CONFIGURATION ---
-const SENDER_EMAIL = "no-reply@agenthub.ng"; // Must be verified in ZeptoMail
+// IMPORTANT: Replace this with the verified email from your ZeptoMail "Email Agents" settings.
+// If this does not match exactly, you will get a 403 Forbidden error.
+const SENDER_EMAIL = "no-reply@agenthub.ng"; 
 const SENDER_NAME = "AgentHub Support";
 
 interface EmailPayload {
@@ -31,9 +33,15 @@ export async function sendEmail({ to, name, subject, html }: EmailPayload) {
       }
     );
     return response.data;
-  } catch (error) {
-    console.error('ZeptoMail Error:', error);
-    // Don't crash the app if email fails, just log it
+  } catch (error: any) {
+    // --- IMPROVED ERROR LOGGING ---
+    if (axios.isAxiosError(error)) {
+      console.error("❌ ZeptoMail API Error:");
+      console.error("Status:", error.response?.status);
+      console.error("Reason:", JSON.stringify(error.response?.data, null, 2)); // <--- This reveals the real message
+    } else {
+      console.error("❌ ZeptoMail Unexpected Error:", error);
+    }
     return null;
   }
 }
