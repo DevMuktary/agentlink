@@ -7,29 +7,35 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    // 1. Validate Environment
     const JWT_SECRET = process.env.JWT_SECRET;
     if (!JWT_SECRET) {
-      console.error('JWT_SECRET is not defined');
-      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+      return NextResponse.json({ error: 'Server Misconfiguration' }, { status: 500 });
     }
 
-    // 2. Find User
+    // 1. Find User
     const user = await prisma.user.findUnique({ where: { email } });
+    
+    // 2. Validate Credentials
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // 3. Generate Token
+    // 3. CHECK STATUS (New Enforcement)
+    if (!user.isActive) {
+      return NextResponse.json({ 
+        error: 'Account is under review. Please check your email for updates.' 
+      }, { status: 403 });
+    }
+
+    // 4. Generate Token
     const token = jwt.sign(
       { userId: user.id, role: user.role, email: user.email },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '1d' } // Expires in 1 day
     );
 
-    // 4. Set Cookie and Return
+    // 5. Set Cookie
     const response = NextResponse.json({ message: 'Login successful', role: user.role });
-    
     response.cookies.set('token', token, {
       httpOnly: true, 
       secure: process.env.NODE_ENV === 'production',
