@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // --- CONFIGURATION ---
-const SENDER_EMAIL = "noreply@agenthub.ng"; // Must be verified in ZeptoMail
+const SENDER_EMAIL = "no-reply@agenthub.ng"; // Must be verified in ZeptoMail
 const SENDER_NAME = "AgentHub Support";
 
 interface EmailPayload {
