@@ -16,6 +16,7 @@ const menuItems = [
       { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
       { name: "User Management", href: "/admin/users", icon: Users },
       { name: "Transactions", href: "/admin/transactions", icon: CreditCard },
+      { name: "Registration Requests", href: "/admin/users/requests", icon: UserPlus},
     ]
   },
   {
