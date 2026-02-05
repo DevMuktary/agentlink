@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { email, password, firstName, lastName, phoneNumber, businessName } = body;
 
-    // 1. Basic Validation
+    // 1. Validation
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -19,11 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 
-    // 3. Create User (Default status: PENDING or ACTIVE depending on your flow)
-    // NOTE: Usually you want them PENDING first if admin reviews.
-    // If your schema has a 'status' field, set it to 'PENDING'. 
-    // If not, we assume they are active but we just email them.
-    
+    // 3. Create User (EXPLICITLY INACTIVE)
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
@@ -33,15 +29,15 @@ export async function POST(req: Request) {
         lastName,
         phoneNumber,
         businessName,
-        role: 'AGENT', // Default role
-        // status: 'PENDING' // <--- Uncomment if you added a status field to User schema
+        role: 'AGENT',
+        isActive: false, // <--- Force Pending State
       },
     });
 
-    // 4. SEND EMAILS (Non-blocking)
+    // 4. Send Notifications (Non-blocking)
     const fullName = `${firstName} ${lastName}`;
     
-    // Email A: To User
+    // A. Notify User (Registration Received)
     await sendEmail({
         to: email,
         name: fullName,
@@ -49,17 +45,20 @@ export async function POST(req: Request) {
         html: emailTemplates.registrationReceived(fullName)
     });
 
-    // Email B: To Admin
+    // B. Notify Admin (New User Alert)
     if (process.env.ADMIN_EMAIL) {
         await sendEmail({
             to: process.env.ADMIN_EMAIL,
             name: 'Administrator',
-            subject: 'New User Alert',
+            subject: 'New User Registration Alert',
             html: emailTemplates.adminNewUserAlert(fullName, email)
         });
     }
 
-    return NextResponse.json({ message: 'User created successfully', user: { id: user.id, email: user.email } }, { status: 201 });
+    return NextResponse.json({ 
+      message: 'Registration successful. Account under review.', 
+      user: { id: user.id, email: user.email } 
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Registration Error:', error);
