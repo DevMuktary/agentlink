@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, CreditCard, Settings, Menu, X, LogOut,
-  ShieldAlert, UserCheck, FileText, Smartphone, Search, 
+  ShieldAlert, UserCheck, FileText, Smartphone, Search, UserPlus,
   Building2, GraduationCap, Briefcase, RefreshCcw, Layers
 } from 'lucide-react';
 import { useState } from 'react';
