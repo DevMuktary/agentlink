@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
+import { sendEmail, emailTemplates } from '@/lib/zeptomail';
 
 export async function POST(req: Request) {
   try {
@@ -12,45 +13,53 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 2. Check if User Already Exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    // 2. Check Exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 
-    // 3. Hash Password (Salt rounds: 10)
+    // 3. Create User (Default status: PENDING or ACTIVE depending on your flow)
+    // NOTE: Usually you want them PENDING first if admin reviews.
+    // If your schema has a 'status' field, set it to 'PENDING'. 
+    // If not, we assume they are active but we just email them.
+    
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 4. Create User
-    // Note: We do NOT include 'role' here, so it defaults to 'AGENT' as defined in your schema.
-    // This prevents anyone from forcing themselves to be an ADMIN.
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         firstName,
         lastName,
-        phoneNumber,   // Optional based on your schema
-        businessName,  // Optional based on your schema
+        phoneNumber,
+        businessName,
+        role: 'AGENT', // Default role
+        // status: 'PENDING' // <--- Uncomment if you added a status field to User schema
       },
     });
 
-    // 5. Return Success (exclude password from response)
-    return NextResponse.json(
-      { 
-        message: 'User created successfully', 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          role: user.role
-        } 
-      },
-      { status: 201 }
-    );
+    // 4. SEND EMAILS (Non-blocking)
+    const fullName = `${firstName} ${lastName}`;
+    
+    // Email A: To User
+    await sendEmail({
+        to: email,
+        name: fullName,
+        subject: 'Registration Received - AgentHub',
+        html: emailTemplates.registrationReceived(fullName)
+    });
+
+    // Email B: To Admin
+    if (process.env.ADMIN_EMAIL) {
+        await sendEmail({
+            to: process.env.ADMIN_EMAIL,
+            name: 'Administrator',
+            subject: 'New User Alert',
+            html: emailTemplates.adminNewUserAlert(fullName, email)
+        });
+    }
+
+    return NextResponse.json({ message: 'User created successfully', user: { id: user.id, email: user.email } }, { status: 201 });
 
   } catch (error) {
     console.error('Registration Error:', error);
