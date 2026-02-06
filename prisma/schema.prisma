@@ -98,6 +98,15 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
+// 6. VERIFICATION TOKENS (For OTPs)
+model VerificationToken {
+  identifier String   // Email
+  token      String   // OTP
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
 // --- ENUMS ---
 
 enum Role {
