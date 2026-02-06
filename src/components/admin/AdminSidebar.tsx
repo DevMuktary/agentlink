@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
+import axios from 'axios'; // Added axios
 import { 
   LayoutDashboard, Users, CreditCard, Settings, Menu, X, LogOut,
   ShieldAlert, UserCheck, FileText, Smartphone, Search, UserPlus,
@@ -58,7 +59,26 @@ const menuItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter(); // Initialize router
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // Add loading state
+
+  // --- LOGOUT LOGIC ---
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      // Call the API to clear the cookie
+      await axios.post('/api/auth/logout');
+      // Redirect to login
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+      // Force redirect even if API fails
+      router.push('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -126,8 +146,13 @@ export default function AdminSidebar() {
             >
               <Layers className="mr-3 h-4 w-4" /> Switch to User View
             </Link>
-            <button className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-colors">
-              <LogOut className="mr-3 h-4 w-4" /> Sign Out
+            <button 
+              onClick={handleLogout} // Hooked up logic here
+              disabled={isLoggingOut}
+              className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-colors disabled:opacity-50"
+            >
+              <LogOut className="mr-3 h-4 w-4" /> 
+              {isLoggingOut ? 'Signing out...' : 'Sign Out'}
             </button>
           </div>
         </div>
