@@ -64,11 +64,13 @@ export async function POST(req: Request) {
     // 4. SPECIFIC VALIDATION (Based on what is changing)
     
     // If Changing Name -> Require NEW Name details
+    // Note: This automatically handles BVN_MOD_NAME, BVN_MOD_NAME_PHONE, and BVN_MOD_NAME_DOB
     if (code.includes('NAME') || code.includes('FULL')) {
         if (!new_first_name || !new_surname || !new_middle_name) specificErrors.push('new_first_name, new_surname, new_middle_name');
     }
 
     // If Changing DOB -> Require Dates
+    // Note: This automatically handles BVN_MOD_DOB, BVN_MOD_DOB_PHONE, and BVN_MOD_NAME_DOB
     if (code.includes('DOB') || code.includes('FULL')) {
         if (!old_dob) specificErrors.push('old_dob');
         if (!new_dob) specificErrors.push('new_dob');
