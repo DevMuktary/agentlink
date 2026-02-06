@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
+import axios from 'axios'; // Added axios
 import { 
   LayoutDashboard, Wallet, Code2, LogOut, Menu, X,
   ShieldCheck, UserCheck, 
@@ -69,12 +70,30 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter(); // Initialize router
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // Add loading state
+
+  // --- LOGOUT LOGIC ---
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      // Call the API to clear the cookie
+      await axios.post('/api/auth/logout');
+      // Redirect to login
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+      // Force redirect even if API fails
+      router.push('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
       {/* MOBILE HEADER */}
-      {/* Added dark:bg-slate-900 and dark:border-slate-800 */}
       <div className="lg:hidden fixed top-0 left-0 w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 z-[60] px-4 h-16 flex items-center justify-between shadow-sm transition-colors duration-300">
         
         {/* LEFT SIDE: Hamburger + Logo */}
@@ -87,7 +106,7 @@ export default function Sidebar() {
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           
-          {/* Logo - Changed to AgentHub */}
+          {/* Logo */}
           <span className="font-bold text-lg text-blue-700 dark:text-blue-500 tracking-tight">AgentHub</span>
         </div>
         
@@ -103,7 +122,6 @@ export default function Sidebar() {
           
           {/* Desktop Logo Area */}
           <div className="hidden lg:flex items-center justify-center h-16 border-b border-gray-800 bg-slate-950 sticky top-0 z-10">
-            {/* Changed to AgentHub */}
             <h1 className="text-xl font-bold tracking-wider text-blue-400">AgentHub</h1>
           </div>
           
@@ -138,14 +156,19 @@ export default function Sidebar() {
 
           {/* Footer / Sign Out */}
           <div className="p-4 border-t border-gray-800 bg-slate-950">
-            <button className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-colors">
-              <LogOut className="mr-3 h-4 w-4" /> Sign Out
+            <button 
+              onClick={handleLogout} // Hooked up logic here
+              disabled={isLoggingOut}
+              className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-colors disabled:opacity-50"
+            >
+              <LogOut className="mr-3 h-4 w-4" /> 
+              {isLoggingOut ? 'Signing out...' : 'Sign Out'}
             </button>
           </div>
         </div>
       </aside>
       
-      {/* Mobile Overlay (Click to close) */}
+      {/* Mobile Overlay */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/60 z-[45] lg:hidden backdrop-blur-sm" 
