@@ -48,7 +48,7 @@ async function main() {
     { code: ServiceType.BVN_MOD_PHONE, name: 'BVN Mod: Phone', price: 2500.00, serviceCode: 622 },
     { code: ServiceType.BVN_MOD_NAME_PHONE, name: 'BVN Mod: Name & Phone', price: 4000.00, serviceCode: 623 },
     { code: ServiceType.BVN_MOD_DOB_PHONE, name: 'BVN Mod: DOB & Phone', price: 4000.00, serviceCode: 624 },
-    { code: ServiceType.BVN_MOD_FULL, name: 'BVN Mod: Full Details', price: 5000.00, serviceCode: 625 },
+    { code: ServiceType.BVN_MOD_FULL, name: 'BVN Mod: Phone, DOB & Name', price: 5000.00, serviceCode: 625 },
 
     // CORPORATE
     { code: ServiceType.CAC_REGISTRATION, name: 'CAC Registration', price: 15000.00 },
