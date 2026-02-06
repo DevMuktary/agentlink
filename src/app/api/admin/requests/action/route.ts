@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { sendEmail, emailTemplates } from '@/lib/zeptomail'; // <--- ADDED IMPORT
 
 export async function POST(req: Request) {
   try {
@@ -33,10 +34,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ status: false, error: 'Missing ID or Action' }, { status: 400 });
     }
 
-    // 3. Get Request
+    // 3. Get Request (Include User for Email)
     const request = await prisma.serviceRequest.findUnique({
         where: { id: requestId },
-        include: { user: true }
+        include: { user: true } // <--- We need this for the email address
     });
 
     if (!request) return NextResponse.json({ status: false, error: 'Request not found' }, { status: 404 });
@@ -143,6 +144,33 @@ export async function POST(req: Request) {
             });
         }
     });
+
+    // 6. SEND EMAIL NOTIFICATION (New Addition)
+    // We send this after the DB transaction succeeds to ensure data consistency
+    if (request.user && request.user.email) {
+        const finalStatus = action === 'APPROVE' ? 'COMPLETED' : 'FAILED';
+        const fullName = `${request.user.firstName} ${request.user.lastName}`;
+        const serviceName = request.serviceType.replace(/_/g, ' '); // Format name nicely
+
+        try {
+            console.log(`📧 Sending Update Email to ${request.user.email} for ${serviceName}`);
+            
+            await sendEmail({
+                to: request.user.email,
+                name: fullName,
+                subject: `Request Update: ${serviceName} - AgentHub`,
+                html: emailTemplates.serviceStatusUpdate(
+                    fullName,
+                    serviceName,
+                    finalStatus,
+                    note
+                )
+            });
+        } catch (emailError) {
+            // We log the error but do NOT fail the request, as the DB update was successful
+            console.error("Failed to send status update email:", emailError);
+        }
+    }
 
     return NextResponse.json({ status: true, message: 'Action Successful', data: result });
 
