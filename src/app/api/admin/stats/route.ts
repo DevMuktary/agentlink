@@ -63,6 +63,7 @@ export async function GET(req: Request) {
                     'BVN_MOD_PHONE', 
                     'BVN_MOD_NAME_PHONE', 
                     'BVN_MOD_DOB_PHONE', 
+                    'BVN_MOD_NAME_DOB',
                     'BVN_MOD_FULL'
                 ] 
             } 
