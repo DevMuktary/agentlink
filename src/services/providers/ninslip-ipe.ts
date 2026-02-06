@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 // --- CONFIGURATION ---
-// Ensure you add ROBOST_API_KEY to your .env file
 const API_KEY = process.env.ROBOSTTECH_API_KEY;
 const SUBMIT_URL = 'https://robosttech.com/api/clearance';
 const STATUS_URL = 'https://robosttech.com/api/clearance_status';
@@ -9,6 +8,7 @@ const STATUS_URL = 'https://robosttech.com/api/clearance_status';
 export interface IpeResult {
   success: boolean;
   message?: string;
+  reply?: string; // <--- ADDED: To match your documentation
   data?: any;
   status?: 'COMPLETED' | 'FAILED' | 'PROCESSING';
 }
@@ -32,23 +32,26 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
     console.log("Robost Submit Response:", JSON.stringify(apiRes, null, 2));
 
     // Logic: Robost usually returns success: true or status: 'success'
-    // We check broadly to be safe
     const isSuccess = 
         apiRes.status === true || 
         apiRes.status === 'success' || 
         apiRes.success === true;
 
+    const msg = apiRes.message || 'Submitted successfully';
+
     if (isSuccess) {
       return { 
         success: true, 
-        message: apiRes.message || 'Submitted successfully',
+        message: msg,
+        reply: msg, // <--- Mapped to reply
         data: apiRes 
       };
     }
 
     return { 
       success: false, 
-      message: apiRes.message || apiRes.error || 'Provider rejected request' 
+      message: apiRes.message || apiRes.error || 'Provider rejected request',
+      reply: apiRes.message || apiRes.error || 'Provider rejected request' // <--- Mapped to reply
     };
 
   } catch (error: any) {
@@ -63,7 +66,7 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
             : error.response.data.error;
     }
 
-    return { success: false, message: errorMsg };
+    return { success: false, message: errorMsg, reply: errorMsg };
   }
 }
 
@@ -85,6 +88,9 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
 
     const statusStr = (apiRes.status || '').toString().toLowerCase();
     const msgStr = (apiRes.message || '').toLowerCase();
+    
+    // Default message fallback
+    const displayMessage = apiRes.message || 'Processing...';
 
     // --- MAP STATUS ---
 
@@ -99,7 +105,8 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
         success: true, 
         status: 'COMPLETED', 
         data: apiRes.data || apiRes,
-        message: apiRes.message || 'Clearance Successful'
+        message: displayMessage,
+        reply: displayMessage // <--- Mapped for docs
       };
     }
 
@@ -107,12 +114,13 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
     if (
         statusStr === 'failed' || 
         statusStr === 'rejected' || 
-        msgStr.includes('not found') // Sometimes invalid IDs return 200 but say not found
+        msgStr.includes('not found')
     ) {
       return { 
-        success: true, // Request finished, but result is negative
+        success: true, 
         status: 'FAILED', 
-        message: apiRes.message || 'Clearance Rejected' 
+        message: displayMessage,
+        reply: displayMessage // <--- Mapped for docs
       };
     }
 
@@ -125,7 +133,8 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
          return { 
             success: true, 
             status: 'PROCESSING', 
-            message: 'Provider is processing clearance...' 
+            message: 'Provider is processing clearance...',
+            reply: 'Provider is processing clearance...'
          };
     }
 
@@ -133,11 +142,12 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
     return { 
       success: true, 
       status: 'PROCESSING', 
-      message: apiRes.message || 'Waiting for provider response...' 
+      message: displayMessage,
+      reply: displayMessage
     };
 
   } catch (error: any) {
     console.error("Robost Status Check Error:", error.response?.data || error.message);
-    return { success: false, message: 'Network check failed' };
+    return { success: false, message: 'Network check failed', reply: 'Network check failed' };
   }
 }
