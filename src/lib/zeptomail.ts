@@ -160,5 +160,18 @@ export const emailTemplates = {
     </div>
 
     <p>This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+  `),
+
+passwordResetOtp: (code: string) => wrapEmail(`
+    <h2 style="color: #0f172a; margin-top: 0;">Reset Your Password</h2>
+    <p>We received a request to reset the password for your AgentHub account.</p>
+    <p>Use the code below to proceed:</p>
+    
+    <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 8px; margin: 20px 0; color: #0f172a;">
+      ${code}
+    </div>
+
+    <p>This code expires in 10 minutes.</p>
+    <p>If you did not request a password reset, you can safely ignore this email.</p>
   `)
 };
