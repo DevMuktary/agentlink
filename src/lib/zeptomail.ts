@@ -149,5 +149,16 @@ export const emailTemplates = {
 
     <p>Please login to your dashboard to view the full details or download any generated documents.</p>
     <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" class="btn">View Request</a>
+  `),
+  
+  emailVerificationOtp: (code: string) => wrapEmail(`
+    <h2 style="color: #0f172a; margin-top: 0;">Verify your Email</h2>
+    <p>Use the code below to verify your email address for AgentHub.</p>
+    
+    <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 8px; margin: 20px 0; color: #0f172a;">
+      ${code}
+    </div>
+
+    <p>This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
   `)
 };
