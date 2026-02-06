@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const API_TOKEN = process.env.S8V_API_TOKEN || "kprAMi3frffX9CFA21mFKTgi4teaylY4aEiHBshRLhrbQ0vxOb";
-const SUBMIT_URL = 'https://www.s8v.ng/api/clearance';
-const STATUS_URL = 'https://www.s8v.ng/api/clearance/status';
+// --- CONFIGURATION ---
+// Ensure you add ROBOST_API_KEY to your .env file
+const API_KEY = process.env.ROBOSTTECH_API_KEY;
+const SUBMIT_URL = 'https://robosttech.com/api/clearance';
+const STATUS_URL = 'https://robosttech.com/api/clearance_status';
 
 export interface IpeResult {
   success: boolean;
@@ -14,28 +16,32 @@ export interface IpeResult {
 // 1. Submit IPE Request
 export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
   try {
-    const payload = { token: API_TOKEN, tracking_id: trackingId };
-    console.log("Submitting to S8V:", JSON.stringify(payload, null, 2));
+    const payload = { tracking_id: trackingId };
+    
+    console.log("Submitting to Robost:", JSON.stringify(payload, null, 2));
 
     const response = await axios.post(SUBMIT_URL, payload, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'api-key': API_KEY 
+      },
       timeout: 60000 
     });
 
     const apiRes = response.data;
-    console.log("S8V Submit Response:", JSON.stringify(apiRes, null, 2));
+    console.log("Robost Submit Response:", JSON.stringify(apiRes, null, 2));
 
-    // Logic: Check if success is true OR if 'success' string exists
+    // Logic: Robost usually returns success: true or status: 'success'
+    // We check broadly to be safe
     const isSuccess = 
         apiRes.status === true || 
         apiRes.status === 'success' || 
-        apiRes.success === true ||
-        (typeof apiRes.success === 'string' && apiRes.success.includes('successfully'));
+        apiRes.success === true;
 
     if (isSuccess) {
       return { 
         success: true, 
-        message: 'Submitted successfully',
+        message: apiRes.message || 'Submitted successfully',
         data: apiRes 
       };
     }
@@ -46,11 +52,12 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
     };
 
   } catch (error: any) {
-    console.error("S8V Submit Error:", error.response?.data || error.message);
+    console.error("Robost Submit Error:", error.response?.data || error.message);
     
     let errorMsg = 'Connection failed';
-    if (error.response?.data?.error) {
-        // Handle { error: { tracking_id: ["Invalid format"] } }
+    if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+    } else if (error.response?.data?.error) {
         errorMsg = typeof error.response.data.error === 'object' 
             ? JSON.stringify(error.response.data.error) 
             : error.response.data.error;
@@ -63,40 +70,58 @@ export async function submitIpeRequest(trackingId: string): Promise<IpeResult> {
 // 2. Check IPE Status
 export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
   try {
-    const payload = { token: API_TOKEN, tracking_id: trackingId };
+    const payload = { tracking_id: trackingId };
     
     const response = await axios.post(STATUS_URL, payload, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'api-key': API_KEY
+      },
       timeout: 60000
     });
 
     const apiRes = response.data;
-    console.log("S8V Status Response:", JSON.stringify(apiRes, null, 2));
+    console.log("Robost Status Response:", JSON.stringify(apiRes, null, 2));
 
     const statusStr = (apiRes.status || '').toString().toLowerCase();
+    const msgStr = (apiRes.message || '').toLowerCase();
 
     // --- MAP STATUS ---
 
     // A. SUCCESS / COMPLETED
-    if (statusStr === 'success' || statusStr === 'successful' || statusStr === 'completed') {
+    if (
+        statusStr === 'success' || 
+        statusStr === 'successful' || 
+        statusStr === 'completed' ||
+        statusStr === 'cleared'
+    ) {
       return { 
         success: true, 
         status: 'COMPLETED', 
-        data: apiRes.data || apiRes // Pass full data
+        data: apiRes.data || apiRes,
+        message: apiRes.message || 'Clearance Successful'
       };
     }
 
     // B. FAILED / REJECTED
-    if (statusStr === 'failed' || statusStr === 'rejected') {
+    if (
+        statusStr === 'failed' || 
+        statusStr === 'rejected' || 
+        msgStr.includes('not found') // Sometimes invalid IDs return 200 but say not found
+    ) {
       return { 
-        success: true, 
+        success: true, // Request finished, but result is negative
         status: 'FAILED', 
         message: apiRes.message || 'Clearance Rejected' 
       };
     }
 
-    // C. IN PROGRESS (Explicit Check)
-    if (statusStr === 'in-progress' || statusStr === 'processing' || statusStr === 'pending') {
+    // C. IN PROGRESS
+    if (
+        statusStr === 'in-progress' || 
+        statusStr === 'processing' || 
+        statusStr === 'pending'
+    ) {
          return { 
             success: true, 
             status: 'PROCESSING', 
@@ -108,11 +133,11 @@ export async function checkIpeStatus(trackingId: string): Promise<IpeResult> {
     return { 
       success: true, 
       status: 'PROCESSING', 
-      message: 'Waiting for provider response...' 
+      message: apiRes.message || 'Waiting for provider response...' 
     };
 
   } catch (error: any) {
-    console.error("S8V Status Check Error:", error.response?.data || error.message);
+    console.error("Robost Status Check Error:", error.response?.data || error.message);
     return { success: false, message: 'Network check failed' };
   }
 }
