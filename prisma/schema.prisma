@@ -120,6 +120,7 @@ enum TransactionType {
   SERVICE_CHARGE
   REFUND
   BONUS
+  MANUAL_DEBIT
 }
 
 enum Status {
