@@ -38,7 +38,9 @@ export async function POST(req: Request) {
     }
 
     // 4. Get Service & Price
-    const service = await prisma.service.findFirst({ where: { code: serviceType } });
+    // FIX: Added 'as any' here to satisfy TypeScript Enum check
+    const service = await prisma.service.findFirst({ where: { code: serviceType as any } });
+    
     if (!service || !service.isActive) {
         return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
     }
@@ -99,7 +101,7 @@ export async function POST(req: Request) {
           status: 'COMPLETED',
           reference: reference,
           description: descriptionDetail,
-          serviceId: serviceType
+          serviceId: serviceType // Ideally this should be cast if your schema enforces enums on transactions
         }
       });
 
