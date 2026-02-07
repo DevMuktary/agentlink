@@ -4,6 +4,15 @@ import { validateApiKey } from '@/lib/api-auth';
 // Ensure this path matches your provider service file
 import { purchaseAirtime } from '@/services/providers/cheapdata-airtime';
 
+// Map input network strings to your Prisma ServiceType Enum
+const NETWORK_MAP: Record<string, string> = {
+    'MTN': 'AIRTIME_MTN',
+    'GLO': 'AIRTIME_GLO',
+    'AIRTEL': 'AIRTIME_AIRTEL',
+    '9MOBILE': 'AIRTIME_9MOBILE',
+    'ETISALAT': 'AIRTIME_9MOBILE'
+};
+
 export async function POST(req: Request) {
   try {
     // 1. Authenticate
@@ -14,12 +23,11 @@ export async function POST(req: Request) {
     const { network, amount, phone_number, reference } = body;
 
     // 2. Validate Inputs
-    const validNetworks = ['MTN', 'GLO', 'AIRTEL', '9MOBILE', 'ETISALAT'];
-    if (!network || !validNetworks.includes(network.toUpperCase())) {
+    if (!network || !NETWORK_MAP[network.toUpperCase()]) {
       return NextResponse.json({ status: false, error: 'Invalid Network. Use: MTN, GLO, AIRTEL, 9MOBILE' }, { status: 400 });
     }
     
-    // Enforce minimum limit (usually 50 or 100 depending on provider)
+    // Enforce minimum limit
     if (!amount || Number(amount) < 50) {
       return NextResponse.json({ status: false, error: 'Invalid Amount (Minimum ₦50)' }, { status: 400 });
     }
@@ -32,20 +40,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Missing Reference' }, { status: 400 });
     }
 
-    // 3. Check Service Status
-    // We check the generic 'AIRTIME' service to see if the category is active
-    const service = await prisma.service.findUnique({ where: { code: 'AIRTIME' } });
+    // 3. Determine Specific Service Type
+    const dbServiceType = NETWORK_MAP[network.toUpperCase()]; // e.g., 'AIRTIME_MTN'
+
+    // 4. Check Service Status (Specific to Network)
+    // We now look up 'AIRTIME_MTN' instead of generic 'AIRTIME'
+    const service = await prisma.service.findUnique({ 
+        where: { code: dbServiceType as any } 
+    });
+
     if (!service || !service.isActive) {
-      return NextResponse.json({ status: false, error: 'Airtime Service Unavailable' }, { status: 503 });
+      return NextResponse.json({ status: false, error: `${network} Airtime Service Unavailable` }, { status: 503 });
     }
 
-    // 4. Check Balance
-    const cost = Number(amount);
+    // 5. Check Balance & Calculate Cost
+    // Note: If you want to apply discounts based on service.price (e.g. 98%), do it here.
+    // For now, we assume cost = amount as per your original code.
+    const cost = Number(amount); 
+    
     if (Number(user.walletBalance) < cost) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 5. Deduct & Log (PROCESSING)
+    // 6. Deduct & Log (PROCESSING)
     const requestLog = await prisma.$transaction(async (tx) => {
       // A. Deduct
       await tx.user.update({
@@ -62,7 +79,7 @@ export async function POST(req: Request) {
           status: 'COMPLETED',
           reference: reference, 
           description: `Airtime: ${network} ₦${cost} -> ${phone_number}`,
-          serviceId: 'AIRTIME'
+          serviceId: dbServiceType // Tracking specific network usage
         }
       });
 
@@ -70,7 +87,7 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: 'AIRTIME', // Ensure 'AIRTIME' exists in your Prisma Enum
+          serviceType: dbServiceType as any, // Saving as 'AIRTIME_MTN' etc.
           status: 'PROCESSING',
           cost: cost,
           requestData: { 
@@ -84,7 +101,7 @@ export async function POST(req: Request) {
       });
     });
 
-    // 6. Call Provider
+    // 7. Call Provider
     const result = await purchaseAirtime(network, cost, phone_number, reference);
 
     if (result.success) {
@@ -127,7 +144,7 @@ export async function POST(req: Request) {
               status: 'COMPLETED',
               reference: `${reference}-REFUND`, 
               description: `Refund: Airtime Failed (${network} ${amount})`,
-              serviceId: 'AIRTIME'
+              serviceId: dbServiceType
             }
         });
 
