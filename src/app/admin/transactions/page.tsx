@@ -36,12 +36,10 @@ export default function AdminTransactionsPage() {
 
     // 2. Type Filter
     if (typeFilter !== 'ALL') {
-        // Assuming your schema uses 'DEBIT' / 'CREDIT' or similar enum
-        // Adjust if your schema uses 'PAYMENT' / 'DEPOSIT'
         if (typeFilter === 'CREDIT') {
             result = result.filter(t => ['CREDIT', 'DEPOSIT', 'REFUND', 'BONUS'].includes(t.type));
         } else {
-            result = result.filter(t => ['DEBIT', 'PAYMENT', 'CHARGE'].includes(t.type));
+            result = result.filter(t => ['DEBIT', 'PAYMENT', 'CHARGE', 'MANUAL_DEBIT', 'SERVICE_CHARGE'].includes(t.type));
         }
     }
 
@@ -52,10 +50,10 @@ export default function AdminTransactionsPage() {
     setLoading(true);
     try {
       const res = await axios.get('/api/admin/transactions');
-      if (res.data.status) {
-          setTransactions(res.data.data);
-          setFilteredDocs(res.data.data);
-      }
+      // Handle response structure wrapper
+      const data = res.data.status ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+      setTransactions(data);
+      setFilteredDocs(data);
     } catch (error) {
         console.error("Failed to load transactions", error);
     } finally {
@@ -71,25 +69,25 @@ export default function AdminTransactionsPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <CreditCard className="text-blue-600" /> Transaction History
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="text-blue-600 dark:text-blue-400" /> Transaction History
             </h1>
-            <p className="text-slate-500 text-sm mt-1">
+            <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">
                 Monitor all financial activities, deposits, and service charges.
             </p>
         </div>
         <div className="flex gap-2">
-            <button onClick={fetchTransactions} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition">
-                <RefreshCw size={18} className="text-slate-600" />
+            <button onClick={fetchTransactions} className="p-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-700 transition">
+                <RefreshCw size={18} className="text-slate-600 dark:text-gray-300" />
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition">
+            <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-slate-800 dark:hover:bg-blue-700 transition">
                 <Download size={16} /> Export CSV
             </button>
         </div>
       </div>
 
       {/* FILTERS */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm">
         
         {/* Search */}
         <div className="flex-1 relative">
@@ -99,7 +97,7 @@ export default function AdminTransactionsPage() {
                 placeholder="Search Reference or User Email..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
         </div>
 
@@ -109,7 +107,7 @@ export default function AdminTransactionsPage() {
             <select 
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-200 text-sm rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
                 <option value="ALL">All Transactions</option>
                 <option value="CREDIT">Credits (In)</option>
@@ -119,10 +117,10 @@ export default function AdminTransactionsPage() {
       </div>
 
       {/* DATA TABLE */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <thead className="bg-slate-50 dark:bg-gray-900/50 text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-gray-700">
                     <tr>
                         <th className="px-6 py-4 font-medium">Reference</th>
                         <th className="px-6 py-4 font-medium">User / Agent</th>
@@ -132,11 +130,11 @@ export default function AdminTransactionsPage() {
                         <th className="px-6 py-4 font-medium text-right">Amount</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
                     {filteredDocs.length === 0 ? (
                         <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500 flex flex-col items-center justify-center">
-                                <FileText size={48} className="text-slate-200 mb-2" />
+                            <td colSpan={6} className="px-6 py-12 text-center text-slate-500 dark:text-gray-400 flex flex-col items-center justify-center">
+                                <FileText size={48} className="text-slate-200 dark:text-gray-700 mb-2" />
                                 <p>No transactions found matching your criteria.</p>
                             </td>
                         </tr>
@@ -146,16 +144,16 @@ export default function AdminTransactionsPage() {
                             const isCredit = ['CREDIT', 'DEPOSIT', 'REFUND', 'BONUS'].includes(tx.type);
                             
                             return (
-                                <tr key={tx.id} className="hover:bg-slate-50 transition-colors group">
+                                <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors group">
                                     {/* Reference */}
-                                    <td className="px-6 py-4 font-mono text-slate-600 text-xs">
+                                    <td className="px-6 py-4 font-mono text-slate-600 dark:text-gray-400 text-xs">
                                         {tx.reference || 'N/A'}
                                     </td>
 
                                     {/* User */}
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-slate-800 text-xs">
+                                            <span className="font-bold text-slate-800 dark:text-gray-200 text-xs">
                                                 {tx.user?.firstName} {tx.user?.lastName}
                                             </span>
                                             <span className="text-[10px] text-slate-400">
@@ -168,8 +166,8 @@ export default function AdminTransactionsPage() {
                                     <td className="px-6 py-4">
                                         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full w-fit text-[10px] font-bold uppercase border ${
                                             isCredit 
-                                            ? 'bg-green-50 text-green-700 border-green-200' 
-                                            : 'bg-red-50 text-red-700 border-red-200'
+                                            ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900/30' 
+                                            : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/30'
                                         }`}>
                                             {isCredit ? <ArrowDownLeft size={12} /> : <ArrowUpRight size={12} />}
                                             {tx.type}
@@ -177,18 +175,18 @@ export default function AdminTransactionsPage() {
                                     </td>
 
                                     {/* Description */}
-                                    <td className="px-6 py-4 text-slate-600 max-w-[200px] truncate" title={tx.description}>
+                                    <td className="px-6 py-4 text-slate-600 dark:text-gray-400 max-w-[200px] truncate" title={tx.description}>
                                         {tx.description || '-'}
                                     </td>
 
                                     {/* Date */}
-                                    <td className="px-6 py-4 text-slate-500 text-xs">
+                                    <td className="px-6 py-4 text-slate-500 dark:text-gray-500 text-xs">
                                         {new Date(tx.createdAt).toLocaleString()}
                                     </td>
 
                                     {/* Amount */}
                                     <td className={`px-6 py-4 text-right font-bold font-mono tracking-tight ${
-                                        isCredit ? 'text-green-600' : 'text-slate-900'
+                                        isCredit ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-white'
                                     }`}>
                                         {isCredit ? '+' : '-'}₦{Number(tx.amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                                     </td>
@@ -200,10 +198,10 @@ export default function AdminTransactionsPage() {
             </table>
         </div>
         
-        {/* Pagination Footer (Static for now) */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 flex justify-between items-center">
+        {/* Pagination Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 text-xs text-slate-500 dark:text-gray-400 flex justify-between items-center">
             <span>Showing recent {filteredDocs.length} transactions</span>
-            <span className="text-[10px] uppercase font-bold text-slate-400">Real-time Data</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-gray-600">Real-time Data</span>
         </div>
       </div>
     </div>
