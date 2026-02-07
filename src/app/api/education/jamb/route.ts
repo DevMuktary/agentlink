@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 
-// Helper to map numeric codes if needed, though we prefer string Enums now
-const SERVICE_CODES = [
-  'JAMB_ORIGINAL_RESULT',
-  'JAMB_ADMISSION_LETTER',
-  'JAMB_REGISTRATION_SLIP',
-  'JAMB_PROFILE_CODE_RETRIEVAL'
-];
+// MAP NUMERIC CODES TO INTERNAL ENUMS
+const SERVICE_MAP: Record<string, string> = {
+    '901': 'JAMB_ORIGINAL_RESULT',
+    '902': 'JAMB_ADMISSION_LETTER',
+    '903': 'JAMB_REGISTRATION_SLIP',
+    '904': 'JAMB_PROFILE_CODE_RETRIEVAL',
+};
 
 export async function POST(req: Request) {
   try {
@@ -19,51 +19,59 @@ export async function POST(req: Request) {
     // 2. Parse JSON
     const body = await req.json();
     const { 
-        service_type, // e.g. JAMB_ORIGINAL_RESULT
+        service_code, 
+        reference,
         // Group A Fields:
-        full_name, reg_number, exam_year,
+        full_name, registration_number, exam_year,
         // Group B Fields:
         retrieval_id 
     } = body;
 
     // 3. Basic Validation
-    if (!service_type || !SERVICE_CODES.includes(service_type)) {
-        return NextResponse.json({ status: false, error: 'Invalid or Missing Service Type' }, { status: 400 });
+    if (!service_code || !reference) {
+        return NextResponse.json({ status: false, error: 'Missing service_code or reference' }, { status: 400 });
+    }
+
+    const serviceType = SERVICE_MAP[service_code.toString()];
+    if (!serviceType) {
+        return NextResponse.json({ status: false, error: 'Invalid JAMB Service Code' }, { status: 400 });
     }
 
     // 4. Get Service & Price
-    const service = await prisma.service.findFirst({ where: { code: service_type } });
+    const service = await prisma.service.findFirst({ where: { code: serviceType } });
     if (!service || !service.isActive) {
         return NextResponse.json({ status: false, error: 'Service currently unavailable' }, { status: 503 });
     }
 
     // 5. Service-Specific Validation & Data Prep
-    const requestData: any = {};
+    const requestData: any = { clientReference: reference, service_code };
     let descriptionDetail = '';
 
     // GROUP A: Documents (Result, Admission, Slip)
-    if (['JAMB_ADMISSION_LETTER', 'JAMB_ORIGINAL_RESULT', 'JAMB_REGISTRATION_SLIP'].includes(service_type)) {
-        if (!full_name || !reg_number || !exam_year) {
+    if (['901', '902', '903'].includes(service_code.toString())) {
+        // NOW REQUIRES FULL NAME
+        if (!full_name || !registration_number || !exam_year) {
             return NextResponse.json({ 
                 status: false, 
-                error: 'Missing Requirements: Full Name, Reg Number, and Exam Year are required.' 
+                error: 'Missing Requirements: full_name, registration_number, and exam_year are required.' 
             }, { status: 400 });
         }
         requestData.full_name = full_name;
-        requestData.regNumber = reg_number; // Database standardized key
+        requestData.regNumber = registration_number;
         requestData.examYear = exam_year;
-        descriptionDetail = `${service.name} for ${reg_number} (${exam_year})`;
+        descriptionDetail = `${service.name} for ${registration_number} (${exam_year})`;
     }
     
     // GROUP B: Profile Code Retrieval
-    else if (service_type === 'JAMB_PROFILE_CODE_RETRIEVAL') {
+    else if (service_code.toString() === '904') {
+        // NOW REQUIRES RETRIEVAL ID
         if (!retrieval_id) {
             return NextResponse.json({ 
                 status: false, 
-                error: 'Missing Requirements: Please provide a Reg Number, Phone Number, or Email.' 
+                error: 'Missing Requirement: retrieval_id (Reg No, Phone, or Email) is required.' 
             }, { status: 400 });
         }
-        requestData.retrieval_id = retrieval_id; // Store the ID used for lookup
+        requestData.retrieval_id = retrieval_id; 
         descriptionDetail = `JAMB Profile Retrieval (${retrieval_id})`;
     }
 
@@ -89,9 +97,9 @@ export async function POST(req: Request) {
           amount: cost,
           type: 'SERVICE_CHARGE',
           status: 'COMPLETED',
-          reference: `JAMB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          reference: reference,
           description: descriptionDetail,
-          serviceId: service_type
+          serviceId: serviceType
         }
       });
 
@@ -99,7 +107,7 @@ export async function POST(req: Request) {
       return await tx.serviceRequest.create({
         data: {
           userId: user.id,
-          serviceType: service_type as any,
+          serviceType: serviceType as any,
           status: 'PROCESSING',
           cost: cost,
           requestData: requestData,
@@ -114,6 +122,7 @@ export async function POST(req: Request) {
       message: 'JAMB Request Submitted Successfully',
       data: {
         request_id: requestLog.id,
+        reference: reference,
         status: 'PROCESSING',
         charged_amount: cost,
         note: 'Admin will process and provide the document/code shortly.'
