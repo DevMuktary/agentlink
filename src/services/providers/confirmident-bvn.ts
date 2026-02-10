@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Add CONFIRMIDENT_API_KEY to your Railway Variables
-const API_KEY = process.env.CONFIRMIDENT_API_KEY;
-const BASE_URL = 'https://confirmident.com.ng/api';
+// --- CONFIGURATION ---
+const ACCESS_TOKEN = process.env.RAUDAH_ACCESS_TOKEN; 
+const ENDPOINT = 'https://raudah.com.ng/api/bvn/bvn';
 
 export interface BvnResult {
   success: boolean;
@@ -11,61 +11,54 @@ export interface BvnResult {
   error?: string;
 }
 
-export async function verifyBvn(bvn: string): Promise<BvnResult> {
-  if (!API_KEY) {
-    console.error("CRITICAL: CONFIRMIDENT_API_KEY is missing.");
+export async function verifyBvn(bvn: string, reference: string = ''): Promise<BvnResult> {
+  if (!ACCESS_TOKEN) {
+    console.error("CRITICAL: RAUDAH_ACCESS_TOKEN is missing in environment variables.");
     return { success: false, error: 'Service Configuration Error' };
   }
 
+  // Generate a random reference if none is provided (just in case)
+  const txRef = reference || `BVN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
   try {
-    const response = await axios.post(
-      `${BASE_URL}/bvn_search`,
-      { bvn }, 
-      {
-        headers: {
-          'api-key': API_KEY, // Specified in docs
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000 // 30s timeout
-      }
-    );
+    const payload = {
+      value: bvn,
+      ref: txRef
+    };
+
+    console.log(`Submitting BVN to Raudah: ${bvn} | Ref: ${txRef}`);
+
+    const response = await axios.post(ENDPOINT, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': ACCESS_TOKEN // Format: "APIKEY:PASSWORD"
+      },
+      timeout: 45000 // 45s timeout
+    });
 
     const apiRes = response.data;
+    console.log("Raudah Response:", JSON.stringify(apiRes, null, 2));
 
-    // Check Success
-    if (apiRes.success === true || apiRes.message === 'Verification Successfull') {
-      return {
-        success: true,
-        message: 'Verification Successful',
-        data: {
-          // Normalize the fields (Fixing provider typos like "firs_tname")
-          firstName: apiRes.data.firs_tname || apiRes.data.first_name,
-          surname: apiRes.data.last_name,
-          middleName: apiRes.data.middlename,
-          dateOfBirth: apiRes.data.date_of_birth,
-          phoneNumber: apiRes.data.phone_number,
-          gender: apiRes.data.gender,
-          stateOfOrigin: apiRes.data.State,
-          bvn: apiRes.data.bvn,
-          nin: apiRes.data.nin,
-          photo: apiRes.data.image // Base64 image
-        }
-      };
-    }
-
+    // The user requested: "whatever their response is what we send to our user api straight"
+    // We treat HTTP 200 as success and pass the entire raw body in `data`.
     return {
-      success: false,
-      error: apiRes.message || 'Verification Failed',
-      data: apiRes
+      success: true,
+      message: 'Request Processed',
+      data: apiRes // <--- RAW RESPONSE PASSED HERE
     };
 
   } catch (error: any) {
-    // Handle Axios Errors
-    if (error.response) {
-      console.error("ConfirmIdent Error:", error.response.data);
-      return { success: false, error: error.response.data.message || 'Provider Rejected Request' };
+    console.error("Raudah Verification Error:", error.response?.data || error.message);
+
+    // If the provider returns a structured error (e.g. 404 Not Found), pass that too if possible
+    if (error.response?.data) {
+        return { 
+            success: false, 
+            error: error.response.data.message || 'Provider Rejected Request',
+            data: error.response.data // Pass error data too just in case
+        };
     }
-    console.error("ConfirmIdent Connection Error:", error.message);
-    return { success: false, error: 'Connection Failed' };
+
+    return { success: false, error: 'Connection to Provider Failed' };
   }
 }
