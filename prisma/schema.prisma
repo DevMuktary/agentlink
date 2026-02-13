@@ -98,6 +98,14 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
+// Add these for Virtual Accounts
+  virtualAccountName    String?
+  virtualAccountNumber  String?
+  virtualBankName       String? 
+  paymentPointRef       String? // To store customer_id from PaymentPoint
+
+}
+
 // 6. VERIFICATION TOKENS (For OTPs)
 model VerificationToken {
   identifier String   // Email
