@@ -5,8 +5,16 @@ import { createVirtualAccount } from '@/services/providers/paymentpoint';
 
 export async function POST(req: Request) {
   try {
-    const user = await validateApiKey(req);
-    if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
+    const authUser = await validateApiKey(req);
+    if (!authUser) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
+
+    // FIX: Re-fetch the user to ensure we have the new Virtual Account fields
+    // (validateApiKey might return a partial user object)
+    const user = await prisma.user.findUnique({
+        where: { id: authUser.id }
+    });
+
+    if (!user) return NextResponse.json({ status: false, error: 'User record not found' }, { status: 404 });
 
     // 1. Check if user already has an account
     if (user.virtualAccountNumber) {
@@ -54,6 +62,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
+    console.error("Virtual Account Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
