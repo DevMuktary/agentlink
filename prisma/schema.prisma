@@ -29,6 +29,12 @@ model User {
   webhookUrl      String?
   ipWhitelist     String?
 
+// Add these for Virtual Accounts
+  virtualAccountName    String?
+  virtualAccountNumber  String?
+  virtualBankName       String? 
+  paymentPointRef       String? // To store customer_id from PaymentPoint
+
   transactions    Transaction[]
   requests        ServiceRequest[]
 
@@ -98,13 +104,7 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
-// Add these for Virtual Accounts
-  virtualAccountName    String?
-  virtualAccountNumber  String?
-  virtualBankName       String? 
-  paymentPointRef       String? // To store customer_id from PaymentPoint
 
-}
 
 // 6. VERIFICATION TOKENS (For OTPs)
 model VerificationToken {
