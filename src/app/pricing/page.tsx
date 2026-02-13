@@ -16,7 +16,6 @@ export default function PricingPage() {
   const [dataSearch, setDataSearch] = useState('');
 
   useEffect(() => {
-    // Added 'no-store' to ensure we get fresh admin prices
     fetch('/api/pricing', { cache: 'no-store' })
       .then(res => res.json())
       .then(res => {
@@ -34,7 +33,6 @@ export default function PricingPage() {
   const categories: any = {
     IDENTITY: services.filter(s => s.code.startsWith('NIN_') || s.code.includes('VNIN') || s.code.includes('IPE')),
     
-    // Hide individual "Bank: XXX" items, keep only the main services
     BANKING: services.filter(s => 
       (s.code.includes('BVN') || s.code.startsWith('BANK_')) && 
       !s.code.startsWith('BANK_') 
@@ -64,7 +62,6 @@ export default function PricingPage() {
                 Transparent rates for high-volume agents.
             </p>
         </div>
-        {/* Background Decor */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
       </div>
@@ -81,7 +78,7 @@ export default function PricingPage() {
             <TabButton active={activeTab === 'DATA'} onClick={() => setActiveTab('DATA')} icon={<Wifi size={18} />} label="Data Plans" />
         </div>
 
-        {/* BANKING SURCHARGE NOTICE (Only show if we are in Banking tab) */}
+        {/* BANKING SURCHARGE NOTICE */}
         {activeTab === 'BANKING' && (
             <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
@@ -104,14 +101,16 @@ export default function PricingPage() {
                     {categories[activeTab]?.length > 0 ? (
                         categories[activeTab].map((service: any) => {
                             
-                            // FIX: Only show surcharge warning for MODIFICATIONS
-                            const isModification = service.code.includes('MOD') || service.code.includes('MODIFICATION');
+                            // FIX: Only apply to BVN Modifications (Must have BVN AND MOD/MODIFICATION)
+                            const isBvnModification = 
+                                service.code.includes('BVN') && 
+                                (service.code.includes('MOD') || service.code.includes('MODIFICATION'));
                             
                             return (
                                 <PricingCard 
                                     key={service.id} 
                                     service={service} 
-                                    hasSurcharge={isModification} // Pass the specific check
+                                    hasSurcharge={isBvnModification} 
                                 />
                             );
                         })
@@ -123,7 +122,7 @@ export default function PricingPage() {
                 </div>
             )}
 
-            {/* DATA PLANS TABLE (Unchanged) */}
+            {/* DATA PLANS (Unchanged) */}
             {activeTab === 'DATA' && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between md:items-center gap-4">
@@ -214,7 +213,6 @@ function PricingCard({ service, hasSurcharge }: { service: any, hasSurcharge: bo
                             <span className="text-lg">{100 - Number(service.price)}% OFF</span>
                         ) : (
                             <>
-                                {/* FIX: Only show "From" if it has surcharge (Modification) */}
                                 {hasSurcharge && <span className="text-xs text-slate-400 font-normal mr-1">From</span>}
                                 ₦{Number(service.price).toLocaleString()}
                             </>
@@ -226,7 +224,6 @@ function PricingCard({ service, hasSurcharge }: { service: any, hasSurcharge: bo
             
             <h3 className="font-bold text-slate-800 text-lg mb-2 relative z-10">{service.name}</h3>
             
-            {/* FIX: Only show this tag for Modifications */}
             {hasSurcharge && (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold uppercase tracking-wide mb-3 relative z-10">
                     <Info size={12} /> Bank Fees Apply
@@ -242,7 +239,6 @@ function PricingCard({ service, hasSurcharge }: { service: any, hasSurcharge: bo
                 <span className="bg-green-50 text-green-700 px-2 py-1 rounded font-sans font-medium">Active</span>
             </div>
 
-            {/* Subtle Hover Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-blue-50/50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
         </div>
     );
