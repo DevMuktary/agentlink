@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  Wallet, ArrowUpRight, ArrowDownLeft, Search, 
-  CreditCard, RefreshCw, Copy, CheckCircle2, History, 
-  TrendingUp, TrendingDown, Loader2, Building2 
+  Wallet, ArrowUpRight, Search, CreditCard, Copy, 
+  History, TrendingUp, TrendingDown, Loader2, Building2, CheckCircle2, X 
 } from 'lucide-react';
 
 export default function UserWallet() {
@@ -18,8 +17,9 @@ export default function UserWallet() {
 
   // Account Generation State
   const [generatingAccount, setGeneratingAccount] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // For Custom Success Message
 
-  // Derived Stats
+  // Stats
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalRefunds, setTotalRefunds] = useState(0);
 
@@ -37,7 +37,6 @@ export default function UserWallet() {
       setTransactions(txData);
       setFiltered(txData);
 
-      // Calculate Totals
       const spent = txData
         .filter((t: any) => t.type === 'SERVICE_CHARGE' && t.status === 'COMPLETED')
         .reduce((acc: number, curr: any) => acc + Number(curr.amount), 0);
@@ -72,8 +71,16 @@ export default function UserWallet() {
     try {
         const res = await axios.post('/api/wallet/virtual-account');
         if (res.data.status) {
-            alert('Account Generated Successfully!');
-            fetchData(); // Refresh to show new account
+            // 1. Show Custom Success Modal
+            setShowSuccessModal(true);
+            
+            // 2. Immediately update local state so UI reflects change without refresh
+            setUser((prev: any) => ({
+                ...prev,
+                virtualAccountNumber: res.data.data.accountNumber,
+                virtualAccountName: res.data.data.accountName,
+                virtualBankName: res.data.data.bankName
+            }));
         } else {
             alert(res.data.error || 'Failed to generate account');
         }
@@ -84,16 +91,16 @@ export default function UserWallet() {
     }
   };
 
-  // --- COPY FUNCTION ---
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    // You could use a toast here, but simple alert is fine for copy
+    // Or just change icon momentarily (omitted for brevity)
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
       
       {/* 1. HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -108,29 +115,29 @@ export default function UserWallet() {
       {/* 2. FINANCIAL OVERVIEW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Main Balance Card (Dark Premium) */}
-        <div className="bg-[#0B1120] rounded-2xl p-6 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden group flex flex-col justify-between min-h-[200px]">
+        {/* Main Balance Card */}
+        <div className="bg-[#0B1120] rounded-2xl p-6 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden group flex flex-col justify-between min-h-[220px]">
             <div className="relative z-10">
                 <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Available Funds</p>
                 <h2 className="text-4xl font-bold text-white mb-1 tracking-tight">₦{Number(user?.walletBalance).toLocaleString()}</h2>
                 <p className="text-xs text-slate-500">Updated just now</p>
             </div>
 
-            {/* VIRTUAL ACCOUNT SECTION */}
+            {/* VIRTUAL ACCOUNT DISPLAY */}
             <div className="relative z-10 mt-6 pt-6 border-t border-slate-800">
                 {user?.virtualAccountNumber ? (
-                    <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 backdrop-blur-sm">
+                    <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2">
                         <div className="flex justify-between items-center mb-1">
                             <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">{user.virtualBankName}</span>
                             <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">Active</span>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between gap-3">
                             <span className="text-xl font-mono font-bold text-white tracking-widest">{user.virtualAccountNumber}</span>
-                            <button onClick={() => copyToClipboard(user.virtualAccountNumber)} className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white">
-                                <Copy size={14} />
+                            <button onClick={() => copyToClipboard(user.virtualAccountNumber)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white" title="Copy Account Number">
+                                <Copy size={16} />
                             </button>
                         </div>
-                        <p className="text-[10px] text-slate-500 mt-1">Transfer to this account to fund wallet instantly.</p>
+                        <p className="text-[10px] text-slate-500 mt-1 truncate">{user.virtualAccountName}</p>
                     </div>
                 ) : (
                     <button 
@@ -139,7 +146,7 @@ export default function UserWallet() {
                         className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         {generatingAccount ? <Loader2 className="animate-spin" /> : <Building2 size={18} />}
-                        Generate Account Number
+                        {generatingAccount ? 'Generating...' : 'Generate Account Number'}
                     </button>
                 )}
             </div>
@@ -148,7 +155,7 @@ export default function UserWallet() {
             <div className="absolute right-0 top-0 h-48 w-48 bg-blue-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
         </div>
 
-        {/* Total Spent Card */}
+        {/* Stats Cards */}
         <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between group hover:border-red-200 dark:hover:border-red-900/30 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
@@ -162,7 +169,6 @@ export default function UserWallet() {
             <div className="mt-4 text-xs text-slate-400">Lifetime usage on services</div>
         </div>
 
-        {/* Total Refunds Card */}
         <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between group hover:border-emerald-200 dark:hover:border-emerald-900/30 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
@@ -215,28 +221,24 @@ export default function UserWallet() {
                                     <div className="h-12 w-12 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
                                         <History className="w-6 h-6 text-slate-300 dark:text-gray-600" />
                                     </div>
-                                    <p>No transactions found matching your search.</p>
+                                    <p>No transactions found.</p>
                                 </div>
                             </td>
                         </tr>
                     ) : (
                         filtered.map(t => (
                             <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-gray-700/30 transition-colors group">
-                                <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-gray-400 group-hover:text-slate-700 dark:group-hover:text-gray-200">{t.reference}</td>
+                                <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-gray-400">{t.reference}</td>
                                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{t.description || 'System Transaction'}</td>
-                                <td className="px-6 py-4">
-                                    <Badge type={t.type} />
-                                </td>
+                                <td className="px-6 py-4"><Badge type={t.type} /></td>
                                 <td className={`px-6 py-4 font-mono font-bold ${
-                                    t.type === 'DEPOSIT' || t.type === 'REFUND' || t.type === 'BONUS' 
-                                    ? 'text-emerald-600 dark:text-emerald-400' 
-                                    : 'text-slate-700 dark:text-slate-300'
+                                    ['DEPOSIT', 'REFUND', 'BONUS'].includes(t.type) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'
                                 }`}>
-                                    {t.type === 'DEPOSIT' || t.type === 'REFUND' || t.type === 'BONUS' ? '+' : '-'}
+                                    {['DEPOSIT', 'REFUND', 'BONUS'].includes(t.type) ? '+' : '-'}
                                     ₦{Number(t.amount).toLocaleString()}
                                 </td>
                                 <td className="px-6 py-4 text-right text-slate-500 dark:text-gray-400 text-xs">
-                                    {new Date(t.createdAt).toLocaleDateString()} <span className="text-slate-300 dark:text-gray-600">|</span> {new Date(t.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {new Date(t.createdAt).toLocaleDateString()}
                                 </td>
                             </tr>
                         ))
@@ -246,12 +248,39 @@ export default function UserWallet() {
         </div>
       </div>
 
+      {/* SUCCESS MODAL (CUSTOM NOTIFICATION) */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center relative animate-in zoom-in-95">
+                <button onClick={() => setShowSuccessModal(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <X size={20} />
+                </button>
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Account Created!</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                    Your permanent virtual account has been generated successfully. You can now fund your wallet via bank transfer.
+                </p>
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl mb-6 border border-gray-100 dark:border-gray-700">
+                    <p className="text-xs text-gray-400 uppercase font-bold mb-1">{user?.virtualBankName}</p>
+                    <p className="text-2xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">{user?.virtualAccountNumber}</p>
+                </div>
+                <button 
+                    onClick={() => setShowSuccessModal(false)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors"
+                >
+                    Awesome, Thanks!
+                </button>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 // --- COMPONENTS ---
-
 function Badge({ type }: { type: string }) {
     const styles: any = {
         SERVICE_CHARGE: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700',
@@ -261,10 +290,8 @@ function Badge({ type }: { type: string }) {
         WITHDRAWAL: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800',
         MANUAL_DEBIT: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800',
     };
-
     const label = type.replace(/_/g, ' ');
     const style = styles[type] || 'bg-gray-100 text-gray-600 border-gray-200';
-
     return (
         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${style}`}>
             {label}
