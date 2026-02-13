@@ -16,7 +16,8 @@ export default function PricingPage() {
   const [dataSearch, setDataSearch] = useState('');
 
   useEffect(() => {
-    fetch('/api/pricing')
+    // Added 'no-store' to ensure we get fresh admin prices
+    fetch('/api/pricing', { cache: 'no-store' })
       .then(res => res.json())
       .then(res => {
         if(res.status) {
@@ -80,14 +81,14 @@ export default function PricingPage() {
             <TabButton active={activeTab === 'DATA'} onClick={() => setActiveTab('DATA')} icon={<Wifi size={18} />} label="Data Plans" />
         </div>
 
-        {/* BANKING SURCHARGE NOTICE */}
+        {/* BANKING SURCHARGE NOTICE (Only show if we are in Banking tab) */}
         {activeTab === 'BANKING' && (
             <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
                 <div>
                     <h4 className="font-bold text-amber-800 text-sm">Variable Pricing Notice</h4>
                     <p className="text-amber-700 text-sm mt-1 leading-relaxed">
-                        Prices for BVN Modifications may vary depending on the target bank selected. 
+                        Prices for <strong>BVN Modifications</strong> may vary depending on the target bank selected. 
                         Premium banks (e.g., First Bank, GTB) may attract an additional surcharge automatically applied at checkout.
                     </p>
                 </div>
@@ -101,13 +102,19 @@ export default function PricingPage() {
             {activeTab !== 'DATA' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {categories[activeTab]?.length > 0 ? (
-                        categories[activeTab].map((service: any) => (
-                            <PricingCard 
-                                key={service.id} 
-                                service={service} 
-                                isBanking={activeTab === 'BANKING'} 
-                            />
-                        ))
+                        categories[activeTab].map((service: any) => {
+                            
+                            // FIX: Only show surcharge warning for MODIFICATIONS
+                            const isModification = service.code.includes('MOD') || service.code.includes('MODIFICATION');
+                            
+                            return (
+                                <PricingCard 
+                                    key={service.id} 
+                                    service={service} 
+                                    hasSurcharge={isModification} // Pass the specific check
+                                />
+                            );
+                        })
                     ) : (
                         <div className="col-span-full py-20 text-center text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed">
                             <p>No services found in this category.</p>
@@ -193,7 +200,7 @@ function TabButton({ active, onClick, icon, label }: any) {
     );
 }
 
-function PricingCard({ service, isBanking }: { service: any, isBanking: boolean }) {
+function PricingCard({ service, hasSurcharge }: { service: any, hasSurcharge: boolean }) {
     return (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all hover:-translate-y-1 group relative overflow-hidden">
             
@@ -206,9 +213,9 @@ function PricingCard({ service, isBanking }: { service: any, isBanking: boolean 
                         {service.code.includes('AIRTIME') ? (
                             <span className="text-lg">{100 - Number(service.price)}% OFF</span>
                         ) : (
-                            // LOGIC: If banking, show "From X", else show exact price
                             <>
-                                {isBanking && <span className="text-xs text-slate-400 font-normal mr-1">From</span>}
+                                {/* FIX: Only show "From" if it has surcharge (Modification) */}
+                                {hasSurcharge && <span className="text-xs text-slate-400 font-normal mr-1">From</span>}
                                 ₦{Number(service.price).toLocaleString()}
                             </>
                         )}
@@ -219,8 +226,8 @@ function PricingCard({ service, isBanking }: { service: any, isBanking: boolean 
             
             <h3 className="font-bold text-slate-800 text-lg mb-2 relative z-10">{service.name}</h3>
             
-            {/* Banking Surcharge Warning Tag */}
-            {isBanking && (
+            {/* FIX: Only show this tag for Modifications */}
+            {hasSurcharge && (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold uppercase tracking-wide mb-3 relative z-10">
                     <Info size={12} /> Bank Fees Apply
                 </div>
