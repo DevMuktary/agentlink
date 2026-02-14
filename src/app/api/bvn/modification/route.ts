@@ -27,14 +27,14 @@ export async function POST(req: Request) {
     const { 
       service_code, bank_code, reference, nin, bvn, 
       // Identity Fields (Required for ALL)
-      old_first_name, old_surname, old_middle_name,
+      old_first_name, old_surname, old_middle_name, // Middle Name is now optional
       // Change Fields (Required based on Service)
       old_dob, new_dob,
       old_phone_number, new_phone_number,
-      new_first_name, new_surname, new_middle_name
+      new_first_name, new_surname, new_middle_name // Middle Name is now optional
     } = body;
 
-    // 2. GLOBAL VALIDATION (These are now MANDATORY for EVERY request)
+    // 2. GLOBAL VALIDATION
     const missing = [];
     if (!service_code) missing.push('service_code');
     if (!bank_code) missing.push('bank_code');
@@ -42,10 +42,10 @@ export async function POST(req: Request) {
     if (!nin) missing.push('nin');
     if (!bvn) missing.push('bvn');
     
-    // Enforce Identity for visibility
+    // Enforce Identity (First & Last only)
     if (!old_first_name) missing.push('old_first_name');
     if (!old_surname) missing.push('old_surname');
-    if (!old_middle_name) missing.push('old_middle_name'); 
+    // REMOVED: if (!old_middle_name) missing.push('old_middle_name'); 
 
     if (missing.length > 0) {
         return NextResponse.json({ status: false, error: `Missing Identity Fields: ${missing.join(', ')}` }, { status: 400 });
@@ -63,14 +63,14 @@ export async function POST(req: Request) {
 
     // 4. SPECIFIC VALIDATION (Based on what is changing)
     
-    // If Changing Name -> Require NEW Name details
-    // Note: This automatically handles BVN_MOD_NAME, BVN_MOD_NAME_PHONE, and BVN_MOD_NAME_DOB
+    // If Changing Name -> Require NEW First & Surname only
     if (code.includes('NAME') || code.includes('FULL')) {
-        if (!new_first_name || !new_surname || !new_middle_name) specificErrors.push('new_first_name, new_surname, new_middle_name');
+        if (!new_first_name || !new_surname) {
+            specificErrors.push('new_first_name, new_surname');
+        }
     }
 
     // If Changing DOB -> Require Dates
-    // Note: This automatically handles BVN_MOD_DOB, BVN_MOD_DOB_PHONE, and BVN_MOD_NAME_DOB
     if (code.includes('DOB') || code.includes('FULL')) {
         if (!old_dob) specificErrors.push('old_dob');
         if (!new_dob) specificErrors.push('new_dob');
@@ -89,7 +89,8 @@ export async function POST(req: Request) {
     let finalCost = Number(modService.price);
     let surchargeApplied = false;
 
-    if (code.includes('DOB') || code.includes('FULL')) {
+    // Only apply surcharge logic if dates are actually provided
+    if ((code.includes('DOB') || code.includes('FULL')) && old_dob && new_dob) {
         const yearsDiff = getYearDifference(old_dob, new_dob);
         if (yearsDiff > SURCHARGE_THRESHOLD_YEARS) {
             finalCost += SURCHARGE_AMOUNT;
@@ -134,15 +135,23 @@ export async function POST(req: Request) {
             bank_name: bankService.name.replace('Bank: ', ''),
             nin, bvn, clientReference: reference,
             surcharge_applied: surchargeApplied,
-            // Store Identity Cleanly
+            // Store Identity Cleanly (Middle name defaults to empty string if missing)
             identity: { 
-                first_name: old_first_name, surname: old_surname, middle_name: old_middle_name 
+                first_name: old_first_name, 
+                surname: old_surname, 
+                middle_name: old_middle_name || '' 
             },
             // Store Change Data
             changes: { 
-                new_name: code.includes('NAME') ? { first: new_first_name, last: new_surname, middle: new_middle_name } : null,
-                dates: code.includes('DOB') ? { old: old_dob, new: new_dob } : null,
-                phone: code.includes('PHONE') ? { old: old_phone_number, new: new_phone_number } : null
+                new_name: (code.includes('NAME') || code.includes('FULL')) 
+                    ? { first: new_first_name, last: new_surname, middle: new_middle_name || '' } 
+                    : null,
+                dates: (code.includes('DOB') || code.includes('FULL')) 
+                    ? { old: old_dob, new: new_dob } 
+                    : null,
+                phone: (code.includes('PHONE') || code.includes('FULL'))
+                    ? { old: old_phone_number, new: new_phone_number } 
+                    : null
             }
           },
           adminNote: surchargeApplied ? 'Age Surcharge Applied' : 'Pending Modification'
