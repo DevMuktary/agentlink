@@ -9,16 +9,26 @@ async function main() {
   // 1. CORE SERVICES (NIN, BVN, UTILITIES, CORP, EDU)
   // ============================================================
   const coreServices = [
-    // NIN
+    // NIN (LEGACY/V1)
     { code: ServiceType.NIN_VERIFICATION, name: 'NIN Verification (By NIN)', price: 100.00 },
     { code: ServiceType.NIN_SEARCH_BY_PHONE, name: 'NIN Verification (By Phone)', price: 150.00 },
     { code: ServiceType.VNIN_SLIP, name: 'VNIN Slip Generation', price: 200.00 },
     { code: ServiceType.VNIN_TO_NIBSS, name: 'VNIN to NIBSS', price: 500.00 },
     
-    // NIN SLIPS
+    // NIN SLIPS (V1)
     { code: ServiceType.NIN_SLIP_PREMIUM, name: 'NIN Slip (Premium)', price: 1000.00, serviceCode: 401 },
     { code: ServiceType.NIN_SLIP_STANDARD, name: 'NIN Slip (Standard)', price: 700.00, serviceCode: 402 },
     { code: ServiceType.NIN_SLIP_REGULAR, name: 'NIN Slip (Regular)', price: 500.00, serviceCode: 403 },
+
+    // === NEW: NIN SLIPS V2 (BY NIN NUMBER) ===
+    { code: ServiceType.NIN_SLIP_V2_PREMIUM, name: 'NIN Slip V2 (Premium)', price: 1000.00, serviceCode: 411 },
+    { code: ServiceType.NIN_SLIP_V2_STANDARD, name: 'NIN Slip V2 (Standard)', price: 800.00, serviceCode: 412 },
+    { code: ServiceType.NIN_SLIP_V2_REGULAR, name: 'NIN Slip V2 (Regular)', price: 600.00, serviceCode: 413 },
+
+    // === NEW: NIN SLIPS V2 (BY PHONE NUMBER) ===
+    { code: ServiceType.NIN_SLIP_V2_PHONE_PREMIUM, name: 'NIN Slip V2 Phone (Premium)', price: 1200.00, serviceCode: 414 },
+    { code: ServiceType.NIN_SLIP_V2_PHONE_STANDARD, name: 'NIN Slip V2 Phone (Standard)', price: 1000.00, serviceCode: 415 },
+    { code: ServiceType.NIN_SLIP_V2_PHONE_REGULAR, name: 'NIN Slip V2 Phone (Regular)', price: 800.00, serviceCode: 416 },
 
     // NIN VALIDATION
     { code: ServiceType.NIN_VALIDATION_NO_RECORD, name: 'NIN Validation (No Record)', price: 350.00, serviceCode: 329 },
@@ -40,9 +50,8 @@ async function main() {
     { code: ServiceType.ANDROID_BVN_ENROLLMENT, name: 'Android BVN Enrollment', price: 3000.00 },
     { code: ServiceType.BVN_RETRIEVAL_PHONE, name: 'BVN Retrieval: Phone', price: 1000.00, serviceCode: 630 },
     { code: ServiceType.BVN_RETRIEVAL_CRM, name: 'BVN Retrieval: CRM', price: 2500.00, serviceCode: 631 },
-    {code: ServiceType.VNIN_TO_NIBSS, name: 'VNIN to NIBSS', price: 500.00 },
-   
-    // BVN MODIFICATION.
+    
+    // BVN MODIFICATION
     { code: ServiceType.BVN_MOD_NAME, name: 'BVN Mod: Name', price: 3000.00, serviceCode: 620 },
     { code: ServiceType.BVN_MOD_DOB, name: 'BVN Mod: DOB', price: 3000.00, serviceCode: 621 },
     { code: ServiceType.BVN_MOD_PHONE, name: 'BVN Mod: Phone', price: 2500.00, serviceCode: 622 },
@@ -57,22 +66,11 @@ async function main() {
     { code: ServiceType.TAX_ID_NON_INDIVIDUAL, name: 'Tax ID: Corporate', price: 2500.00, serviceCode: 802 },
 
     // UTILITIES & DATA (Generic)
-    { code: ServiceType.AIRTIME_MTN, name: 'MTN Airtime', price: 99.00 }, // 99%
+    { code: ServiceType.AIRTIME_MTN, name: 'MTN Airtime', price: 99.00 }, 
     { code: ServiceType.AIRTIME_GLO, name: 'GLO Airtime', price: 98.00 }, 
     { code: ServiceType.AIRTIME_AIRTEL, name: 'Airtel Airtime', price: 99.00 },
     { code: ServiceType.AIRTIME_9MOBILE, name: '9Mobile Airtime', price: 98.50 },
-    { code: ServiceType.DATA, name: 'Data Bundle Service', price: 0.00 }, // Placeholder
-
-    // === NIN SLIPS V2 (BY NIN NUMBER) ===
-    { code: ServiceType.NIN_SLIP_V2_PREMIUM, name: 'NIN Slip V2 (Premium)', price: 1000.00, serviceCode: 411 },
-    { code: ServiceType.NIN_SLIP_V2_STANDARD, name: 'NIN Slip V2 (Standard)', price: 800.00, serviceCode: 412 },
-    { code: ServiceType.NIN_SLIP_V2_REGULAR, name: 'NIN Slip V2 (Regular)', price: 600.00, serviceCode: 413 },
-
-    // === NIN SLIPS V2 (BY PHONE NUMBER) ===
-    // Usually slightly more expensive due to search cost
-    { code: ServiceType.NIN_SLIP_V2_PHONE_PREMIUM, name: 'NIN Slip V2 Phone (Premium)', price: 1200.00, serviceCode: 414 },
-    { code: ServiceType.NIN_SLIP_V2_PHONE_STANDARD, name: 'NIN Slip V2 Phone (Standard)', price: 1000.00, serviceCode: 415 },
-    { code: ServiceType.NIN_SLIP_V2_PHONE_REGULAR, name: 'NIN Slip V2 Phone (Regular)', price: 800.00, serviceCode: 416 },
+    { code: ServiceType.DATA, name: 'Data Bundle Service', price: 0.00 }, 
 
     // EDUCATION
     { code: ServiceType.JAMB_SERVICES, name: 'JAMB Services', price: 4700.00 },
@@ -87,7 +85,12 @@ async function main() {
   for (const s of coreServices) {
     await prisma.service.upsert({
       where: { code: s.code },
-      update: { price: s.price, serviceCode: s.serviceCode, name: s.name },
+      // ✅ PROTECTION: Only update non-financial fields for existing services
+      update: { 
+        serviceCode: s.serviceCode, 
+        name: s.name 
+      },
+      // Create new services with default price & active status
       create: {
         code: s.code,
         name: s.name,
@@ -115,10 +118,14 @@ async function main() {
   for (const b of banks) {
     await prisma.service.upsert({
       where: { code: b.code as any },
-      update: { serviceCode: b.serviceCode, name: b.name },
+      update: { 
+          serviceCode: b.serviceCode, 
+          name: b.name 
+      },
       create: { code: b.code as any, serviceCode: b.serviceCode, name: b.name, price: 0, isActive: true }
     });
   }
+
   // ============================================================
   // 3. JAMB SERVICES (900 Series)
   // ============================================================
@@ -132,7 +139,11 @@ async function main() {
   for (const s of jambServices) {
     await prisma.service.upsert({
       where: { code: s.code as any },
-      update: { serviceCode: s.serviceCode, name: s.name, price: s.price },
+      update: { 
+          serviceCode: s.serviceCode, 
+          name: s.name 
+          // ✅ PROTECTION: Price removed from update
+      },
       create: { 
         code: s.code as any, 
         serviceCode: s.serviceCode, 
@@ -384,7 +395,7 @@ async function main() {
     await prisma.dataPlan.upsert({
       where: { productCode: plan.productCode },
       update: { 
-        price: plan.price,
+        // ✅ PROTECTION: Price removed from update
         name: plan.name,
         category: plan.category,
         validity: plan.validity
