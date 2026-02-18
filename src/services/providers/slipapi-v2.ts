@@ -7,7 +7,7 @@ export type SlipTier = 'PREMIUM' | 'STANDARD' | 'REGULAR';
 
 interface SlipResult {
   success: boolean;
-  data?: string;
+  data?: string; 
   error?: string;
 }
 
@@ -18,43 +18,48 @@ export async function generateSlipV2(
 ): Promise<SlipResult> {
   
   if (!API_KEY) {
+    console.error("CRITICAL: SLIPAPI_KEY is missing in .env");
     return { success: false, error: 'Service Configuration Error' };
   }
 
   try {
-    // 1. Construct URL
-    // Pattern: nin_premium.php OR nin_premium_phone.php
-    const tierSlug = tier.toLowerCase(); // premium, standard, regular
-    let endpoint = `nin_${tierSlug}.php`; // Default to NIN
+    const tierSlug = tier.toLowerCase(); // premium, standard, or regular
+    let endpoint = '';
+    
+    // 1. Construct Payload
+    const payload: any = {
+        api_key: API_KEY
+    };
 
-    if (method === 'PHONE') {
-        endpoint = `nin_${tierSlug}_phone.php`;
+    if (method === 'NIN') {
+        // --- NIN METHOD ---
+        // URL Example: https://slipapi.com/developers/nin_slips/nin_premium
+        endpoint = `nin_${tierSlug}`;
+        payload.nin = identifier;
+    } else {
+        // --- PHONE METHOD ---
+        // URL Example: https://slipapi.com/developers/nin_slips/nin_premium_phone
+        endpoint = `nin_${tierSlug}_phone`;
+        
+        // Sending BOTH keys to cover documentation conflicts
+        // Docs say 'phone', PHP example says 'nin'. We send both.
+        payload.phone = identifier;
+        payload.nin = identifier; 
     }
 
     const url = `${BASE_URL}/${endpoint}`;
 
-    // 2. Construct Payload
-    // FIX: The provider's PHP example uses 'nin' as the key even for phone numbers.
-    // To be safe, we send the identifier as 'nin' AND 'phone' AND 'phone_number'.
-    // Extra keys are usually ignored by APIs, but missing ones cause errors.
-    const payload: any = {
-        api_key: API_KEY,
-        nin: identifier,         // PHP example uses this key
-        phone: identifier,       // Docs text says this
-        phone_number: identifier // Common variation
-    };
-
-    // 3. Request
     console.log(`[SlipV2] Requesting ${url} | ID: ${identifier}`);
     
+    // 2. Make Request
     const response = await axios.post(url, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 60000 
     });
 
     const apiRes = response.data;
-    console.log(`[SlipV2] Response:`, JSON.stringify(apiRes).substring(0, 100));
 
+    // 3. Validate Response
     if (apiRes.status === 'success' && apiRes.pdf_base64) {
         return {
             success: true,
@@ -62,13 +67,15 @@ export async function generateSlipV2(
         };
     }
 
+    // 4. Handle Errors
+    console.error(`[SlipV2] Provider Error:`, apiRes);
     return {
         success: false,
-        error: apiRes.message || apiRes.error || 'Provider Validation Failed'
+        error: apiRes.message || 'Slip generation failed'
     };
 
   } catch (error: any) {
-    console.error("SlipV2 Error:", error.response?.data || error.message);
+    console.error("SlipV2 Connection Error:", error.response?.data || error.message);
     return { 
         success: false, 
         error: error.response?.data?.message || 'Connection to Slip Provider Failed' 
