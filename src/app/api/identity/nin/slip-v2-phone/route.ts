@@ -11,39 +11,39 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { phone_number, slip_type, reference } = body;
 
+    // Validate Input
     if (!phone_number || phone_number.length < 11) {
         return NextResponse.json({ status: false, error: 'Valid Phone Number required' }, { status: 400 });
     }
+    
     const validTypes = ['PREMIUM', 'STANDARD', 'REGULAR'];
     if (!slip_type || !validTypes.includes(slip_type)) {
-        return NextResponse.json({ status: false, error: 'Invalid slip_type' }, { status: 400 });
+        return NextResponse.json({ status: false, error: 'Invalid slip_type. Use PREMIUM, STANDARD, or REGULAR' }, { status: 400 });
     }
 
-    // 2. Map to V2 Phone Service Codes
+    // Map Service Code
     let serviceCode = '';
     if (slip_type === 'PREMIUM') serviceCode = 'NIN_SLIP_V2_PHONE_PREMIUM';
     else if (slip_type === 'STANDARD') serviceCode = 'NIN_SLIP_V2_PHONE_STANDARD';
     else serviceCode = 'NIN_SLIP_V2_PHONE_REGULAR';
 
-    // 3. Check Price & Status
+    // Check Service & Price
     const service = await prisma.service.findUnique({ where: { code: serviceCode as any } });
-    
     if (!service) return NextResponse.json({ status: false, error: 'Service not configured' }, { status: 400 });
-    if (!service.isActive) return NextResponse.json({ status: false, error: 'Service unavailable' }, { status: 503 });
-
+    
     const cost = Number(service.price);
     if (Number(user.walletBalance) < cost) {
         return NextResponse.json({ status: false, error: 'Insufficient Funds' }, { status: 402 });
     }
 
-    // 4. Process
+    // Call Provider
     const apiResult = await generateSlipV2(phone_number, slip_type as SlipTier, 'PHONE');
 
     if (!apiResult.success) {
         return NextResponse.json({ status: false, error: apiResult.error }, { status: 400 });
     }
 
-    // 5. Charge & Log
+    // Deduct & Log
     await prisma.$transaction([
         prisma.user.update({
             where: { id: user.id },
@@ -82,6 +82,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
+    console.error("API Error:", error);
     return NextResponse.json({ status: false, error: 'Server Error' }, { status: 500 });
   }
 }
