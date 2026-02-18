@@ -63,6 +63,17 @@ async function main() {
     { code: ServiceType.AIRTIME_9MOBILE, name: '9Mobile Airtime', price: 98.50 },
     { code: ServiceType.DATA, name: 'Data Bundle Service', price: 0.00 }, // Placeholder
 
+    // === NIN SLIPS V2 (BY NIN NUMBER) ===
+    { code: ServiceType.NIN_SLIP_V2_PREMIUM, name: 'NIN Slip V2 (Premium)', price: 1000.00, serviceCode: 411 },
+    { code: ServiceType.NIN_SLIP_V2_STANDARD, name: 'NIN Slip V2 (Standard)', price: 800.00, serviceCode: 412 },
+    { code: ServiceType.NIN_SLIP_V2_REGULAR, name: 'NIN Slip V2 (Regular)', price: 600.00, serviceCode: 413 },
+
+    // === NIN SLIPS V2 (BY PHONE NUMBER) ===
+    // Usually slightly more expensive due to search cost
+    { code: ServiceType.NIN_SLIP_V2_PHONE_PREMIUM, name: 'NIN Slip V2 Phone (Premium)', price: 1200.00, serviceCode: 414 },
+    { code: ServiceType.NIN_SLIP_V2_PHONE_STANDARD, name: 'NIN Slip V2 Phone (Standard)', price: 1000.00, serviceCode: 415 },
+    { code: ServiceType.NIN_SLIP_V2_PHONE_REGULAR, name: 'NIN Slip V2 Phone (Regular)', price: 800.00, serviceCode: 416 },
+
     // EDUCATION
     { code: ServiceType.JAMB_SERVICES, name: 'JAMB Services', price: 4700.00 },
     { code: ServiceType.EXAM_PIN_WAEC, name: 'WAEC Pin', price: 3500.00 },
