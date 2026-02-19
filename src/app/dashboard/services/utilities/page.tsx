@@ -22,8 +22,10 @@ export default function UtilitiesHistory() {
   const fetchHistory = async () => {
     try {
       const res = await axios.get('/api/user/requests'); 
-      // Filter for AIRTIME and DATA
-      const logs = res.data.filter((r: any) => ['AIRTIME', 'DATA'].includes(r.serviceType));
+      // FIX: Check if it starts with 'AIRTIME' to catch AIRTIME_MTN, AIRTIME_GLO, etc.
+      const logs = res.data.filter((r: any) => 
+        r.serviceType?.startsWith('AIRTIME') || r.serviceType === 'DATA'
+      );
       setRequests(logs);
       setFilteredRequests(logs);
     } catch (error) {
@@ -36,9 +38,11 @@ export default function UtilitiesHistory() {
   useEffect(() => {
     let result = requests;
 
-    // Filter Type
-    if (typeFilter !== 'ALL') {
-        result = result.filter(r => r.serviceType === typeFilter);
+    // FIX: Filter Type Logic Updated
+    if (typeFilter === 'AIRTIME') {
+        result = result.filter(r => r.serviceType?.startsWith('AIRTIME'));
+    } else if (typeFilter === 'DATA') {
+        result = result.filter(r => r.serviceType === 'DATA');
     }
 
     // Search
@@ -110,7 +114,8 @@ export default function UtilitiesHistory() {
                       {new Date(item.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      {item.serviceType === 'AIRTIME' ? (
+                      {/* FIX: Checking if it starts with AIRTIME instead of strict equality */}
+                      {item.serviceType?.startsWith('AIRTIME') ? (
                         <span className="flex items-center gap-1 text-orange-600"><Smartphone className="w-4 h-4" /> Airtime</span>
                       ) : (
                         <span className="flex items-center gap-1 text-blue-600"><Zap className="w-4 h-4" /> Data</span>
