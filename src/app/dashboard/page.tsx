@@ -16,7 +16,8 @@ import {
   GraduationCap,
   Wifi,
   Smartphone,
-  Users
+  Users,
+  FileText
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -105,6 +106,7 @@ export default function UserDashboard() {
           <HistoryItem title="NIN Personalization" href="/dashboard/services/nin/personalization" icon={<Users size={20} />} color="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"/>
           <HistoryItem title="Modification History" href="/dashboard/services/nin/modification" icon={<FileTextIcon />} color="bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"/>
            <HistoryItem title=" NIN Slip History" href="/dashboard/services/nin-slips" icon={<FileBadge size={20} />} color="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"/>
+          <HistoryItem title="Slip Generation History" href="/dashboard/slips/history" icon={<FileText size={20} />} color="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"/>
           <HistoryItem title="IPE Clearance Logs" href="/dashboard/services/nin/ipe-clearance" icon={<ShieldCheck size={20} />} color="bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"/>
         </CategorySection>
 
