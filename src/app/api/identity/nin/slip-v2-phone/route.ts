@@ -9,10 +9,10 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { phone_number, slip_type, reference } = body;
+    const { nin, slip_type, reference } = body;
 
     // Validate Input
-    if (!phone_number || phone_number.length < 11) {
+    if (!nin || nin.length < 11) {
         return NextResponse.json({ status: false, error: 'Valid Phone Number required' }, { status: 400 });
     }
     
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     // Call Provider
-    const apiResult = await generateSlipV2(phone_number, slip_type as SlipTier, 'PHONE');
+    const apiResult = await generateSlipV2(nin, slip_type as SlipTier, 'PHONE');
 
     if (!apiResult.success) {
         return NextResponse.json({ status: false, error: apiResult.error }, { status: 400 });
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
                 type: 'SERVICE_CHARGE',
                 status: 'COMPLETED',
                 reference: reference,
-                description: `NIN Slip V2 Phone (${slip_type}) - ${phone_number}`,
+                description: `NIN Slip V2 Phone (${slip_type}) - ${nin}`,
                 serviceId: serviceCode
             }
         }),
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
                 serviceType: serviceCode as any,
                 status: 'COMPLETED',
                 cost: cost,
-                requestData: { phone: phone_number, type: slip_type, mode: 'PHONE' }
+                requestData: { phone: nin, type: slip_type, mode: 'PHONE' }
             }
         })
     ]);
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         message: 'Slip Generated Successfully',
         data: {
             slip_type: slip_type,
-            phone: phone_number,
+            phone: nin,
             pdf_base64: apiResult.data
         }
     });
