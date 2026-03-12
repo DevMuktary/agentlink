@@ -27,13 +27,16 @@ export default function AdminBvnModificationQueue() {
   const fetchQueue = async () => {
     setLoading(true);
     try {
+      // UPDATED: Added BVN_MOD_NAME_DOB and generic BVN_MODIFICATION
       const endpoints = [
         '/api/admin/requests/all?service=BVN_MOD_NAME&status=ALL',
         '/api/admin/requests/all?service=BVN_MOD_DOB&status=ALL',
         '/api/admin/requests/all?service=BVN_MOD_PHONE&status=ALL',
+        '/api/admin/requests/all?service=BVN_MOD_NAME_DOB&status=ALL', 
         '/api/admin/requests/all?service=BVN_MOD_NAME_PHONE&status=ALL',
         '/api/admin/requests/all?service=BVN_MOD_DOB_PHONE&status=ALL',
         '/api/admin/requests/all?service=BVN_MOD_FULL&status=ALL',
+        '/api/admin/requests/all?service=BVN_MODIFICATION&status=ALL', 
       ];
 
       // Use allSettled so one 404 doesn't crash the dashboard
@@ -111,6 +114,7 @@ export default function AdminBvnModificationQueue() {
 
   // Helper for Badges
   const getTypeBadge = (type: string) => {
+      if (type.includes('NAME') && type.includes('DOB')) return <span className="bg-fuchsia-100 text-fuchsia-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-fuchsia-200">Name + DOB</span>;
       if (type.includes('NAME') && type.includes('PHONE')) return <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-indigo-200">Name + Phone</span>;
       if (type.includes('DOB') && type.includes('PHONE')) return <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-pink-200">DOB + Phone</span>;
       if (type.includes('FULL')) return <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-red-200">Full Data Mod</span>;
