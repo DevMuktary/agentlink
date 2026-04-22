@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgentHub | Identity & Corporate Services API",
-  description: "The all-in-one API platform for NIN, BVN, CAC, and Utility services in Nigeria.",
+  title: "Agent Hub Integrated Limited | Technology & Digital Solutions",
+  description: "A forward-thinking technology company committed to delivering innovative, reliable, and scalable digital solutions for businesses and entrepreneurs.",
 };
 
 export default function RootLayout({
