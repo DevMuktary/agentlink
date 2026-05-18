@@ -10,7 +10,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Find all 'PROCESSING' IPE requests
+    // 2. Find all 'PROCESSING' IPE requests (SAFE: limit of 20 items per run)
     const pendingRequests = await prisma.serviceRequest.findMany({
       where: { 
         serviceType: 'IPE_CLEARANCE',
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
 
     const results = [];
 
-    // 3. Process each request
+    // 3. Process each request safely in a batch
     for (const req of pendingRequests) {
       const trackingId = (req.requestData as any)?.trackingId;
       if (!trackingId) continue;
