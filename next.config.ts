@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'standalone', // CRITICAL FIX: Compiles a lightweight build to drop baseline RAM on Railway
   images: {
     remotePatterns: [
       {
