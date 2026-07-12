@@ -14,46 +14,20 @@ interface EmailPayload {
 // --- SEND FUNCTION ---
 export async function sendEmail({ to, name, subject, html }: EmailPayload) {
   try {
-    // 1. Setup URL (Default to US if missing, but respects your .env)
-    // Note: The library expects the base URL ending in /email (e.g. .../v1.1/email)
     let url = process.env.ZEPTOMAIL_URL || "https://api.zeptomail.com/v1.1/email";
     
-    // Fix: If user put /send at the end (common mistake), remove it for the library
-    if (url.endsWith('/send')) {
-        url = url.replace('/send', '');
-    }
-    // Fix: Ensure protocol
-    if (!url.startsWith('http')) {
-        url = `https://${url}`;
-    }
+    if (url.endsWith('/send')) url = url.replace('/send', '');
+    if (!url.startsWith('http')) url = `https://${url}`;
 
-    // 2. Setup Token
     let token = process.env.ZEPTOMAIL_TOKEN || "";
-    // Fix: The library needs the full "Zoho-enczapikey ..." string. 
-    // We check if your env var already has it, if not, we add it.
-    if (!token.startsWith("Zoho-enczapikey")) {
-        token = `Zoho-enczapikey ${token}`;
-    }
+    if (!token.startsWith("Zoho-enczapikey")) token = `Zoho-enczapikey ${token}`;
 
-    // 3. Initialize Client
     const client = new SendMailClient({ url, token });
-
     console.log(`🚀 Sending ZeptoMail to: ${to}`);
 
-    // 4. Send
     const response = await client.sendMail({
-      from: {
-        address: SENDER_EMAIL,
-        name: SENDER_NAME,
-      },
-      to: [
-        {
-          email_address: {
-            address: to,
-            name: name,
-          },
-        },
-      ],
+      from: { address: SENDER_EMAIL, name: SENDER_NAME },
+      to: [{ email_address: { address: to, name: name } }],
       subject: subject,
       htmlbody: html,
     });
@@ -68,8 +42,6 @@ export async function sendEmail({ to, name, subject, html }: EmailPayload) {
 }
 
 // --- HTML TEMPLATES ---
-
-// 1. HEADER & FOOTER WRAPPER (Branding)
 const wrapEmail = (content: string) => `
 <!DOCTYPE html>
 <html>
@@ -101,39 +73,30 @@ const wrapEmail = (content: string) => `
 </html>
 `;
 
-// 2. TEMPLATES
 export const emailTemplates = {
-  registrationReceived: (name: string) => wrapEmail(`
-    <h2 style="color: #0f172a; margin-top: 0;">Registration Received</h2>
+  // NEW Welcome Email
+  welcomeEmail: (name: string) => wrapEmail(`
+    <h2 style="color: #0f172a; margin-top: 0;">Welcome to AgentHub!</h2>
     <p>Hello <strong>${name}</strong>,</p>
-    <p>Thank you for signing up with AgentHub. We have received your registration details.</p>
-    <p>Your account is currently <strong>Under Review</strong> by our compliance team. This process typically takes 1-24 hours. You will receive an email immediately once your account status is updated.</p>
-    <p>Thank you for your patience.</p>
+    <p>Thank you for signing up with AgentHub. We are thrilled to have you on board.</p>
+    <p>Your account is fully active. You can now access our suite of Identity (NIN, BVN), Corporate (CAC), and Utility services directly from your dashboard.</p>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" class="btn">Login to Dashboard</a>
   `),
 
-  adminNewUserAlert: (name: string, email: string) => wrapEmail(`
-    <h2 style="color: #0f172a; margin-top: 0;">New User Registration</h2>
-    <p>Admin,</p>
-    <p>A new user has just registered and requires verification.</p>
-    <ul style="background: #f8fafc; padding: 20px; border-radius: 8px; list-style: none;">
-      <li><strong>Name:</strong> ${name}</li>
-      <li><strong>Email:</strong> ${email}</li>
-    </ul>
-    <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/users" class="btn">Review User</a>
-  `),
+  // Removed adminNewUserAlert and registrationReceived
 
   accountApproved: (name: string) => wrapEmail(`
-    <h2 style="color: #16a34a; margin-top: 0;">Congratulations! Account Approved</h2>
+    <h2 style="color: #16a34a; margin-top: 0;">API Access Approved</h2>
     <p>Hello <strong>${name}</strong>,</p>
-    <p>We are pleased to inform you that your AgentHub account has been verified and <strong>Approved</strong>.</p>
-    <p>You now have full access to our suite of Identity (NIN, BVN), Corporate (CAC), and Utility services.</p>
+    <p>We are pleased to inform you that your request for Developer API Access has been <strong>Approved</strong>.</p>
+    <p>You can now generate your API keys from the developer section of your dashboard.</p>
     <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" class="btn">Login to Dashboard</a>
   `),
 
   accountRejected: (name: string) => wrapEmail(`
-    <h2 style="color: #dc2626; margin-top: 0;">Registration Update</h2>
+    <h2 style="color: #dc2626; margin-top: 0;">Account Update</h2>
     <p>Hello <strong>${name}</strong>,</p>
-    <p>Thank you for your interest in AgentHub. After reviewing your application, we regret to inform you that we cannot approve your account at this time.</p>
+    <p>Thank you for your interest in AgentHub. After reviewing your account, it has been suspended or rejected by an administrator.</p>
     <p>If you believe this is an error, please contact our support team for further clarification.</p>
   `),
   
@@ -154,23 +117,19 @@ export const emailTemplates = {
   emailVerificationOtp: (code: string) => wrapEmail(`
     <h2 style="color: #0f172a; margin-top: 0;">Verify your Email</h2>
     <p>Use the code below to verify your email address for AgentHub.</p>
-    
     <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 8px; margin: 20px 0; color: #0f172a;">
       ${code}
     </div>
-
     <p>This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
   `),
 
-passwordResetOtp: (code: string) => wrapEmail(`
+  passwordResetOtp: (code: string) => wrapEmail(`
     <h2 style="color: #0f172a; margin-top: 0;">Reset Your Password</h2>
     <p>We received a request to reset the password for your AgentHub account.</p>
     <p>Use the code below to proceed:</p>
-    
     <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 8px; margin: 20px 0; color: #0f172a;">
       ${code}
     </div>
-
     <p>This code expires in 10 minutes.</p>
     <p>If you did not request a password reset, you can safely ignore this email.</p>
   `)
