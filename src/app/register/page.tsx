@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { 
   Loader2, Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff, 
-  KeyRound, Zap, Fingerprint, Building2, AlertCircle, X, Edit2
+  KeyRound, Zap, Fingerprint, Building2, AlertCircle, X, Edit2, CheckCircle2
 } from 'lucide-react';
 
 export default function RegisterPage() {
