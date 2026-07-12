@@ -9,65 +9,78 @@ datasource db {
 
 // 1. USERS
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
-  password        String
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  password              String
   
-  firstName       String
-  lastName        String
-  businessName    String?
-  phoneNumber     String?
-  websiteUrl      String?
-  role            Role     @default(AGENT)
+  firstName             String
+  lastName              String
+  businessName          String?
+  phoneNumber           String?
+  websiteUrl            String?
+  role                  Role     @default(AGENT)
   
-  walletBalance   Decimal  @default(0.00) @db.Decimal(10, 2)
-  bonusBalance    Decimal  @default(0.00) @db.Decimal(10, 2)
-  isActive        Boolean  @default(false)
+  walletBalance         Decimal  @default(0.00) @db.Decimal(10, 2)
+  bonusBalance          Decimal  @default(0.00) @db.Decimal(10, 2)
+  
+  // Normal Dashboard Access (Now defaults to true so they can login immediately)
+  isActive              Boolean  @default(true)
 
-  apiKeyPublic    String?  @unique
-  apiKeySecret    String?  @unique
-  webhookUrl      String?
-  ipWhitelist     String?
+  // API Gateway Access State
+  apiStatus             ApiStatus @default(NONE)
 
-// Add these for Virtual Accounts
+  apiKeyPublic          String?   @unique
+  apiKeySecret          String?   @unique
+  webhookUrl            String?
+  ipWhitelist           String?
+
+  // Virtual Accounts
   virtualAccountName    String?
   virtualAccountNumber  String?
   virtualBankName       String? 
-  paymentPointRef       String? // To store customer_id from PaymentPoint
+  paymentPointRef       String?   // To store customer_id from PaymentPoint
 
-  transactions    Transaction[]
-  requests        ServiceRequest[]
+  transactions          Transaction[]
+  requests              ServiceRequest[]
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 // 2. SERVICES (Core Services like Verification, CAC, etc.)
 model Service {
-  id          String      @id @default(cuid())
-  code        ServiceType @unique
-  serviceCode Int?        @unique // Used for Manual options (e.g. 620)
-  name        String
-  description String?
-  price       Decimal     @default(0.00) @db.Decimal(10, 2)
-  isActive    Boolean     @default(true)
+  id              String      @id @default(cuid())
+  code            ServiceType @unique
+  serviceCode     Int?        @unique // Used for Manual options (e.g. 620)
+  name            String
+  description     String?
+  
+  // Dual Pricing Structure
+  dashboardPrice  Decimal     @default(0.00) @db.Decimal(10, 2)
+  apiPrice        Decimal     @default(0.00) @db.Decimal(10, 2)
+  
+  isActive        Boolean     @default(true)
 
-  updatedAt   DateTime    @updatedAt
+  updatedAt       DateTime    @updatedAt
 }
 
-// 3. DATA PLANS (New Model for 300+ Data Bundles)
+// 3. DATA PLANS
 model DataPlan {
-  id            String   @id @default(cuid())
-  network       String   // MTN, GLO, AIRTEL, 9MOBILE
-  category      String   // SME, GIFTING, CORPORATE, AWOOF, ETC
-  name          String   // e.g. MTN 1GB 30Days
-  price         Decimal  @default(0.00) @db.Decimal(10, 2)
-  productCode   String   @unique // The provider's code: mtn_sme_1gb
-  validity      String?  // e.g. "30 Days"
-  isActive      Boolean  @default(true)
+  id              String   @id @default(cuid())
+  network         String   // MTN, GLO, AIRTEL, 9MOBILE
+  category        String   // SME, GIFTING, CORPORATE, AWOOF, ETC
+  name            String   // e.g. MTN 1GB 30Days
   
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // Dual Pricing Structure
+  dashboardPrice  Decimal  @default(0.00) @db.Decimal(10, 2)
+  apiPrice        Decimal  @default(0.00) @db.Decimal(10, 2)
+  
+  productCode     String   @unique // The provider's code: mtn_sme_1gb
+  validity        String?  // e.g. "30 Days"
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // 4. SERVICE REQUESTS
@@ -77,7 +90,7 @@ model ServiceRequest {
   serviceType   ServiceType 
   status        Status      @default(PENDING) 
   
-  requestData   Json        
+  requestData   Json   
   responseData  Json?
   cost          Decimal     @default(0.00) @db.Decimal(10, 2)
   adminNote     String?
@@ -104,8 +117,6 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
-
-
 // 6. VERIFICATION TOKENS (For OTPs)
 model VerificationToken {
   identifier String   // Email
@@ -121,6 +132,13 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   AGENT
+}
+
+enum ApiStatus {
+  NONE
+  PENDING
+  APPROVED
+  REVOKED
 }
 
 enum TransactionType {
@@ -173,7 +191,7 @@ enum ServiceType {
   VNIN_TO_NIBSS
   IPE_CLEARANCE
 
-// --- NEW SLIPS (V2) - BY NIN ---
+  // --- NEW SLIPS (V2) - BY NIN ---
   NIN_SLIP_V2_PREMIUM
   NIN_SLIP_V2_STANDARD
   NIN_SLIP_V2_REGULAR
@@ -213,7 +231,7 @@ enum ServiceType {
   
   // --- CORPORATE ---
   CAC_REGISTRATION
-  JTB_TIN_REGISTRATION // Deprecated? Kept for safety
+  TAX_ID_REGISTRATION
   TAX_ID_INDIVIDUAL
   TAX_ID_NON_INDIVIDUAL
   
@@ -226,7 +244,7 @@ enum ServiceType {
   EXAM_PIN_JAMB_UTME  // New
   EXAM_PIN_JAMB_DE    // New
 
-// JAMB DIRECT SERVICES (Manual)
+  // JAMB DIRECT SERVICES (Manual)
   JAMB_ORIGINAL_RESULT
   JAMB_ADMISSION_LETTER
   JAMB_REGISTRATION_SLIP
