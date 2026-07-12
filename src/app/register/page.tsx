@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   CheckCircle2, Loader2, ShieldCheck, Mail, Lock, 
   User, Phone, Briefcase, ChevronRight, Eye, EyeOff, 
-  KeyRound, Zap, Fingerprint, Building2
+  KeyRound, Zap, Fingerprint, Building2, AlertCircle 
 } from 'lucide-react';
 
 export default function RegisterPage() {
