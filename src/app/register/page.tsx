@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   CheckCircle2, Loader2, ShieldCheck, Mail, Lock, 
   User, Phone, Briefcase, ChevronRight, Eye, EyeOff, 
-  KeyRound, Zap, Fingerprint, Building2, AlertCircle 
+  KeyRound, Zap, Fingerprint, Building2, AlertCircle, X
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   
   // Loading States
   const [otpLoading, setOtpLoading] = useState(false);
@@ -37,6 +38,23 @@ export default function RegisterPage() {
   const [passStrength, setPassStrength] = useState(0);
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // --- AUTO DISMISS ERROR BANNER ---
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // --- OTP COUNTDOWN TIMER ---
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   // --- PASSWORD STRENGTH ---
   useEffect(() => {
@@ -66,6 +84,7 @@ export default function RegisterPage() {
     try {
         await axios.post('/api/auth/otp/send', { email: formData.email });
         setIsOtpSent(true);
+        setCountdown(60); // Start 60-second countdown
     } catch (err: any) {
         setError(err.response?.data?.error || "Failed to send OTP.");
     } finally {
@@ -81,6 +100,7 @@ export default function RegisterPage() {
         await axios.post('/api/auth/otp/verify', { email: formData.email, otp });
         setIsEmailVerified(true);
         setIsOtpSent(false);
+        setCountdown(0); // Clear countdown on success
     } catch (err: any) {
         setError(err.response?.data?.error || "Invalid OTP code.");
     } finally {
@@ -127,6 +147,17 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
       
+      {/* ERROR TOAST NOTIFICATION (SLIDE IN FROM RIGHT) */}
+      {error && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-white dark:bg-slate-900 border-l-4 border-red-500 p-4 pr-5 rounded-xl shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full">
+          <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex-1">{error}</p>
+          <button onClick={() => setError('')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* 1. LEFT SIDEBAR (BRANDING) */}
       <div className="hidden lg:flex lg:w-[45%] bg-[#0B1120] relative overflow-hidden flex-col justify-between p-12 lg:p-16 text-white border-r border-slate-800">
         
@@ -196,7 +227,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-xl mx-auto mt-20 lg:mt-0">
           
           {success ? (
-            /* SUCCESS STATE - Updated for open registration */
+            /* SUCCESS STATE */
             <div className="bg-white dark:bg-slate-900 p-10 rounded-3xl shadow-2xl dark:shadow-none border border-slate-200 dark:border-slate-800 text-center animate-in fade-in zoom-in-95 duration-500">
                <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 text-green-500 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-green-50/50 dark:ring-green-500/5">
                  <CheckCircle2 className="w-12 h-12" />
@@ -224,15 +255,6 @@ export default function RegisterPage() {
                 </p>
               </div>
 
-              {error && (
-                <div className="mb-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4 rounded-xl animate-in fade-in slide-in-from-top-2">
-                  <p className="text-sm text-red-600 dark:text-red-400 font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 shrink-0" />
-                    {error}
-                  </p>
-                </div>
-              )}
-
               <form className="space-y-5" onSubmit={handleSubmit}>
                 
                 {/* Name Row */}
@@ -255,7 +277,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                {/* Email & OTP Section - Restyled as a dedicated secure block */}
+                {/* Email & OTP Section */}
                 <div className={`p-1.5 rounded-2xl transition-all duration-300 ${isOtpSent || isEmailVerified ? 'bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-5' : ''}`}>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 ml-1">
                         Email Address <span className="text-red-500">*</span>
@@ -294,7 +316,7 @@ export default function RegisterPage() {
                         )}
                     </div>
 
-                    {/* OTP Field (Conditionally Rendered) */}
+                    {/* OTP Field & Resend Logic */}
                     {isOtpSent && !isEmailVerified && (
                         <div className="mt-4 animate-in slide-in-from-top-2 fade-in">
                             <div className="flex items-center justify-between mb-2 ml-1">
@@ -319,6 +341,19 @@ export default function RegisterPage() {
                                 >
                                     {verifyLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Confirm'}
                                 </button>
+                            </div>
+                            
+                            {/* Resend OTP Section */}
+                            <div className="mt-3 flex justify-between items-center px-2">
+                              <span className="text-sm text-slate-500 dark:text-slate-400">Didn't receive the code?</span>
+                              <button 
+                                type="button"
+                                onClick={sendOtp}
+                                disabled={countdown > 0 || otpLoading}
+                                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:text-slate-400 dark:disabled:text-slate-600 transition-colors"
+                              >
+                                {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
+                              </button>
                             </div>
                         </div>
                     )}
