@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 
-    // 3. Create User (EXPLICITLY INACTIVE)
+    // 3. Create User (Active by Default, API Access is 'NONE')
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
@@ -30,19 +30,21 @@ export async function POST(req: Request) {
         phoneNumber,
         businessName,
         role: 'AGENT',
-        isActive: false, // <--- Force Pending State
+        isActive: true, // Immediate dashboard access
+        apiStatus: 'NONE' // API keys disabled by default
       },
     });
 
     // 4. Send Notifications (Non-blocking)
     const fullName = `${firstName} ${lastName}`;
     
-    // A. Notify User (Registration Received)
+    // A. Notify User (Welcome Email)
+    // Assuming you have or will create a welcome email template in zeptomail.ts
     await sendEmail({
         to: email,
         name: fullName,
-        subject: 'Registration Received - AgentHub',
-        html: emailTemplates.registrationReceived(fullName)
+        subject: 'Welcome to AgentLink',
+        html: emailTemplates.registrationReceived(fullName) // Swap this to a Welcome Template later
     });
 
     // B. Notify Admin (New User Alert)
@@ -55,8 +57,9 @@ export async function POST(req: Request) {
         });
     }
 
+    // Return immediate success
     return NextResponse.json({ 
-      message: 'Registration successful. Account under review.', 
+      message: 'Registration successful. Welcome to the platform.', 
       user: { id: user.id, email: user.email } 
     }, { status: 201 });
 
