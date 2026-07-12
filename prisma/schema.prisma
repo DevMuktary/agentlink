@@ -23,10 +23,7 @@ model User {
   walletBalance         Decimal  @default(0.00) @db.Decimal(10, 2)
   bonusBalance          Decimal  @default(0.00) @db.Decimal(10, 2)
   
-  // Normal Dashboard Access (Now defaults to true so they can login immediately)
   isActive              Boolean  @default(true)
-
-  // API Gateway Access State
   apiStatus             ApiStatus @default(NONE)
 
   apiKeyPublic          String?   @unique
@@ -34,11 +31,10 @@ model User {
   webhookUrl            String?
   ipWhitelist           String?
 
-  // Virtual Accounts
   virtualAccountName    String?
   virtualAccountNumber  String?
   virtualBankName       String? 
-  paymentPointRef       String?   // To store customer_id from PaymentPoint
+  paymentPointRef       String?
 
   transactions          Transaction[]
   requests              ServiceRequest[]
@@ -47,15 +43,18 @@ model User {
   updatedAt             DateTime @updatedAt
 }
 
-// 2. SERVICES (Core Services like Verification, CAC, etc.)
+// 2. SERVICES
 model Service {
   id              String      @id @default(cuid())
   code            ServiceType @unique
-  serviceCode     Int?        @unique // Used for Manual options (e.g. 620)
+  serviceCode     Int?        @unique
   name            String
   description     String?
   
-  // Dual Pricing Structure
+  // Kept for migration safety
+  price           Decimal     @default(0.00) @db.Decimal(10, 2) 
+  
+  // New dual pricing
   dashboardPrice  Decimal     @default(0.00) @db.Decimal(10, 2)
   apiPrice        Decimal     @default(0.00) @db.Decimal(10, 2)
   
@@ -67,16 +66,19 @@ model Service {
 // 3. DATA PLANS
 model DataPlan {
   id              String   @id @default(cuid())
-  network         String   // MTN, GLO, AIRTEL, 9MOBILE
-  category        String   // SME, GIFTING, CORPORATE, AWOOF, ETC
-  name            String   // e.g. MTN 1GB 30Days
+  network         String   
+  category        String   
+  name            String   
   
-  // Dual Pricing Structure
+  // Kept for migration safety
+  price           Decimal  @default(0.00) @db.Decimal(10, 2)
+  
+  // New dual pricing
   dashboardPrice  Decimal  @default(0.00) @db.Decimal(10, 2)
   apiPrice        Decimal  @default(0.00) @db.Decimal(10, 2)
   
-  productCode     String   @unique // The provider's code: mtn_sme_1gb
-  validity        String?  // e.g. "30 Days"
+  productCode     String   @unique 
+  validity        String?  
   isActive        Boolean  @default(true)
   
   createdAt       DateTime @default(now())
@@ -117,10 +119,10 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
-// 6. VERIFICATION TOKENS (For OTPs)
+// 6. VERIFICATION TOKENS
 model VerificationToken {
-  identifier String   // Email
-  token      String   // OTP
+  identifier String   
+  token      String   
   expires    DateTime
 
   @@unique([identifier, token])
@@ -170,33 +172,27 @@ enum ServiceType {
   NIN_VERIFICATION       
   NIN_SEARCH_BY_PHONE 
   
-  // VALIDATION TYPES
   NIN_VALIDATION_NO_RECORD
   NIN_VALIDATION_UPDATE_RECORD
   NIN_VALIDATION_VNIN
   
-  // SLIP GENERATION
   NIN_SLIP_PREMIUM
   NIN_SLIP_STANDARD
   NIN_SLIP_REGULAR
   
-  // MODIFICATION TYPES
   NIN_MODIFICATION_NAME
   NIN_MODIFICATION_PHONE
   NIN_MODIFICATION_ADDRESS
 
-  // OTHER NIN
   NIN_PERSONALIZATION
   VNIN_SLIP
   VNIN_TO_NIBSS
   IPE_CLEARANCE
 
-  // --- NEW SLIPS (V2) - BY NIN ---
   NIN_SLIP_V2_PREMIUM
   NIN_SLIP_V2_STANDARD
   NIN_SLIP_V2_REGULAR
 
-  // --- NEW SLIPS (V2) - BY PHONE ---
   NIN_SLIP_V2_PHONE_PREMIUM
   NIN_SLIP_V2_PHONE_STANDARD
   NIN_SLIP_V2_PHONE_REGULAR
@@ -210,7 +206,6 @@ enum ServiceType {
   BVN_RETRIEVAL
   BVN_MODIFICATION
 
-  // BVN MODIFICATION CATEGORIES (BILLABLE)
   BVN_MOD_NAME
   BVN_MOD_DOB
   BVN_MOD_PHONE
@@ -219,7 +214,6 @@ enum ServiceType {
   BVN_MOD_DOB_PHONE
   BVN_MOD_FULL
 
-  // BVN BANKS (TOGGLES)
   BANK_AGENCY
   BANK_HERITAGE
   BANK_BOA
@@ -231,7 +225,7 @@ enum ServiceType {
   
   // --- CORPORATE ---
   CAC_REGISTRATION
-  TAX_ID_REGISTRATION
+  JTB_TIN_REGISTRATION     // Kept for migration safety
   TAX_ID_INDIVIDUAL
   TAX_ID_NON_INDIVIDUAL
   
@@ -241,10 +235,9 @@ enum ServiceType {
   EXAM_PIN_NECO
   EXAM_PIN_NABTEB
   EXAM_PIN_JAMB
-  EXAM_PIN_JAMB_UTME  // New
-  EXAM_PIN_JAMB_DE    // New
+  EXAM_PIN_JAMB_UTME
+  EXAM_PIN_JAMB_DE
 
-  // JAMB DIRECT SERVICES (Manual)
   JAMB_ORIGINAL_RESULT
   JAMB_ADMISSION_LETTER
   JAMB_REGISTRATION_SLIP
