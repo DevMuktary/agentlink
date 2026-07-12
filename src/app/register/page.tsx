@@ -119,8 +119,12 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    // Construct the full phone number (+234...) and drop leading zero if typed
+    const localNum = formData.phoneNumber.startsWith('0') ? formData.phoneNumber.substring(1) : formData.phoneNumber;
+    const fullPhoneNumber = `+234${localNum}`;
+
     // Frontend Validations
-    const phoneRegex = /^(?:\+234|0)[789][01]\d{8}$/;
+    const phoneRegex = /^(?:\+234)[789][01]\d{8}$/;
     const nameRegex = /^[a-zA-Z\s\-']{2,50}$/;
 
     if (!isEmailVerified) {
@@ -131,8 +135,8 @@ export default function RegisterPage() {
         setError("Names can only contain letters and spaces.");
         return;
     }
-    if (!phoneRegex.test(formData.phoneNumber)) {
-        setError("Please enter a valid Nigerian phone number.");
+    if (!phoneRegex.test(fullPhoneNumber)) {
+        setError("Please enter a valid 10-digit Nigerian phone number.");
         return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -147,7 +151,9 @@ export default function RegisterPage() {
     setRegisterLoading(true);
 
     try {
-      await axios.post('/api/auth/register', formData);
+      // Send the merged payload with the correctly formatted +234 number
+      const payload = { ...formData, phoneNumber: fullPhoneNumber };
+      await axios.post('/api/auth/register', payload);
       setSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed.');
@@ -186,7 +192,6 @@ export default function RegisterPage() {
         
         <div className="relative z-10">
           <Link href="/" className="mb-12 inline-block hover:opacity-90 transition-opacity">
-             {/* CUSTOM LOGO */}
              <Image 
                 src="/logo-agenthub.png" 
                 alt="AgentHub Logo" 
@@ -253,7 +258,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-xl mx-auto mt-20 lg:mt-0">
           
           {success ? (
-            /* CUSTOM SUCCESS IMAGE STATE */
+            /* SUCCESS STATE */
             <div className="bg-white dark:bg-slate-900 p-10 rounded-3xl shadow-2xl dark:shadow-none border border-slate-200 dark:border-slate-800 text-center animate-in fade-in zoom-in-95 duration-500">
                <div className="mx-auto mb-6 flex justify-center">
                  <Image 
@@ -356,6 +361,12 @@ export default function RegisterPage() {
                                 {otpLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Verify Email'}
                             </button>
                         )}
+
+                        {isEmailVerified && (
+                             <div className="sm:w-auto w-full px-5 py-3.5 flex items-center justify-center bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-xl font-bold text-sm shadow-sm">
+                                <CheckCircle2 className="w-5 h-5 mr-1.5" /> Verified
+                             </div>
+                        )}
                     </div>
 
                     {/* OTP Field & Resend Logic */}
@@ -372,7 +383,7 @@ export default function RegisterPage() {
                                     <input
                                         type="text" placeholder="123456"
                                         className="block w-full pl-11 pr-4 py-3.5 border border-blue-300 dark:border-blue-500/50 rounded-xl bg-blue-50/50 dark:bg-blue-500/10 text-slate-900 dark:text-white font-mono tracking-[0.2em] text-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all shadow-sm"
-                                        value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6}
+                                        value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} maxLength={6}
                                     />
                                 </div>
                                 <button 
@@ -410,14 +421,28 @@ export default function RegisterPage() {
                             value={formData.businessName} onChange={handleChange}
                         />
                     </div>
+                    
+                    {/* ENHANCED PHONE NUMBER INPUT */}
                     <div className="relative group">
                         <InputIcon icon={Phone} active={formData.phoneNumber.length > 0} />
+                        
+                        {/* Visual +234 Hardcode */}
+                        <div className="absolute inset-y-0 left-0 pl-[3.25rem] flex items-center pointer-events-none">
+                            <span className={`text-base font-semibold transition-colors duration-200 ${formData.phoneNumber.length > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                                +234
+                            </span>
+                        </div>
+
                         <input
-                            type="tel" name="phoneNumber" required placeholder="Phone Number"
-                            pattern="^(?:\+234|0)[789][01]\d{8}$"
-                            title="Format: 08012345678 or +234..."
-                            className="block w-full pl-11 pr-4 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
-                            value={formData.phoneNumber} onChange={handleChange}
+                            type="tel" name="phoneNumber" required placeholder="801 234 5678"
+                            maxLength={11} // Prevents typing too many numbers
+                            className="block w-full pl-[6rem] pr-4 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
+                            value={formData.phoneNumber} 
+                            onChange={(e) => {
+                                // Strictly block anything that is not a number
+                                const onlyNums = e.target.value.replace(/\D/g, '');
+                                setFormData({ ...formData, phoneNumber: onlyNums });
+                            }}
                         />
                     </div>
                 </div>
@@ -452,6 +477,32 @@ export default function RegisterPage() {
                         </button>
                     </div>
                 </div>
+
+                {/* Strength Meter */}
+                {formData.password && (
+                    <div className="pt-1">
+                        <div className="flex justify-between items-center mb-1.5 px-1">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Password Strength</span>
+                            <span className={`text-xs font-bold ${
+                                passStrength <= 2 ? 'text-red-500' : passStrength <= 3 ? 'text-amber-500' : 'text-green-500'
+                            }`}>
+                                {passStrength <= 2 ? 'Weak' : passStrength <= 3 ? 'Fair' : 'Strong'}
+                            </span>
+                        </div>
+                        <div className="flex gap-1.5 h-2 px-1">
+                            {[1, 2, 3, 4, 5].map((level) => (
+                            <div 
+                                key={level}
+                                className={`flex-1 rounded-full transition-all duration-500 ${
+                                passStrength >= level 
+                                    ? (passStrength <= 2 ? 'bg-red-500' : passStrength <= 3 ? 'bg-amber-500' : 'bg-green-500') 
+                                    : 'bg-slate-200 dark:bg-slate-800'
+                                }`} 
+                            />
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Submit Button */}
                 <button
