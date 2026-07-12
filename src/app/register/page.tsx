@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   CheckCircle2, Loader2, ShieldCheck, Mail, Lock, 
   User, Phone, Briefcase, ChevronRight, Eye, EyeOff, 
-  KeyRound, Zap, Fingerprint, Building2, AlertCircle, X
+  KeyRound, Zap, Fingerprint, Building2, AlertCircle, X, Edit2
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -84,7 +84,7 @@ export default function RegisterPage() {
     try {
         await axios.post('/api/auth/otp/send', { email: formData.email });
         setIsOtpSent(true);
-        setCountdown(60); // Start 60-second countdown
+        setCountdown(60); 
     } catch (err: any) {
         setError(err.response?.data?.error || "Failed to send OTP.");
     } finally {
@@ -100,12 +100,18 @@ export default function RegisterPage() {
         await axios.post('/api/auth/otp/verify', { email: formData.email, otp });
         setIsEmailVerified(true);
         setIsOtpSent(false);
-        setCountdown(0); // Clear countdown on success
+        setCountdown(0); 
     } catch (err: any) {
         setError(err.response?.data?.error || "Invalid OTP code.");
     } finally {
         setVerifyLoading(false);
     }
+  };
+
+  const handleEditEmail = () => {
+    setIsOtpSent(false);
+    setOtp('');
+    setCountdown(0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,7 +153,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
       
-      {/* ERROR TOAST NOTIFICATION (SLIDE IN FROM RIGHT) */}
+      {/* ERROR TOAST NOTIFICATION */}
       {error && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-white dark:bg-slate-900 border-l-4 border-red-500 p-4 pr-5 rounded-xl shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full">
           <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
@@ -279,9 +285,21 @@ export default function RegisterPage() {
 
                 {/* Email & OTP Section */}
                 <div className={`p-1.5 rounded-2xl transition-all duration-300 ${isOtpSent || isEmailVerified ? 'bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-5' : ''}`}>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 ml-1">
-                        Email Address <span className="text-red-500">*</span>
-                    </label>
+                    
+                    <div className="flex items-center justify-between mb-2 ml-1">
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">
+                            Email Address <span className="text-red-500">*</span>
+                        </label>
+                        {isOtpSent && !isEmailVerified && (
+                            <button 
+                                type="button" 
+                                onClick={handleEditEmail}
+                                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center gap-1"
+                            >
+                                <Edit2 className="w-3 h-3" /> Edit Email
+                            </button>
+                        )}
+                    </div>
                     
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1 group">
@@ -293,7 +311,7 @@ export default function RegisterPage() {
                                     isEmailVerified 
                                     ? 'border-green-300 bg-green-50 text-green-900 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400' 
                                     : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-blue-500/50 focus:border-blue-500 group-hover:border-slate-400 dark:group-hover:border-slate-600'
-                                } disabled:opacity-70`}
+                                } disabled:opacity-70 disabled:cursor-not-allowed`}
                                 value={formData.email} onChange={handleChange}
                             />
                         </div>
