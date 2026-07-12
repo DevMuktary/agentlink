@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
-  CheckCircle2, Loader2, ShieldCheck, Mail, Lock, 
-  User, Phone, Briefcase, ChevronRight, Eye, EyeOff, 
+  Loader2, Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff, 
   KeyRound, Zap, Fingerprint, Building2, AlertCircle, X, Edit2
 } from 'lucide-react';
 
@@ -75,8 +75,9 @@ export default function RegisterPage() {
 
   // --- ACTIONS ---
   const sendOtp = async () => {
-    if (!formData.email || !formData.email.includes('@')) {
-        setError("Please enter a valid email address first.");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email || !emailRegex.test(formData.email)) {
+        setError("Please enter a valid email address.");
         return;
     }
     setError('');
@@ -118,8 +119,20 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    // Frontend Validations
+    const phoneRegex = /^(?:\+234|0)[789][01]\d{8}$/;
+    const nameRegex = /^[a-zA-Z\s\-']{2,50}$/;
+
     if (!isEmailVerified) {
         setError("Please verify your email address to continue.");
+        return;
+    }
+    if (!nameRegex.test(formData.firstName) || !nameRegex.test(formData.lastName)) {
+        setError("Names can only contain letters and spaces.");
+        return;
+    }
+    if (!phoneRegex.test(formData.phoneNumber)) {
+        setError("Please enter a valid Nigerian phone number.");
         return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -167,19 +180,21 @@ export default function RegisterPage() {
       {/* 1. LEFT SIDEBAR (BRANDING) */}
       <div className="hidden lg:flex lg:w-[45%] bg-[#0B1120] relative overflow-hidden flex-col justify-between p-12 lg:p-16 text-white border-r border-slate-800">
         
-        {/* Subtle Background Elements */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay"></div>
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3"></div>
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3"></div>
         
         <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-3 mb-12 group cursor-pointer inline-flex">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/50 group-hover:scale-105 transition-transform">
-                <ShieldCheck className="w-7 h-7 text-white" />
-            </div>
-            <span className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
-                AgentHub
-            </span>
+          <Link href="/" className="mb-12 inline-block hover:opacity-90 transition-opacity">
+             {/* CUSTOM LOGO */}
+             <Image 
+                src="/logo-agenthub.png" 
+                alt="AgentHub Logo" 
+                width={200} 
+                height={60} 
+                priority
+                className="object-contain h-12 w-auto"
+             />
           </Link>
           
           <h2 className="text-4xl lg:text-5xl font-bold leading-[1.15] mb-6 tracking-tight">
@@ -194,7 +209,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="relative z-10 space-y-5">
-           <div className="flex items-center gap-4 p-4 bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50 hover:bg-slate-800/60 transition-colors">
+           <div className="flex items-center gap-4 p-4 bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50">
               <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
                 <Zap className="w-6 h-6" />
               </div>
@@ -204,13 +219,13 @@ export default function RegisterPage() {
               </div>
            </div>
            
-           <div className="flex items-center gap-4 p-4 bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50 hover:bg-slate-800/60 transition-colors">
+           <div className="flex items-center gap-4 p-4 bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50">
               <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <Fingerprint className="w-6 h-6" />
               </div>
               <div>
                   <h4 className="text-white font-semibold text-sm">Bank-Grade Security</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">256-bit encryption with strict NDPR compliance.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Strict data validation & 256-bit encryption.</p>
               </div>
            </div>
 
@@ -221,22 +236,33 @@ export default function RegisterPage() {
       {/* 2. RIGHT CONTENT (FORM) */}
       <div className="flex-1 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-20 xl:px-24 relative overflow-y-auto">
         
-        {/* Mobile Header */}
+        {/* Mobile Header with Logo */}
         <div className="lg:hidden absolute top-0 left-0 w-full p-6 flex items-center justify-between bg-slate-900 text-white border-b border-slate-800">
-           <div className="flex items-center gap-2">
-              <ShieldCheck className="w-6 h-6 text-blue-400" />
-              <span className="font-bold text-xl">AgentHub</span>
-           </div>
+           <Link href="/">
+             <Image 
+                src="/logo-agenthub.png" 
+                alt="AgentHub Logo" 
+                width={140} 
+                height={40} 
+                className="object-contain h-8 w-auto"
+             />
+           </Link>
            <Link href="/login" className="text-sm text-blue-400 font-semibold hover:text-blue-300">Log in</Link>
         </div>
 
         <div className="w-full max-w-xl mx-auto mt-20 lg:mt-0">
           
           {success ? (
-            /* SUCCESS STATE */
+            /* CUSTOM SUCCESS IMAGE STATE */
             <div className="bg-white dark:bg-slate-900 p-10 rounded-3xl shadow-2xl dark:shadow-none border border-slate-200 dark:border-slate-800 text-center animate-in fade-in zoom-in-95 duration-500">
-               <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 text-green-500 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-green-50/50 dark:ring-green-500/5">
-                 <CheckCircle2 className="w-12 h-12" />
+               <div className="mx-auto mb-6 flex justify-center">
+                 <Image 
+                    src="/welldone.png" 
+                    alt="Registration Successful" 
+                    width={120} 
+                    height={120} 
+                    className="object-contain drop-shadow-lg"
+                 />
                </div>
                <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-3">Registration Successful!</h2>
                <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed text-lg">
@@ -269,6 +295,8 @@ export default function RegisterPage() {
                     <InputIcon icon={User} active={formData.firstName.length > 0} />
                     <input
                       type="text" name="firstName" required placeholder="First Name"
+                      pattern="^[a-zA-Z\s\-']+$"
+                      title="Letters and spaces only"
                       className="block w-full pl-11 pr-4 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
                       value={formData.firstName} onChange={handleChange}
                     />
@@ -277,6 +305,8 @@ export default function RegisterPage() {
                     <InputIcon icon={User} active={formData.lastName.length > 0} />
                     <input
                       type="text" name="lastName" required placeholder="Last Name"
+                      pattern="^[a-zA-Z\s\-']+$"
+                      title="Letters and spaces only"
                       className="block w-full pl-11 pr-4 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
                       value={formData.lastName} onChange={handleChange}
                     />
@@ -326,12 +356,6 @@ export default function RegisterPage() {
                                 {otpLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Verify Email'}
                             </button>
                         )}
-
-                        {isEmailVerified && (
-                             <div className="sm:w-auto w-full px-5 py-3.5 flex items-center justify-center bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-xl font-bold text-sm shadow-sm">
-                                <CheckCircle2 className="w-5 h-5 mr-1.5" /> Verified
-                             </div>
-                        )}
                     </div>
 
                     {/* OTP Field & Resend Logic */}
@@ -361,7 +385,6 @@ export default function RegisterPage() {
                                 </button>
                             </div>
                             
-                            {/* Resend OTP Section */}
                             <div className="mt-3 flex justify-between items-center px-2">
                               <span className="text-sm text-slate-500 dark:text-slate-400">Didn't receive the code?</span>
                               <button 
@@ -391,6 +414,8 @@ export default function RegisterPage() {
                         <InputIcon icon={Phone} active={formData.phoneNumber.length > 0} />
                         <input
                             type="tel" name="phoneNumber" required placeholder="Phone Number"
+                            pattern="^(?:\+234|0)[789][01]\d{8}$"
+                            title="Format: 08012345678 or +234..."
                             className="block w-full pl-11 pr-4 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
                             value={formData.phoneNumber} onChange={handleChange}
                         />
@@ -403,6 +428,7 @@ export default function RegisterPage() {
                         <InputIcon icon={Lock} active={formData.password.length > 0} />
                         <input
                             type={showPass ? "text" : "password"} name="password" required placeholder="Password"
+                            minLength={8}
                             className="block w-full pl-11 pr-12 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
                             value={formData.password} onChange={handleChange}
                         />
@@ -427,32 +453,6 @@ export default function RegisterPage() {
                     </div>
                 </div>
 
-                {/* Strength Meter */}
-                {formData.password && (
-                    <div className="pt-1">
-                        <div className="flex justify-between items-center mb-1.5 px-1">
-                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Password Strength</span>
-                            <span className={`text-xs font-bold ${
-                                passStrength <= 2 ? 'text-red-500' : passStrength <= 3 ? 'text-amber-500' : 'text-green-500'
-                            }`}>
-                                {passStrength <= 2 ? 'Weak' : passStrength <= 3 ? 'Fair' : 'Strong'}
-                            </span>
-                        </div>
-                        <div className="flex gap-1.5 h-2 px-1">
-                            {[1, 2, 3, 4, 5].map((level) => (
-                            <div 
-                                key={level}
-                                className={`flex-1 rounded-full transition-all duration-500 ${
-                                passStrength >= level 
-                                    ? (passStrength <= 2 ? 'bg-red-500' : passStrength <= 3 ? 'bg-amber-500' : 'bg-green-500') 
-                                    : 'bg-slate-200 dark:bg-slate-800'
-                                }`} 
-                            />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
                 {/* Submit Button */}
                 <button
                   type="submit"
@@ -469,11 +469,6 @@ export default function RegisterPage() {
                     </>
                   )}
                 </button>
-
-                <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-6">
-                    By registering, you agree to our <Link href="#" className="font-semibold text-slate-700 dark:text-slate-300 hover:underline">Terms of Service</Link> and <Link href="#" className="font-semibold text-slate-700 dark:text-slate-300 hover:underline">Privacy Policy</Link>.
-                </p>
-
               </form>
             </div>
           )}
