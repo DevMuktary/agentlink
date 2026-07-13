@@ -6,8 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import axios from 'axios';
 import { 
-  Loader2, Mail, Lock, ChevronRight, Eye, EyeOff, 
-  ShieldCheck, Zap, Fingerprint, AlertCircle, X, CheckCircle2 
+  Loader2, Mail, Lock, Eye, EyeOff, 
+  AlertCircle, X, CheckCircle2 
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -36,212 +36,166 @@ export default function LoginPage() {
 
     try {
       const res = await axios.post('/api/auth/login', { email, password });
-      // Redirect based on role
       if (res.data.role === 'ADMIN' || res.data.role === 'SUPER_ADMIN') {
         router.push('/admin');
       } else {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      setError(err.response?.data?.error || 'Authentication failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  // --- RENDER HELPERS ---
-  const InputIcon = ({ icon: Icon, active }: { icon: any, active?: boolean }) => (
-    <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors duration-200 ${active ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
-      <Icon className="h-5 w-5" />
-    </div>
-  );
-
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#000814] font-sans relative overflow-hidden px-4 sm:px-6">
       
+      {/* Top Corporate Accent Bar */}
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#001232] via-[#FFB902] to-[#001232]"></div>
+
       {/* ERROR TOAST NOTIFICATION */}
       {error && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-white dark:bg-slate-900 border-l-4 border-red-500 p-4 pr-5 rounded-xl shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full">
-          <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex-1">{error}</p>
-          <button onClick={() => setError('')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-            <X className="w-5 h-5" />
+        <div className="fixed top-6 right-6 md:right-8 z-50 flex items-center gap-3 bg-white dark:bg-[#001232] border-l-4 border-red-500 p-4 pr-5 rounded-md shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full border-y border-r border-y-gray-200 border-r-gray-200 dark:border-y-gray-800 dark:border-r-gray-800">
+          <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex-1">{error}</p>
+          <button onClick={() => setError('')} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* 1. LEFT SIDEBAR (BRANDING) */}
-      <div className="hidden lg:flex lg:w-[45%] bg-[#0B1120] relative overflow-hidden flex-col justify-between p-12 lg:p-16 text-white border-r border-slate-800">
+      {/* CENTERED AUTH CARD */}
+      <div className="w-full max-w-[440px] bg-white dark:bg-[#001232] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] border border-gray-100 dark:border-gray-800/60 p-8 sm:p-10 relative z-10">
         
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay"></div>
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3"></div>
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3"></div>
-        
-        <div className="relative z-10">
-          <Link href="/" className="mb-12 inline-block hover:opacity-90 transition-opacity">
+        {/* Header & Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <Link href="/" className="mb-6 block transition-transform hover:scale-[1.02]">
              <Image 
                 src="/logo-agenthub.png" 
-                alt="AgentHub Logo" 
-                width={200} 
-                height={60} 
+                alt="AgentHub Corporate Logo" 
+                width={180} 
+                height={50} 
                 priority
-                className="object-contain h-12 w-auto"
+                className="object-contain h-10 w-auto"
              />
           </Link>
-          
-          <h2 className="text-4xl lg:text-5xl font-bold leading-[1.15] mb-6 tracking-tight">
-            Build with the premier <br/> 
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-              Identity Infrastructure.
-            </span>
-          </h2>
-          <p className="text-slate-400 text-lg leading-relaxed max-w-md">
-            Join thousands of businesses streamlining NIN, BVN, Corporate Filings, and Utility Payments in one secure platform.
+          <h1 className="text-2xl font-bold text-[#001232] dark:text-white tracking-tight">
+            Account Portal
+          </h1>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1.5">
+            Authenticate to access your workspace.
           </p>
         </div>
 
-        <div className="relative z-10 space-y-5">
-           <div className="flex items-center gap-4 p-4 bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50">
-              <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
-                <Zap className="w-6 h-6" />
-              </div>
-              <div>
-                  <h4 className="text-white font-semibold text-sm">Dashboard & API Access</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Immediate access to all services upon registration.</p>
-              </div>
+        {/* Optional Success Banner */}
+        {registered && (
+           <div className="mb-6 bg-green-50 dark:bg-green-500/10 p-3.5 rounded-lg flex items-center gap-2.5 border border-green-200 dark:border-green-500/20 animate-in fade-in">
+              <CheckCircle2 className="text-green-600 dark:text-green-400 w-4 h-4 shrink-0" />
+              <p className="text-sm font-semibold text-green-800 dark:text-green-300">Registration successful. Please log in.</p>
            </div>
-           
-           <div className="flex items-center gap-4 p-4 bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50">
-              <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <Fingerprint className="w-6 h-6" />
-              </div>
-              <div>
-                  <h4 className="text-white font-semibold text-sm">Bank-Grade Security</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Strict data validation & 256-bit encryption.</p>
-              </div>
-           </div>
+        )}
 
-           <div className="text-sm text-slate-500 mt-8 font-medium">© {new Date().getFullYear()} AgentHub Systems Ltd.</div>
-        </div>
-      </div>
-
-      {/* 2. RIGHT CONTENT (FORM) */}
-      <div className="flex-1 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-20 xl:px-24 relative overflow-y-auto">
-        
-        {/* Mobile Header with Logo */}
-        <div className="lg:hidden absolute top-0 left-0 w-full p-6 flex items-center justify-between bg-slate-900 text-white border-b border-slate-800">
-           <Link href="/">
-             <Image 
-                src="/logo-agenthub.png" 
-                alt="AgentHub Logo" 
-                width={140} 
-                height={40} 
-                className="object-contain h-8 w-auto"
-             />
-           </Link>
-           <Link href="/register" className="text-sm text-blue-400 font-semibold hover:text-blue-300">Register</Link>
-        </div>
-
-        <div className="w-full max-w-md mx-auto mt-20 lg:mt-0">
+        {/* Auth Form */}
+        <form className="space-y-5" onSubmit={handleSubmit}>
           
-          <div className="bg-transparent lg:bg-white lg:dark:bg-slate-900 lg:p-10 lg:rounded-3xl lg:shadow-xl lg:dark:shadow-none lg:border lg:border-slate-200 lg:dark:border-slate-800">
-            
-            <div className="mb-8">
-              <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Welcome back</h1>
-              <p className="mt-2 text-slate-600 dark:text-slate-400 text-lg">
-                Enter your details to sign in.
-              </p>
-            </div>
-
-            {/* Optional Success Banner if redirected from registration */}
-            {registered && (
-               <div className="mb-6 bg-green-50 dark:bg-green-500/10 p-4 rounded-xl flex items-center gap-3 border border-green-200 dark:border-green-500/20 animate-in fade-in">
-                  <CheckCircle2 className="text-green-600 dark:text-green-400 w-5 h-5 shrink-0" />
-                  <p className="text-sm font-semibold text-green-800 dark:text-green-300">Registration successful! Please log in.</p>
-               </div>
-            )}
-
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              
-              {/* Email Input */}
+          {/* Email Input */}
+          <div className="space-y-1.5">
+              <label className="block text-xs font-bold tracking-wide text-gray-700 dark:text-gray-300 uppercase">
+                  Email Address
+              </label>
               <div className="relative group">
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 ml-1">
-                      Email Address
-                  </label>
-                  <InputIcon icon={Mail} active={email.length > 0} />
-                  <input
-                    type="email"
-                    required
-                    className="block w-full pl-11 pr-4 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
-                    placeholder="name@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-              </div>
-
-              {/* Password Input */}
-              <div className="relative group pt-1">
-                  <div className="flex items-center justify-between mb-2 ml-1">
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">
-                          Password
-                      </label>
-                      <Link href="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
-                        Forgot password?
-                      </Link>
-                  </div>
-                  <InputIcon icon={Lock} active={password.length > 0} />
-                  <input
-                    type={showPass ? "text" : "password"}
-                    required
-                    className="block w-full pl-11 pr-12 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm group-hover:border-slate-400 dark:group-hover:border-slate-600"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute bottom-0 right-0 h-[3.25rem] px-4 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer transition-colors">
-                      {showPass ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-              </div>
-
-              {/* Remember Me */}
-              <div className="flex items-center pt-2 ml-1">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#FFB902] transition-colors">
+                  <Mail className="h-4 w-4" />
+                </div>
                 <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500/50 border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-950 transition-colors cursor-pointer"
+                  type="email"
+                  required
+                  className="block w-full pl-10 pr-4 py-3 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-[#000a1c] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FFB902] focus:border-[#FFB902] transition-all"
+                  placeholder="admin@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
-                <label htmlFor="remember-me" className="ml-2.5 block text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                  Remember me for 30 days
-                </label>
               </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 mt-6"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>Sign In <ChevronRight className="w-5 h-5" /></>
-                )}
-              </button>
-            </form>
-            
-            <div className="mt-8 text-center">
-               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Don't have an account yet?{' '}
-                  <Link href="/register" className="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
-                    Create free account
-                  </Link>
-               </p>
-            </div>
           </div>
 
+          {/* Password Input */}
+          <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold tracking-wide text-gray-700 dark:text-gray-300 uppercase">
+                      Password
+                  </label>
+                  <Link href="/forgot-password" className="text-xs font-bold text-[#001232] hover:text-[#FFB902] dark:text-gray-300 dark:hover:text-[#FFB902] transition-colors">
+                    Reset Password
+                  </Link>
+              </div>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#FFB902] transition-colors">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <input
+                  type={showPass ? "text" : "password"}
+                  required
+                  className="block w-full pl-10 pr-10 py-3 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-[#000a1c] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FFB902] focus:border-[#FFB902] transition-all"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPass(!showPass)} 
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                >
+                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+          </div>
+
+          {/* Remember Me */}
+          <div className="flex items-center pt-2">
+            <input
+              id="remember-me"
+              name="remember-me"
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-[#001232] focus:ring-[#FFB902] dark:border-gray-700 dark:bg-[#000a1c] cursor-pointer"
+            />
+            <label htmlFor="remember-me" className="ml-2.5 block text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer">
+              Keep me securely logged in
+            </label>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 px-4 bg-[#001232] dark:bg-[#FFB902] hover:bg-[#001232]/90 dark:hover:bg-[#FFB902]/90 text-white dark:text-[#001232] text-sm font-bold tracking-wide rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#001232] dark:focus:ring-[#FFB902] disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-[0.99] flex items-center justify-center mt-6"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              'Sign In'
+            )}
+          </button>
+        </form>
+        
+        {/* Footer Link */}
+        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
+           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              New to AgentHub?{' '}
+              <Link href="/register" className="font-bold text-[#001232] hover:text-[#FFB902] dark:text-[#FFB902] dark:hover:text-white transition-colors">
+                Request an account
+              </Link>
+           </p>
         </div>
       </div>
+      
+      {/* Background Footer Copyright */}
+      <div className="absolute bottom-6 w-full text-center">
+        <p className="text-xs font-medium text-gray-400 dark:text-gray-600">
+          © {new Date().getFullYear()} AgentHub Systems Ltd. All rights reserved.
+        </p>
+      </div>
+
     </div>
   );
 }
