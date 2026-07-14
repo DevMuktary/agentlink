@@ -10,25 +10,27 @@ const prismaClientSingleton = () => {
           const result = await query(args);
           if (!result) return result;
 
-          // 2. Await the headers (Next.js 16+) and apply pricing logic
+          // 2. Await headers and apply pricing logic safely
           try {
             const headersList = await headers();
             const origin = headersList.get('x-request-origin');
             const isApi = origin === 'api';
 
             if (Array.isArray(result)) {
-              result.forEach(r => {
-                // Ensure the fields exist before mapping (avoids errors on select queries)
-                if (r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
+              result.forEach((r: any) => {
+                // Ensure it's a record object and has the price fields
+                if (r && typeof r === 'object' && r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
                   r.price = isApi ? r.apiPrice : r.dashboardPrice;
                 }
               });
-            } else if (result.dashboardPrice !== undefined && result.apiPrice !== undefined) {
-              result.price = isApi ? result.apiPrice : result.dashboardPrice;
+            } else if (typeof result === 'object') {
+              const r = result as any;
+              if (r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
+                r.price = isApi ? r.apiPrice : r.dashboardPrice;
+              }
             }
           } catch (error) {
-            // Failsafe (e.g., if called via a background cron job where headers don't exist)
-            // It safely defaults back to the old price or dashboardPrice
+            // Failsafe for background jobs or missing headers
           }
 
           return result;
@@ -40,23 +42,26 @@ const prismaClientSingleton = () => {
           const result = await query(args);
           if (!result) return result;
 
-          // 2. Await the headers (Next.js 16+) and apply pricing logic
+          // 2. Await headers and apply pricing logic safely
           try {
             const headersList = await headers();
             const origin = headersList.get('x-request-origin');
             const isApi = origin === 'api';
 
             if (Array.isArray(result)) {
-              result.forEach(r => {
-                if (r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
+              result.forEach((r: any) => {
+                if (r && typeof r === 'object' && r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
                   r.price = isApi ? r.apiPrice : r.dashboardPrice;
                 }
               });
-            } else if (result.dashboardPrice !== undefined && result.apiPrice !== undefined) {
-              result.price = isApi ? result.apiPrice : result.dashboardPrice;
+            } else if (typeof result === 'object') {
+              const r = result as any;
+              if (r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
+                r.price = isApi ? r.apiPrice : r.dashboardPrice;
+              }
             }
           } catch (error) {
-            // Failsafe
+            // Failsafe for background jobs or missing headers
           }
 
           return result;
