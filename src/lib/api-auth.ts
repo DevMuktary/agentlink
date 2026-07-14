@@ -2,9 +2,8 @@ import { headers, cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 
-// Renamed back to validateApiKey to perfectly match your 49 existing route files
-// Added req?: Request to accept the parameter that the old files pass in
 export async function validateApiKey(req?: Request) {
+  // Await the headers Promise (Next.js 15+)
   const headersList = await headers();
   const origin = headersList.get('x-request-origin');
 
@@ -33,7 +32,6 @@ export async function validateApiKey(req?: Request) {
     }
 
     // --- THE CRITICAL SECURITY LOCK ---
-    // If they bypass the dashboard and try to use API keys without approval, block them.
     if (user.apiStatus !== 'APPROVED') {
       throw new Error('API_ACCESS_DENIED_OR_PENDING');
     }
@@ -48,6 +46,7 @@ export async function validateApiKey(req?: Request) {
   // ==========================================
   // 2. HANDLE DASHBOARD BROWSER REQUESTS
   // ==========================================
+  // Await the cookies Promise (Next.js 15+)
   const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
 
