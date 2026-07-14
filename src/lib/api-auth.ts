@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 // Renamed back to validateApiKey to perfectly match your 49 existing route files
 // Added req?: Request to accept the parameter that the old files pass in
 export async function validateApiKey(req?: Request) {
-  const headersList = headers();
+  const headersList = await headers();
   const origin = headersList.get('x-request-origin');
 
   // ==========================================
@@ -48,7 +48,7 @@ export async function validateApiKey(req?: Request) {
   // ==========================================
   // 2. HANDLE DASHBOARD BROWSER REQUESTS
   // ==========================================
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
 
   if (!token) {
