@@ -3,37 +3,66 @@ import { headers } from 'next/headers';
 
 const prismaClientSingleton = () => {
   return new PrismaClient().$extends({
-    result: {
+    query: {
       service: {
-        // Creates a virtual "price" field backward-compatible with your v1 routes
-        price: {
-          needs: { dashboardPrice: true, apiPrice: true },
-          compute(service) {
-            try {
-              // Read the injected header from middleware
-              const origin = headers().get('x-request-origin');
-              return origin === 'api' ? service.apiPrice : service.dashboardPrice;
-            } catch (error) {
-              // Fallback to dashboard price if read fails (e.g., cron jobs)
-              return service.dashboardPrice;
+        async $allOperations({ operation, args, query }) {
+          // 1. Await the actual database query
+          const result = await query(args);
+          if (!result) return result;
+
+          // 2. Await the headers (Next.js 16+) and apply pricing logic
+          try {
+            const headersList = await headers();
+            const origin = headersList.get('x-request-origin');
+            const isApi = origin === 'api';
+
+            if (Array.isArray(result)) {
+              result.forEach(r => {
+                // Ensure the fields exist before mapping (avoids errors on select queries)
+                if (r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
+                  r.price = isApi ? r.apiPrice : r.dashboardPrice;
+                }
+              });
+            } else if (result.dashboardPrice !== undefined && result.apiPrice !== undefined) {
+              result.price = isApi ? result.apiPrice : result.dashboardPrice;
             }
-          },
-        },
+          } catch (error) {
+            // Failsafe (e.g., if called via a background cron job where headers don't exist)
+            // It safely defaults back to the old price or dashboardPrice
+          }
+
+          return result;
+        }
       },
       dataPlan: {
-        price: {
-          needs: { dashboardPrice: true, apiPrice: true },
-          compute(plan) {
-            try {
-              const origin = headers().get('x-request-origin');
-              return origin === 'api' ? plan.apiPrice : plan.dashboardPrice;
-            } catch (error) {
-              return plan.dashboardPrice;
+        async $allOperations({ operation, args, query }) {
+          // 1. Await the actual database query
+          const result = await query(args);
+          if (!result) return result;
+
+          // 2. Await the headers (Next.js 16+) and apply pricing logic
+          try {
+            const headersList = await headers();
+            const origin = headersList.get('x-request-origin');
+            const isApi = origin === 'api';
+
+            if (Array.isArray(result)) {
+              result.forEach(r => {
+                if (r.dashboardPrice !== undefined && r.apiPrice !== undefined) {
+                  r.price = isApi ? r.apiPrice : r.dashboardPrice;
+                }
+              });
+            } else if (result.dashboardPrice !== undefined && result.apiPrice !== undefined) {
+              result.price = isApi ? result.apiPrice : result.dashboardPrice;
             }
-          },
-        },
-      },
-    },
+          } catch (error) {
+            // Failsafe
+          }
+
+          return result;
+        }
+      }
+    }
   });
 };
 
