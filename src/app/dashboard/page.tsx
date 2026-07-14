@@ -2,18 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  ShieldCheck, UserCheck, Fingerprint, FileBadge, 
-  RefreshCcw, Search, School, Landmark, Receipt, Building2, 
-  GraduationCap, Wifi, Smartphone, Users, FileText, Wallet, Clock
-} from 'lucide-react';
+import Image from 'next/image';
+import { Wallet, Clock, Sun, Moon } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isDark, setIsDark] = useState(false);
 
+  // Initialize theme and fetch user data
   useEffect(() => {
+    // Check initial theme preference
+    if (document.documentElement.classList.contains('dark')) {
+      setIsDark(true);
+    }
+
     async function fetchUser() {
       try {
         const res = await fetch('/api/user/me');
@@ -33,6 +37,16 @@ export default function UserDashboard() {
     fetchUser();
   }, []);
 
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      setIsDark(true);
+    }
+  };
+
   if (loading) return <GlobalLoader />;
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Partner';
@@ -47,76 +61,91 @@ export default function UserDashboard() {
   return (
     <div className="animate-in fade-in duration-500">
       
-      {/* 1. WALLET & WELCOME CARD */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#0F172A] to-[#1E293B] dark:from-slate-800 dark:to-slate-900 rounded-3xl p-8 sm:p-10 text-white shadow-xl shadow-slate-200/50 dark:shadow-none mb-10 border border-slate-800/50">
+      {/* HEADER WITH THEME TOGGLE */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Welcome back, {firstName} 👋
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
+            Select a service below to get started.
+          </p>
+        </div>
+        <button 
+          onClick={toggleTheme}
+          className="p-2.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
+      {/* 1. COMPACT WALLET CARD */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#0F172A] to-[#1E293B] dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 text-white shadow-lg shadow-slate-200/40 dark:shadow-none mb-10 border border-slate-800/50">
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-6">
-              Welcome back, {firstName} 👋
-            </h1>
-            <p className="text-slate-400 text-sm font-medium mb-2 flex items-center gap-2 uppercase tracking-wider">
-              <Wallet className="w-4 h-4" /> Available Balance
+            <p className="text-slate-400 text-xs font-semibold mb-1 flex items-center gap-2 uppercase tracking-wider">
+              <Wallet className="w-3.5 h-3.5" /> Available Balance
             </p>
-            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">{formattedBalance}</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{formattedBalance}</h2>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex gap-3 w-full sm:w-auto">
             <Link 
               href="/dashboard/wallet"
-              className="flex-1 sm:flex-none bg-white text-slate-900 px-8 py-3.5 rounded-xl text-sm font-bold text-center hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+              className="flex-1 sm:flex-none bg-white text-slate-900 px-6 py-2.5 rounded-lg text-sm font-bold text-center hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
             >
               Fund Wallet
             </Link>
             <Link 
               href="/dashboard/history"
-              className="flex-1 sm:flex-none bg-white/5 backdrop-blur-md text-white px-6 py-3.5 rounded-xl text-sm font-semibold text-center hover:bg-white/10 transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2"
+              className="flex-1 sm:flex-none bg-white/10 backdrop-blur-md text-white px-5 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-white/20 transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2"
             >
-              <Clock className="w-4 h-4" /> History
+              <Clock className="w-3.5 h-3.5" /> History
             </Link>
           </div>
         </div>
         
-        {/* Abstract Glowing Orbs for the premium feel */}
-        <div className="absolute -right-10 -top-10 h-64 w-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -left-10 -bottom-10 h-48 w-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        {/* Subtle Background Glows */}
+        <div className="absolute right-0 top-0 h-40 w-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
       </div>
 
       {/* 2. CARD-BASED SERVICES GRID */}
-      <div className="space-y-12">
+      <div className="space-y-10">
         
-        <CategorySection title="Identity Verification" icon={<Fingerprint size={20} className="text-blue-500"/>}>
-          <ServiceCard title="NIN Verification" href="/dashboard/nin-verification" icon={<UserCheck size={24} />} color="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400" />
-          <ServiceCard title="NIN Validation" href="/dashboard/nin-validation" icon={<Search size={24} />} color="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400" />
-          <ServiceCard title="VNIN Slip" href="/dashboard/vnin-slip" icon={<FileBadge size={24} />} color="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400" />
-          <ServiceCard title="NIN Personalization" href="/dashboard/nin-personalization" icon={<Users size={24} />} color="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400" />
-          <ServiceCard title="NIN Modification" href="/dashboard/nin-modification" icon={<FileText size={24} />} color="bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400" />
-          <ServiceCard title="Slip Generation" href="/dashboard/nin-slip" icon={<FileBadge size={24} />} color="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400" />
-          <ServiceCard title="IPE Clearance" href="/dashboard/ipe-clearance" icon={<ShieldCheck size={24} />} color="bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400" />
+        <CategorySection title="Identity Verification">
+          <ServiceCard title="NIN Verification" href="/dashboard/nin-verification" imageSrc="/nimc.png" />
+          <ServiceCard title="NIN Validation" href="/dashboard/nin-validation" imageSrc="/nimc.png" />
+          <ServiceCard title="VNIN Slip" href="/dashboard/vnin-slip" imageSrc="/nimc.png" />
+          <ServiceCard title="NIN Personalization" href="/dashboard/nin-personalization" imageSrc="/nimc.png" />
+          <ServiceCard title="NIN Modification" href="/dashboard/nin-modification" imageSrc="/nimc.png" />
+          <ServiceCard title="Slip Generation" href="/dashboard/nin-slip" imageSrc="/nimc.png" />
+          <ServiceCard title="IPE Clearance" href="/dashboard/ipe-clearance" imageSrc="/nimc.png" />
         </CategorySection>
 
-        <CategorySection title="Banking & BVN" icon={<Landmark size={20} className="text-teal-500"/>}>
-          <ServiceCard title="BVN Verification" href="/dashboard/bvn-verification" icon={<ShieldCheck size={24} />} color="bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400" />
-          <ServiceCard title="VNIN to NIBSS" href="/dashboard/vnin-to-nibss" icon={<RefreshCcw size={24} />} color="bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400" />
-          <ServiceCard title="BVN Enrollment" href="/dashboard/bvn-enrollment" icon={<UserCheck size={24} />} color="bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400" />
-          <ServiceCard title="BVN Modification" href="/dashboard/bvn-modification" icon={<FileText size={24} />} color="bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400" />
-          <ServiceCard title="Premium Slip" href="/dashboard/bvn-premium-slip" icon={<FileBadge size={24} />} color="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" />
-          <ServiceCard title="BVN Retrieval" href="/dashboard/bvn-retrieval" icon={<Search size={24} />} color="bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400" />
+        <CategorySection title="Banking & BVN">
+          <ServiceCard title="BVN Verification" href="/dashboard/bvn-verification" imageSrc="/nibss.png" />
+          <ServiceCard title="VNIN to NIBSS" href="/dashboard/vnin-to-nibss" imageSrc="/nibss.png" />
+          <ServiceCard title="BVN Enrollment" href="/dashboard/bvn-enrollment" imageSrc="/nibss.png" />
+          <ServiceCard title="BVN Modification" href="/dashboard/bvn-modification" imageSrc="/nibss.png" />
+          <ServiceCard title="Premium Slip" href="/dashboard/bvn-premium-slip" imageSrc="/nibss.png" />
+          <ServiceCard title="BVN Retrieval" href="/dashboard/bvn-retrieval" imageSrc="/nibss.png" />
         </CategorySection>
 
-        <CategorySection title="Corporate Filings" icon={<Building2 size={20} className="text-purple-500"/>}>
-          <ServiceCard title="CAC Registration" href="/dashboard/cac" icon={<Building2 size={24} />} color="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400" />
-          <ServiceCard title="Tax ID Search" href="/dashboard/tax-id" icon={<Receipt size={24} />} color="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400" />
+        <CategorySection title="Corporate Filings">
+          <ServiceCard title="CAC Registration" href="/dashboard/cac" imageSrc="/cac.png" />
+          <ServiceCard title="Tax ID Search" href="/dashboard/tax-id" imageSrc="/nrs.png" />
         </CategorySection>
 
-        <CategorySection title="Education" icon={<GraduationCap size={20} className="text-pink-500"/>}>
-          <ServiceCard title="JAMB Services" href="/dashboard/jamb" icon={<School size={24} />} color="bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400" />
-          <ServiceCard title="Exam Pins" href="/dashboard/exam-pins" icon={<FileBadge size={24} />} color="bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400" />
+        <CategorySection title="Education">
+          <ServiceCard title="JAMB Services" href="/dashboard/jamb" imageSrc="/jamb.png" />
+          <ServiceCard title="Exam Pins" href="/dashboard/exam-pins" imageSrc="/jamb.png" />
         </CategorySection>
 
-        <CategorySection title="Utilities & Bills" icon={<Wifi size={20} className="text-orange-500"/>}>
-          <ServiceCard title="Buy Airtime" href="/dashboard/airtime" icon={<Smartphone size={24} />} color="bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400" />
-          <ServiceCard title="Data Bundles" href="/dashboard/data" icon={<Wifi size={24} />} color="bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400" />
+        <CategorySection title="Utilities & Bills">
+          <ServiceCard title="Buy Airtime" href="/dashboard/airtime" imageSrc="/airtime.png" />
+          <ServiceCard title="Data Bundles" href="/dashboard/data" imageSrc="/data.png" />
         </CategorySection>
         
       </div>
@@ -126,12 +155,12 @@ export default function UserDashboard() {
 
 // --- COMPONENTS ---
 
-function CategorySection({ title, icon, children }: { title: string, icon: any, children: React.ReactNode }) {
+function CategorySection({ title, children }: { title: string, children: React.ReactNode }) {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-5">
-        {icon}
-        <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">{title}</h3>
+      <div className="flex items-center gap-2 mb-4">
+        <div className="h-4 w-1 bg-blue-500 rounded-full"></div>
+        <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm tracking-wide uppercase">{title}</h3>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
         {children}
@@ -140,16 +169,22 @@ function CategorySection({ title, icon, children }: { title: string, icon: any, 
   );
 }
 
-function ServiceCard({ title, href, icon, color }: { title: string, href: string, icon: any, color: string }) {
+function ServiceCard({ title, href, imageSrc }: { title: string, href: string, imageSrc: string }) {
   return (
     <Link 
       href={href} 
-      className="group relative bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 dark:hover:shadow-blue-900/20 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center justify-center text-center gap-4"
+      className="group relative bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-lg hover:shadow-blue-500/5 dark:hover:shadow-blue-900/20 hover:border-blue-200 dark:hover:border-slate-700 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center justify-center text-center gap-4"
     >
-      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${color}`}>
-        {icon}
+      <div className="h-16 w-16 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 shadow-inner">
+        <Image 
+          src={imageSrc} 
+          alt={title} 
+          width={36} 
+          height={36} 
+          className="object-contain drop-shadow-sm"
+        />
       </div>
-      <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+      <h4 className="font-semibold text-sm text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
         {title}
       </h4>
     </Link>
