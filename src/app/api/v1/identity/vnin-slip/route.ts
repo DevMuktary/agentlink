@@ -107,9 +107,16 @@ export async function POST(req: Request) {
         await tx.serviceRequest.delete({ where: { id: reqLog.id } });
       });
 
-      // Intercept DataVerify 400 error and translate it to clean UX
+      // AGGRESSIVE INTERCEPTION: Catch generic provider errors and translate them to clean UX
       let errorMessage = result.error || "Failed to generate slip";
-      if (errorMessage.includes('400') || errorMessage.toLowerCase().includes('failed with status code 400')) {
+      const lowerErr = errorMessage.toLowerCase();
+      
+      if (
+        lowerErr.includes('400') || 
+        lowerErr.includes('provider connection failed') || 
+        lowerErr.includes('network') ||
+        lowerErr.includes('timeout')
+      ) {
         errorMessage = "No record found, please check your NIN.";
       }
 
