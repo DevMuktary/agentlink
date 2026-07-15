@@ -83,7 +83,12 @@ export default function VninSlipClient({ service }: { service: ServiceData | nul
       });
       setNin('');
     } catch (err: any) {
-      setError(err.message);
+      // DOUBLE PROTECTION: Clean up any rogue error strings right before displaying to the user
+      let errorMsg = err.message;
+      if (errorMsg.toLowerCase().includes('provider connection failed') || errorMsg.includes('400')) {
+        errorMsg = "No record found, please check your NIN.";
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -333,7 +338,7 @@ export default function VninSlipClient({ service }: { service: ServiceData | nul
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-500 mt-1.5 shrink-0" />
-                  If we fails to generate the slip due to a database error, your wallet will be instantly refunded.
+                  If we failed to generate the slip due to a database error, your wallet will be instantly refunded.
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-500 mt-1.5 shrink-0" />
