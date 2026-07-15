@@ -18,11 +18,10 @@ export async function POST(req: Request) {
 
     const { nin } = body;
 
-    // FIX: Auto-generate reference if missing
     const reference = body.reference || `VNIN-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     if (!nin || nin.length !== 11) {
-        return NextResponse.json({ status: false, error: 'Invalid NIN' }, { status: 400 });
+        return NextResponse.json({ status: false, error: 'Invalid NIN format. Must be 11 digits.' }, { status: 400 });
     }
 
     // 2. Get Dynamic Price
@@ -41,29 +40,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Insufficient funds' }, { status: 402 });
     }
 
-    // 4. Deduct & Log
-    const requestLog = await prisma.$transaction(async (tx) => {
-      // A. Deduct
+    // 4. Deduct & Create Temporary Logs
+    const { reqLog, transLog } = await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
         data: { walletBalance: { decrement: serviceCost } }
       });
 
-      // B. Create Transaction Record
-      await tx.transaction.create({
+      const transLog = await tx.transaction.create({
         data: {
           userId: user.id,
           amount: serviceCost,
           type: 'SERVICE_CHARGE',
-          status: 'COMPLETED',
+          status: 'PROCESSING',
           reference: reference, 
           description: `VNIN Slip for NIN: ${nin}`,
           serviceId: 'VNIN_SLIP'
         }
       });
 
-      // C. Create Request
-      return await tx.serviceRequest.create({
+      const reqLog = await tx.serviceRequest.create({
         data: {
           userId: user.id,
           serviceType: 'VNIN_SLIP',
@@ -72,22 +68,26 @@ export async function POST(req: Request) {
           requestData: { nin, clientReference: reference }, 
         }
       });
+
+      return { reqLog, transLog };
     });
 
     // 5. Call Provider (DataVerify)
     const result = await generateVninSlip(nin);
 
     if (result.success && result.data?.pdf_base64) {
-      // SUCCESS: Save Result
-      await prisma.serviceRequest.update({
-        where: { id: requestLog.id },
-        data: { 
-            status: 'COMPLETED', 
-            responseData: result.data // Save full provider data for admin history
-        }
+      // SUCCESS: Finalize records
+      await prisma.$transaction(async (tx) => {
+        await tx.transaction.update({
+          where: { id: transLog.id },
+          data: { status: 'COMPLETED' }
+        });
+        await tx.serviceRequest.update({
+          where: { id: reqLog.id },
+          data: { status: 'COMPLETED', responseData: result.data }
+        });
       });
 
-      // RESPONSE: Clean "Slip Only" response
       return NextResponse.json({ 
           status: true, 
           message: 'VNIN Slip Generated', 
@@ -95,35 +95,25 @@ export async function POST(req: Request) {
       });
 
     } else {
-      // REFUND: Provider Failed
+      // FAILURE: Refund and DELETE the temporary logs so it doesn't clutter history
       await prisma.$transaction(async (tx) => {
-        // A. Refund Wallet
+        // Refund Wallet
         await tx.user.update({ 
             where: { id: user.id }, 
             data: { walletBalance: { increment: serviceCost } } 
         });
-
-        // B. Log Refund Transaction
-        await tx.transaction.create({
-            data: {
-              userId: user.id,
-              amount: serviceCost,
-              type: 'REFUND',
-              status: 'COMPLETED',
-              reference: `${reference}-REFUND`, 
-              description: `Refund: VNIN Slip Failed (${nin})`,
-              serviceId: 'VNIN_SLIP'
-            }
-        });
-
-        // C. Update Request Status
-        await tx.serviceRequest.update({ 
-            where: { id: requestLog.id }, 
-            data: { status: 'FAILED', responseData: { error: result.error } } 
-        });
+        // Erase the history traces entirely
+        await tx.transaction.delete({ where: { id: transLog.id } });
+        await tx.serviceRequest.delete({ where: { id: reqLog.id } });
       });
 
-      return NextResponse.json({ status: false, error: result.error || "Failed to generate slip", message: 'Refunded' }, { status: 400 });
+      // Intercept DataVerify 400 error and translate it to clean UX
+      let errorMessage = result.error || "Failed to generate slip";
+      if (errorMessage.includes('400') || errorMessage.toLowerCase().includes('failed with status code 400')) {
+        errorMessage = "No record found, please check your NIN.";
+      }
+
+      return NextResponse.json({ status: false, error: errorMessage }, { status: 400 });
     }
 
   } catch (error) {
