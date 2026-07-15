@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ShieldCheck, History, AlertTriangle, 
@@ -26,6 +26,14 @@ export default function NinValidationClient({ services }: { services: ServiceDat
   const [success, setSuccess] = useState<any>(null);
   
   const [showModal, setShowModal] = useState(true);
+
+  // Auto-hide error banner after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const activeService = services.find(s => s.serviceCode === Number(selectedServiceCode));
   const isEntireCategoryDown = services.length > 0 && services.every(s => !s.isActive);
@@ -97,6 +105,23 @@ export default function NinValidationClient({ services }: { services: ServiceDat
 
   return (
     <>
+      {/* FLOATING ERROR TOAST BANNER */}
+      {error && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[200] w-[90%] sm:w-auto max-w-sm animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-2xl border border-red-500">
+            <AlertTriangle size={20} className="shrink-0" />
+            <span className="font-semibold text-sm flex-1 leading-snug">{error}</span>
+            <button 
+              onClick={() => setError('')} 
+              className="p-1.5 hover:bg-red-700 rounded-xl transition-colors shrink-0"
+              aria-label="Close error"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* IMPORTANT DISCLAIMER MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
@@ -210,14 +235,6 @@ export default function NinValidationClient({ services }: { services: ServiceDat
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                  
-                  {error && (
-                    <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl text-sm text-red-600 dark:text-red-400 flex items-start gap-3 shadow-sm">
-                      <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-                      <span className="font-medium">{error}</span>
-                    </div>
-                  )}
-
                   <div className="space-y-5">
                     <div>
                       <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
@@ -289,6 +306,13 @@ export default function NinValidationClient({ services }: { services: ServiceDat
                       <span className="text-xl font-extrabold text-blue-700 dark:text-blue-400">
                         {formatCurrency(activeService.price)}
                       </span>
+                    </div>
+                  )}
+
+                  {activeService && !activeService.isActive && (
+                    <div className="p-3.5 bg-orange-50 dark:bg-orange-500/10 rounded-xl text-sm text-orange-700 dark:text-orange-400 font-bold flex items-center gap-2 border border-orange-200 dark:border-orange-500/20 shadow-sm">
+                      <AlertTriangle size={16} />
+                      This specific service is currently disabled.
                     </div>
                   )}
 
