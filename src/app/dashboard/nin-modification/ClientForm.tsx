@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   FileCog, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  X 
+  X, Clock
 } from 'lucide-react';
 
 type ServiceData = {
