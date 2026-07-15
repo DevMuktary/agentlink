@@ -19,7 +19,7 @@ const menuItems = [
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Wallet & Finance", href: "/dashboard/wallet", icon: Wallet },
-      { name: "Transaction History", href: "/dashboard/history", icon: History },
+      { name: "Services History", href: "/dashboard/history", icon: History },
       { name: "API & Developers", href: "/dashboard/developers", icon: Code2 },
     ]
   },
