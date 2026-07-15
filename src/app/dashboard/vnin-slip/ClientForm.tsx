@@ -333,7 +333,7 @@ export default function VninSlipClient({ service }: { service: ServiceData | nul
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-500 mt-1.5 shrink-0" />
-                  If the provider fails to generate the slip due to a database error, your wallet will be instantly refunded.
+                  If we fails to generate the slip due to a database error, your wallet will be instantly refunded.
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-500 mt-1.5 shrink-0" />
