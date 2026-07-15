@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Users, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  Clock, X 
+  X 
 } from 'lucide-react';
 
 type ServiceData = {
@@ -106,21 +106,22 @@ export default function NinPersonalizationClient({ service }: { service: Service
           <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300">
             <div className="p-6 sm:p-8">
               <div className="w-14 h-14 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mb-6">
-                <Users size={28} strokeWidth={2.5} />
+                <AlertTriangle size={28} strokeWidth={2.5} />
               </div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
                 Important Notice
               </h2>
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
                 <p>
-                  You are about to submit a NIN Personalization request to push a record to the national verification database.
-                </p>
-                <p className="text-purple-700 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-500/10 p-3 rounded-xl border border-purple-100 dark:border-purple-500/20">
-                  This process is asynchronous and may take anywhere from 24 to 72 hours to reflect on the NIMC portal.
+                  This service will be processed within <span className="font-bold text-slate-800 dark:text-slate-200">24 to 48 hours</span>. There might be a slight delay on weekends.
                 </p>
                 <p>
-                  If the provider rejects the Tracking ID instantly, your wallet will be refunded. Once processing begins, it is non-refundable.
+                  Go to your history log and click the <span className="font-bold text-blue-600 dark:text-blue-400">"Check Status"</span> button to see if your result is ready.
                 </p>
+                <div className="text-red-700 dark:text-red-400 font-bold bg-red-50 dark:bg-red-500/10 p-3.5 rounded-xl border border-red-100 dark:border-red-500/20">
+                  <p className="uppercase tracking-wider text-[11px] mb-1">Strict No Refund Policy</p>
+                  <p className="text-sm">Once submitted, this service cannot be cancelled. Please ensure the Tracking ID is 100% correct before proceeding.</p>
+                </div>
               </div>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
@@ -176,7 +177,7 @@ export default function NinPersonalizationClient({ service }: { service: Service
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Request Submitted!</h3>
                   <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8 text-sm font-medium">
-                    The personalization request has been forwarded to the database. Monitor its progress in your history.
+                    Your request has been queued for processing. Head to your history log to track its status.
                   </p>
                   
                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-5 max-w-sm mx-auto mb-8 text-left border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -212,7 +213,6 @@ export default function NinPersonalizationClient({ service }: { service: Service
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                   <div className="space-y-5">
-                    
                     <div>
                       <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
                         NIMC Tracking ID
@@ -261,56 +261,48 @@ export default function NinPersonalizationClient({ service }: { service: Service
             </div>
           </div>
 
-          {/* RIGHT COLUMN: INSTRUCTIONS & HISTORY LINK */}
+          {/* RIGHT COLUMN: INSTRUCTIONS */}
           <div className="lg:col-span-1 space-y-6">
-            
-            {/* Quick Status Tracker Card */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10 group-hover:scale-110 transition-transform duration-500">
                 <History size={100} />
               </div>
               <div className="relative z-10">
-                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mb-5 shadow-inner">
-                  <Clock size={24} strokeWidth={2.5} />
-                </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Track Your Status</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-medium">
-                  Personalization requires time to synchronize across national servers. Check your history log to monitor real-time progress.
+                  This service is processed within 24 to 48 hours. Click the <span className="font-bold text-slate-700 dark:text-slate-300">"Check Status"</span> button on your history card to see if your result is ready.
                 </p>
-                
                 <Link 
                   href="/dashboard/history/nin/personalization"
                   className="w-full py-3.5 px-4 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-sm font-bold rounded-xl transition-all flex items-center justify-between group-hover:border-purple-200 dark:group-hover:border-purple-800 shadow-sm"
                 >
-                  View History <ArrowRight size={16} className="text-slate-400 group-hover:translate-x-1 group-hover:text-purple-500 transition-all" />
+                  Go to History <ArrowRight size={16} className="text-slate-400 group-hover:translate-x-1 group-hover:text-purple-500 transition-all" />
                 </Link>
               </div>
             </div>
 
-            {/* Important Guidelines Card */}
             <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <div className="p-1 bg-purple-100 dark:bg-purple-500/20 rounded-md text-purple-600 dark:text-purple-400">
+                <div className="p-1 bg-red-100 dark:bg-red-500/20 rounded-md text-red-600 dark:text-red-400">
                   <Info size={14} />
                 </div>
-                Important Guidelines
+                Strict No Refund Policy
               </h3>
               <ul className="space-y-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                 <li className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 dark:bg-purple-500 mt-1.5 shrink-0" />
-                  Double-check the Tracking ID to ensure accuracy before submission.
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
+                  Once submitted, this service cannot be cancelled under any circumstances.
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 dark:bg-purple-500 mt-1.5 shrink-0" />
-                  If the request fails instantly during submission, your wallet is automatically refunded.
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
+                  Please ensure the Tracking ID is 100% correct before proceeding.
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 dark:bg-purple-500 mt-1.5 shrink-0" />
-                  Once queued, the request cannot be canceled.
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
+                  Slight delays may occur during weekend processing.
                 </li>
               </ul>
             </div>
-
           </div>
         </div>
       </div>
