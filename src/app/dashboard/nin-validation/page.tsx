@@ -20,9 +20,9 @@ export default async function NinValidationPage() {
     id: s.id,
     name: s.name,
     code: s.code,
-    serviceCode: s.serviceCode,
+    serviceCode: s.serviceCode || 0, // <-- Added fallback to 0 to satisfy TypeScript
     isActive: s.isActive,
-    price: Number(s.price || 0) // Automatically utilizes your dynamic dashboard pricing
+    price: Number(s.price || 0) 
   }));
 
   return <NinValidationClient services={safeServices} />;
