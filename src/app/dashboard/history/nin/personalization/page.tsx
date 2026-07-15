@@ -5,7 +5,8 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   CheckCircle2, XCircle, Clock, Search, 
-  Monitor, Code, ChevronLeft, ChevronRight, Users, Info
+  Monitor, Code, ChevronLeft, ChevronRight, Users, Info,
+  RefreshCcw, Loader2, AlertTriangle, X
 } from 'lucide-react';
 
 export default function NinPersonalizationHistoryPage() {
@@ -17,13 +18,25 @@ export default function NinPersonalizationHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'DASHBOARD' | 'API'>('ALL');
 
-  // Pagination
+  // Pagination & Action States
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [checkingStatusId, setCheckingStatusId] = useState<string | null>(null);
+  
+  // Global Toast Message for manual status checks
+  const [toastMsg, setToastMsg] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
 
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  // Auto-hide toast after 5 seconds
+  useEffect(() => {
+    if (toastMsg) {
+      const timer = setTimeout(() => setToastMsg(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMsg]);
 
   const fetchHistory = async () => {
     try {
@@ -40,14 +53,12 @@ export default function NinPersonalizationHistoryPage() {
   useEffect(() => {
     let result = requests;
 
-    // 1. Filter by Submission Source
     if (sourceFilter === 'DASHBOARD') {
       result = result.filter(r => (r.requestData?.clientReference || '').startsWith('DASH-'));
     } else if (sourceFilter === 'API') {
       result = result.filter(r => !(r.requestData?.clientReference || '').startsWith('DASH-'));
     }
 
-    // 2. Search Filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(r => 
@@ -60,7 +71,38 @@ export default function NinPersonalizationHistoryPage() {
     setCurrentPage(1);
   }, [sourceFilter, searchQuery, requests]);
 
-  // Pagination Logic
+  // Handle manual "Check Status" click
+  const handleCheckStatus = async (id: string, reference: string) => {
+    setCheckingStatusId(id);
+    setToastMsg(null);
+    try {
+      const res = await axios.get(`/api/v1/identity/nin-personalization/status?request_id=${id}`);
+      const newStatus = res.data.current_status;
+      const adminNote = res.data.reason;
+      const responseData = res.data.data;
+
+      // Update local state dynamically so UI updates without reload
+      const updateList = (list: any[]) => list.map(req => 
+        req.id === id ? { ...req, status: newStatus, adminNote: adminNote || req.adminNote, responseData } : req
+      );
+      
+      setRequests(updateList);
+      setFilteredRequests(updateList);
+
+      if (newStatus === 'PROCESSING') {
+        setToastMsg({ type: 'info', text: "Record is still being processed. Please check back later." });
+      } else if (newStatus === 'COMPLETED') {
+        setToastMsg({ type: 'success', text: "Personalization Completed Successfully!" });
+      } else {
+        setToastMsg({ type: 'error', text: "Personalization Failed. See admin note." });
+      }
+    } catch (error: any) {
+      setToastMsg({ type: 'error', text: "Unable to check status. Try again later." });
+    } finally {
+      setCheckingStatusId(null);
+    }
+  };
+
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
@@ -81,6 +123,21 @@ export default function NinPersonalizationHistoryPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
       
+      {/* FLOATING NOTIFICATION TOAST */}
+      {toastMsg && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-5 fade-in duration-300">
+          <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border text-sm font-bold ${
+            toastMsg.type === 'success' ? 'bg-green-600 border-green-500 text-white' :
+            toastMsg.type === 'error' ? 'bg-red-600 border-red-500 text-white' :
+            'bg-blue-600 border-blue-500 text-white'
+          }`}>
+            {toastMsg.type === 'info' ? <Clock size={18} /> : toastMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+            <span>{toastMsg.text}</span>
+            <button onClick={() => setToastMsg(null)} className="ml-2 p-1 hover:bg-black/20 rounded-lg"><X size={14}/></button>
+          </div>
+        </div>
+      )}
+
       {/* HEADER SECTION */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-5 mb-8">
         <div>
@@ -93,7 +150,6 @@ export default function NinPersonalizationHistoryPage() {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          
           {/* Source Toggle Buttons */}
           <div className="flex p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full sm:w-auto overflow-x-auto">
             <button 
@@ -141,7 +197,7 @@ export default function NinPersonalizationHistoryPage() {
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Tracking ID / Ref</th>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Amount</th>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Status</th>
-                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Admin Note</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Notes & Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -157,6 +213,7 @@ export default function NinPersonalizationHistoryPage() {
               ) : (
                 paginatedRequests.map((item) => {
                   const source = getSourceDetails(item.requestData?.clientReference);
+                  const isChecking = checkingStatusId === item.id;
                   
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
@@ -195,14 +252,25 @@ export default function NinPersonalizationHistoryPage() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 max-w-[200px] truncate text-xs text-slate-500 dark:text-slate-400">
-                        {item.adminNote ? (
-                          <div className="flex items-center gap-1.5" title={item.adminNote}>
-                            <Info size={14} className="text-slate-400" />
-                            <span className="truncate">{item.adminNote}</span>
-                          </div>
+                      <td className="px-6 py-4 max-w-[200px] text-xs text-slate-500 dark:text-slate-400">
+                        {item.status === 'PROCESSING' ? (
+                          <button 
+                            onClick={() => handleCheckStatus(item.id, item.requestData?.clientReference)}
+                            disabled={isChecking}
+                            className="inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all shadow-sm"
+                          >
+                            {isChecking ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />}
+                            Check Status
+                          </button>
+                        ) : item.status === 'COMPLETED' && item.responseData?.trackingId ? (
+                           <div className="font-mono text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-500/10 px-2 py-1 rounded inline-block border border-green-200 dark:border-green-500/20">
+                             New ID: {item.responseData.trackingId}
+                           </div>
                         ) : (
-                          '---'
+                          <div className="flex items-center gap-1.5 truncate" title={item.adminNote || 'No details'}>
+                            <Info size={14} className="text-slate-400 shrink-0" />
+                            <span className="truncate">{item.adminNote || 'Processed'}</span>
+                          </div>
                         )}
                       </td>
                     </tr>
