@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   ShieldCheck, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  Clock, X // Added missing Clock and X imports
+  Clock, X 
 } from 'lucide-react';
 
 type ServiceData = {
@@ -25,30 +25,41 @@ export default function NinValidationClient({ services }: { services: ServiceDat
   const [error, setError] = useState('');
   const [success, setSuccess] = useState<any>(null);
   
-  // State for the new Disclaimer Modal
   const [showModal, setShowModal] = useState(true);
 
   const activeService = services.find(s => s.serviceCode === Number(selectedServiceCode));
   const isEntireCategoryDown = services.length > 0 && services.every(s => !s.isActive);
 
-  // Helper function to show polished, user-friendly names instead of DB codes
+  // Exact names as requested
   const getPolishedName = (code: string, fallbackName: string) => {
     switch (code) {
       case 'NIN_VALIDATION_NO_RECORD':
-        return 'Standard Validation (No Record)';
+        return 'No Record Found';
       case 'NIN_VALIDATION_UPDATE_RECORD':
-        return 'Standard Validation (Update Record)';
+        return 'Update Record (Mod Validation)';
       case 'NIN_VALIDATION_VNIN':
-        return 'Virtual NIN (VNIN) Validation';
+        return 'Vnin Validation';
       default:
         return fallbackName;
     }
+  };
+
+  const handleNinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Strip all non-numeric characters and cap at 11 digits
+    const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+    setNin(numericValue);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess(null);
+    
+    if (nin.length !== 11) {
+      setError('Please enter exactly 11 digits for the NIN.');
+      return;
+    }
+
     setLoading(true);
 
     const customReference = `DASH-NINVAL-${Date.now()}`;
@@ -58,7 +69,7 @@ export default function NinValidationClient({ services }: { services: ServiceDat
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nin: nin.trim(),
+          nin: nin,
           service_code: selectedServiceCode,
           reference: customReference
         })
@@ -99,7 +110,7 @@ export default function NinValidationClient({ services }: { services: ServiceDat
               </h2>
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
                 <p>
-                  Please ensure the NIN you are submitting actually has an issue that requires deep validation.
+                  Please ensure the NIN you are submitting actually has an issue that requires validation.
                 </p>
                 <p className="text-orange-700 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20">
                   This service is strictly non-refundable and cannot be canceled once submitted.
@@ -130,10 +141,10 @@ export default function NinValidationClient({ services }: { services: ServiceDat
             <div className="p-2.5 bg-blue-50 dark:bg-blue-500/10 rounded-xl text-blue-600 dark:text-blue-400">
               <ShieldCheck size={26} strokeWidth={2.5} />
             </div>
-            NIN Deep Validation
+            NIN Validation
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-            Perform a deep database check to validate National Identity Numbers or Virtual NINs.
+            Perform a database check to validate National Identity Numbers.
           </p>
         </div>
 
@@ -162,7 +173,7 @@ export default function NinValidationClient({ services }: { services: ServiceDat
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Request Submitted</h3>
                   <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6 text-sm font-medium">
-                    Your validation request has been successfully queued. Deep validations can take a few moments to process.
+                    Your validation request has been successfully queued. Validations can take a few moments to process.
                   </p>
                   
                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-5 max-w-sm mx-auto mb-8 text-left border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -209,42 +220,66 @@ export default function NinValidationClient({ services }: { services: ServiceDat
 
                   <div className="space-y-5">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        Validation Category
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
+                        Select Validation Category
                       </label>
-                      <select 
-                        required
-                        value={selectedServiceCode}
-                        onChange={(e) => setSelectedServiceCode(Number(e.target.value))}
-                        disabled={isEntireCategoryDown || loading}
-                        className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                      >
-                        <option value="" disabled>Select the validation type...</option>
-                        {services.map(service => (
-                          <option 
-                            key={service.id} 
-                            value={service.serviceCode}
-                            disabled={!service.isActive}
-                          >
-                            {getPolishedName(service.code, service.name)} {!service.isActive ? '(Disabled for Maintenance)' : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {services.map(service => {
+                          const isSelected = selectedServiceCode === service.serviceCode;
+                          const isDisabled = !service.isActive || isEntireCategoryDown || loading;
+
+                          return (
+                            <button
+                              key={service.id}
+                              type="button"
+                              onClick={() => setSelectedServiceCode(service.serviceCode)}
+                              disabled={isDisabled}
+                              className={`relative p-4 rounded-xl border text-left transition-all ${
+                                isSelected 
+                                  ? 'bg-blue-50 border-blue-500 shadow-sm dark:bg-blue-500/10 dark:border-blue-500' 
+                                  : 'bg-slate-50 border-slate-200 hover:border-blue-300 dark:bg-slate-950 dark:border-slate-800 dark:hover:border-slate-600'
+                              } ${isDisabled ? 'opacity-50 cursor-not-allowed hover:border-slate-200 dark:hover:border-slate-800' : ''}`}
+                            >
+                              <h4 className={`font-bold text-sm leading-snug ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                {getPolishedName(service.code, service.name)}
+                              </h4>
+                              {!service.isActive && (
+                                <span className="mt-2 text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider bg-orange-100 dark:bg-orange-500/20 px-2 py-0.5 rounded-md inline-block">
+                                  Maintenance
+                                </span>
+                              )}
+                              {isSelected && (
+                                <div className="absolute top-4 right-3 text-blue-500 dark:text-blue-400 animate-in zoom-in">
+                                  <CheckCircle2 size={18} strokeWidth={3} />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div>
                       <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        Target NIN / VNIN Number
+                        Target NIN Number
                       </label>
                       <input 
                         type="text"
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={11}
                         required
                         value={nin}
-                        onChange={(e) => setNin(e.target.value)}
-                        placeholder="Enter the 11-digit NIN or 16-digit VNIN"
+                        onChange={handleNinChange}
+                        placeholder="Enter the 11-digit NIN"
                         disabled={isEntireCategoryDown || loading}
                         className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 placeholder:text-slate-400 dark:placeholder:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                       />
+                      <div className="mt-2 flex justify-end">
+                        <span className={`text-xs font-semibold ${nin.length === 11 ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                          {nin.length}/11 digits
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -257,16 +292,9 @@ export default function NinValidationClient({ services }: { services: ServiceDat
                     </div>
                   )}
 
-                  {activeService && !activeService.isActive && (
-                    <div className="p-3.5 bg-orange-50 dark:bg-orange-500/10 rounded-xl text-sm text-orange-700 dark:text-orange-400 font-bold flex items-center gap-2 border border-orange-200 dark:border-orange-500/20 shadow-sm">
-                      <AlertTriangle size={16} />
-                      This specific service is currently disabled.
-                    </div>
-                  )}
-
                   <button 
                     type="submit" 
-                    disabled={isEntireCategoryDown || loading || !nin || !selectedServiceCode || (activeService && !activeService.isActive)}
+                    disabled={isEntireCategoryDown || loading || nin.length !== 11 || !selectedServiceCode || (activeService && !activeService.isActive)}
                     className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
                     {loading ? (
@@ -317,7 +345,7 @@ export default function NinValidationClient({ services }: { services: ServiceDat
               <ul className="space-y-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-400 dark:bg-blue-500 mt-1.5 shrink-0" />
-                  Ensure the NIN or VNIN format is entirely correct before submitting.
+                  Ensure the 11-digit NIN format is entirely correct before submitting.
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-400 dark:bg-blue-500 mt-1.5 shrink-0" />
