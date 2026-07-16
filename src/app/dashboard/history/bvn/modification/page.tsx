@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   CheckCircle2, XCircle, Clock, Search, Filter, 
-  Monitor, Code, ChevronLeft, ChevronRight, FileEdit, Eye, Info, XCircle as XCircleIcon
+  Monitor, Code, ChevronLeft, ChevronRight, FileEdit, Eye, Info, XCircle as XCircleIcon, ArrowRight
 } from 'lucide-react';
 
 export default function BvnModificationHistoryPage() {
@@ -31,7 +31,7 @@ export default function BvnModificationHistoryPage() {
     try {
       const res = await axios.get('/api/user/requests'); 
       const logs = res.data.filter((r: any) => 
-        (r.serviceType || '').startsWith('BVN_MODIFICATION')
+        (r.serviceType || '').startsWith('BVN_MOD')
       );
       setRequests(logs);
       setFilteredRequests(logs);
@@ -143,10 +143,10 @@ export default function BvnModificationHistoryPage() {
               className="w-full sm:w-48 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-base sm:text-sm font-medium text-slate-700 dark:text-slate-200 appearance-none cursor-pointer shadow-sm"
             >
               <option value="ALL">All Mods</option>
-              <option value="BVN_MODIFICATION_NAME">Name Mod</option>
-              <option value="BVN_MODIFICATION_DOB">DOB Mod</option>
-              <option value="BVN_MODIFICATION_PHONE">Phone Mod</option>
-              <option value="BVN_MODIFICATION_FULL">Full Mod</option>
+              <option value="BVN_MOD_NAME">Name Mod</option>
+              <option value="BVN_MOD_DOB">DOB Mod</option>
+              <option value="BVN_MOD_PHONE">Phone Mod</option>
+              <option value="BVN_MOD_FULL">Full Mod</option>
             </select>
           </div>
 
