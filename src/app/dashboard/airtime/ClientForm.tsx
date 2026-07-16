@@ -12,7 +12,7 @@ type ServiceData = {
   name: string;
   code: string;
   isActive: boolean;
-  price: number; // Used as the rate (e.g., 99 = 99% of face value)
+  price: number; 
 };
 
 const NETWORKS = [
@@ -79,8 +79,6 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
 
   const activeNetworkData = NETWORKS.find(n => n.id === selectedNetwork);
   const activeService = services.find(s => s.code === activeNetworkData?.code);
-  const rate = activeService ? activeService.price : 100;
-  const payableAmount = amount ? (Number(amount) * rate) / 100 : 0;
 
   const handleProceed = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,15 +94,17 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
     setLoading(true);
     setError('');
 
+    const customReference = `DASH-AIR-${Date.now()}`;
+
     try {
       const res = await fetch('/api/utilities/airtime', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: phone,
-          amount: Number(amount),
           network: selectedNetwork,
-          serviceCode: activeService?.code
+          amount: Number(amount),
+          phone_number: phone, 
+          reference: customReference
         })
       });
 
@@ -115,10 +115,9 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
       }
 
       setReceiptData({
-        reference: data.data.reference,
+        reference: customReference,
         phone: phone,
         amount: Number(amount),
-        payable: payableAmount,
         network: activeNetworkData,
         date: new Date()
       });
@@ -178,17 +177,9 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 space-y-3 mb-6 border border-slate-100 dark:border-slate-800">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Airtime Amount</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(Number(amount))}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Discount Rate</span>
-                  <span className="font-bold text-green-600 dark:text-green-400">{(100 - rate).toFixed(1)}% OFF</span>
-                </div>
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Amount to Pay</span>
-                  <span className="text-xl font-extrabold text-amber-600 dark:text-amber-500">{formatCurrency(payableAmount)}</span>
+                  <span className="text-xl font-extrabold text-amber-600 dark:text-amber-500">{formatCurrency(Number(amount))}</span>
                 </div>
               </div>
 
@@ -197,7 +188,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
                 disabled={loading}
                 className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]"
               >
-                {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</> : `Pay ${formatCurrency(payableAmount)}`}
+                {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</> : `Pay ${formatCurrency(Number(amount))}`}
               </button>
             </div>
           </div>
@@ -216,7 +207,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
             Buy Airtime
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-            Instant airtime recharge for all networks at discounted rates.
+            Instant airtime recharge for all networks.
           </p>
         </div>
 
@@ -253,12 +244,8 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
                       <span className="font-bold text-slate-900 dark:text-white">{receiptData.phone}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                      <span className="text-slate-500 dark:text-slate-400">Airtime Value</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(receiptData.amount)}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                       <span className="text-slate-500 dark:text-slate-400">Amount Paid</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(receiptData.payable)}</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(receiptData.amount)}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                       <span className="text-slate-500 dark:text-slate-400">Ref</span>
@@ -427,7 +414,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 mt-1.5 shrink-0" />
-                  If you ported your phone number, manually select your new network by tapping the correct logo.
+                  If you ported your phone number, manually select your new network by tapping the correct Network.
                 </li>
               </ul>
             </div>
