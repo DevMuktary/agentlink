@@ -134,7 +134,7 @@ export default function UserDashboard() {
         </CategorySection>
 
         <CategorySection title="Corporate Filings">
-          <ServiceCard title="CAC Registration" href="/dashboard/cac" imageSrc="/cac.png" />
+          <ServiceCard title="CAC Registration" href="/dashboard/cac-registration" imageSrc="/cac.png" />
           <ServiceCard title="Tax ID Search" href="/dashboard/tax-id" imageSrc="/nrs.png" />
         </CategorySection>
 
