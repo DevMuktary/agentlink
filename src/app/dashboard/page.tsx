@@ -127,9 +127,9 @@ export default function UserDashboard() {
         <CategorySection title="Banking & BVN">
           <ServiceCard title="BVN Verification" href="/dashboard/bvn-verification" imageSrc="/nibss.png" />
           <ServiceCard title="VNIN to NIBSS" href="/dashboard/vnin-to-nibss" imageSrc="/nibss.png" />
-          <ServiceCard title="BVN Enrollment" href="/dashboard/bvn-enrollment" imageSrc="/nibss.png" />
+          <ServiceCard title="BVN User" href="/dashboard/bvn-enrollment" imageSrc="/nibss.png" />
           <ServiceCard title="BVN Modification" href="/dashboard/bvn-modification" imageSrc="/nibss.png" />
-          <ServiceCard title="Premium Slip" href="/dashboard/bvn-premium-slip" imageSrc="/nibss.png" />
+          <ServiceCard title="Premium Slip" href="/dashboard/bvn-slip" imageSrc="/nibss.png" />
           <ServiceCard title="BVN Retrieval" href="/dashboard/bvn-retrieval" imageSrc="/nibss.png" />
         </CategorySection>
 
