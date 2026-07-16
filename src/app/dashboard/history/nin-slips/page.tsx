@@ -5,13 +5,14 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   CheckCircle2, Search, Filter,
-  Monitor, Code, ChevronLeft, ChevronRight, FileText
+  Monitor, Code, ChevronLeft, ChevronRight, FileText, Eye, Info, XCircle as XCircleIcon
 } from 'lucide-react';
 
 export default function NinSlipHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,9 +30,9 @@ export default function NinSlipHistoryPage() {
   const fetchHistory = async () => {
     try {
       const res = await axios.get('/api/user/requests'); 
-      // Filter for COMPLETED NIN Slip Generation requests
+      // Filter for COMPLETED NIN Slip Generation requests (Support both V1 and V2 names)
       const logs = res.data.filter((r: any) => 
-        ['NIN_SLIP_PREMIUM', 'NIN_SLIP_STANDARD', 'NIN_SLIP_IMPROVED'].includes(r.serviceType) && 
+        (r.serviceType || '').startsWith('NIN_SLIP') && 
         r.status === 'COMPLETED'
       );
       setRequests(logs);
@@ -46,9 +47,11 @@ export default function NinSlipHistoryPage() {
   useEffect(() => {
     let result = requests;
 
-    // 1. Filter by Service Type
-    if (filterType !== 'ALL') {
-      result = result.filter(r => r.serviceType === filterType);
+    // 1. Filter by Mode (NIN vs Phone)
+    if (filterType === 'NIN') {
+      result = result.filter(r => r.requestData?.mode === 'NIN' || r.requestData?.nin);
+    } else if (filterType === 'PHONE') {
+      result = result.filter(r => r.requestData?.mode === 'PHONE' || r.requestData?.phone);
     }
 
     // 2. Filter by Submission Source
@@ -63,6 +66,7 @@ export default function NinSlipHistoryPage() {
       const q = searchQuery.toLowerCase();
       result = result.filter(r => 
         r.requestData?.nin?.includes(q) || 
+        r.requestData?.phone?.includes(q) || 
         r.requestData?.clientReference?.toLowerCase().includes(q)
       );
     }
@@ -87,13 +91,6 @@ export default function NinSlipHistoryPage() {
     };
   };
 
-  const formatServiceName = (type: string) => {
-    if (type === 'NIN_SLIP_PREMIUM') return 'Premium Slip';
-    if (type === 'NIN_SLIP_STANDARD') return 'Standard Slip';
-    if (type === 'NIN_SLIP_IMPROVED') return 'Improved Slip';
-    return type;
-  };
-
   if (loading) return <GlobalLoader />;
 
   return (
@@ -106,7 +103,7 @@ export default function NinSlipHistoryPage() {
             <FileText className="text-teal-500" size={24} /> NIN Slips
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">
-            Review your successfully generated NIN slips.
+            Review logs of your successfully generated NIN slips.
           </p>
         </div>
         
@@ -142,10 +139,9 @@ export default function NinSlipHistoryPage() {
               onChange={(e) => setFilterType(e.target.value)}
               className="w-full sm:w-48 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium text-slate-700 dark:text-slate-200 appearance-none cursor-pointer shadow-sm text-base sm:text-sm"
             >
-              <option value="ALL">All Slip Formats</option>
-              <option value="NIN_SLIP_PREMIUM">Premium Slips</option>
-              <option value="NIN_SLIP_STANDARD">Standard Slips</option>
-              <option value="NIN_SLIP_IMPROVED">Improved Slips</option>
+              <option value="ALL">All Methods</option>
+              <option value="NIN">By NIN</option>
+              <option value="PHONE">By Phone Number</option>
             </select>
           </div>
 
@@ -154,7 +150,7 @@ export default function NinSlipHistoryPage() {
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search NIN or Ref..." 
+              placeholder="Search NIN, Phone or Ref..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-base sm:text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 shadow-sm"
@@ -171,9 +167,9 @@ export default function NinSlipHistoryPage() {
               <tr>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Date Generated</th>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Origin</th>
-                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Slip Format</th>
-                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Target NIN</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Target Info</th>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Amount Charged</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -189,6 +185,8 @@ export default function NinSlipHistoryPage() {
               ) : (
                 paginatedRequests.map((item) => {
                   const source = getSourceDetails(item.requestData?.clientReference);
+                  const isPhone = item.requestData?.mode === 'PHONE';
+                  const typeLabel = item.requestData?.type ? `${item.requestData.type} SLIP` : 'SLIP';
                   
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
@@ -204,15 +202,12 @@ export default function NinSlipHistoryPage() {
                           {source.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-300">
-                        {formatServiceName(item.serviceType)}
-                      </td>
                       <td className="px-6 py-4">
                         <div className="font-mono text-slate-900 dark:text-white font-semibold">
-                          {item.requestData?.nin || '---'}
+                          {isPhone ? `PHONE: ${item.requestData?.phone}` : `NIN: ${item.requestData?.nin}`}
                         </div>
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 tracking-wider">
-                          REF: {item.requestData?.clientReference || 'N/A'}
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-bold uppercase tracking-wider">
+                          {typeLabel}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
@@ -222,6 +217,14 @@ export default function NinSlipHistoryPage() {
                              <CheckCircle2 className="w-3 h-3 mr-0.5" /> PAID
                            </span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => setSelectedItem(item)}
+                          className="inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all shadow-sm"
+                        >
+                          <Eye className="w-4 h-4 mr-1.5" /> View Log
+                        </button>
                       </td>
                     </tr>
                   )
@@ -259,6 +262,61 @@ export default function NinSlipHistoryPage() {
           </div>
         )}
       </div>
+
+      {/* VIEW MODAL (NO PDF DOWNLOAD) */}
+      {selectedItem && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-800">
+            
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Slip Log Details</h3>
+              <button onClick={() => setSelectedItem(null)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6 overflow-y-auto">
+              
+              <div className="p-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl flex items-center gap-3">
+                <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 shrink-0" />
+                <div>
+                  <h4 className="font-bold text-green-800 dark:text-green-300 text-sm">Slip Successfully Generated</h4>
+                  <p className="text-xs text-green-700 dark:text-green-400/90 font-medium mt-0.5">This slip was processed on {new Date(selectedItem.createdAt).toLocaleDateString()}.</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-2xl flex items-start gap-3">
+                  <Info className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-orange-800 dark:text-orange-300 font-medium">
+                    <span className="font-bold">Privacy Note:</span> PDFs are not saved on our servers. You must generate a new slip if you lost the downloaded copy.
+                  </p>
+              </div>
+
+              {/* Data Summary */}
+              <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <p className="font-bold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Search Parameters</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                        <span className="block text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Target Number</span>
+                        <span className="font-bold font-mono text-slate-900 dark:text-white">
+                          {selectedItem.requestData?.mode === 'PHONE' ? selectedItem.requestData?.phone : selectedItem.requestData?.nin}
+                        </span>
+                    </div>
+                     <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                        <span className="block text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Search Mode</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{selectedItem.requestData?.mode === 'PHONE' ? 'By Phone' : 'By NIN'}</span>
+                    </div>
+                    <div className="col-span-2 p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                        <span className="block text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Reference ID</span>
+                        <span className="font-bold font-mono text-slate-900 dark:text-white">{selectedItem.requestData?.clientReference}</span>
+                    </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
