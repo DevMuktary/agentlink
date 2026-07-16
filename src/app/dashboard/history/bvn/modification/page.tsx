@@ -87,12 +87,18 @@ export default function BvnModificationHistoryPage() {
     };
   };
 
-  const getModName = (type: string) => {
-    if (type.includes('NAME')) return 'Name Mod';
-    if (type.includes('DOB')) return 'DOB Mod';
-    if (type.includes('PHONE')) return 'Phone Mod';
-    if (type.includes('FULL')) return 'Full Mod';
-    return type;
+  // MASKING DATABASE NAMES FOR HISTORY TABLE
+  const getModName = (code: string) => {
+    switch (code) {
+      case 'BVN_MOD_NAME': return 'Change of Name';
+      case 'BVN_MOD_DOB': return 'Change of DOB';
+      case 'BVN_MOD_PHONE': return 'Change of Phone';
+      case 'BVN_MOD_NAME_PHONE': return 'Change Name & Phone';
+      case 'BVN_MOD_DOB_PHONE': return 'Change DOB & Phone';
+      case 'BVN_MOD_NAME_DOB': return 'Change Name & DOB';
+      case 'BVN_MOD_FULL': return 'Full Modification';
+      default: return code;
+    }
   };
 
   if (loading) return <GlobalLoader />;
@@ -142,11 +148,14 @@ export default function BvnModificationHistoryPage() {
               onChange={(e) => setFilterType(e.target.value)}
               className="w-full sm:w-48 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-base sm:text-sm font-medium text-slate-700 dark:text-slate-200 appearance-none cursor-pointer shadow-sm"
             >
-              <option value="ALL">All Mods</option>
-              <option value="BVN_MOD_NAME">Name Mod</option>
-              <option value="BVN_MOD_DOB">DOB Mod</option>
-              <option value="BVN_MOD_PHONE">Phone Mod</option>
-              <option value="BVN_MOD_FULL">Full Mod</option>
+              <option value="ALL">All Modifications</option>
+              <option value="BVN_MOD_NAME">Change of Name</option>
+              <option value="BVN_MOD_DOB">Change of DOB</option>
+              <option value="BVN_MOD_PHONE">Change of Phone</option>
+              <option value="BVN_MOD_NAME_PHONE">Name & Phone</option>
+              <option value="BVN_MOD_DOB_PHONE">DOB & Phone</option>
+              <option value="BVN_MOD_NAME_DOB">Name & DOB</option>
+              <option value="BVN_MOD_FULL">Full Modification</option>
             </select>
           </div>
 
