@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   FileCog, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  X, Clock
+  X 
 } from 'lucide-react';
 
 type ServiceData = {
@@ -339,7 +339,7 @@ export default function NinModificationClient({ services }: { services: ServiceD
                             type="text" inputMode="numeric" pattern="\d*" maxLength={11} required
                             value={nin} onChange={handleNinChange}
                             placeholder="11-digit NIN" disabled={loading}
-                            className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50"
+                            className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50"
                           />
                         </div>
 
@@ -348,21 +348,21 @@ export default function NinModificationClient({ services }: { services: ServiceD
                           <>
                             <div>
                               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Current Phone Number linked to NIN</label>
-                              <input type="text" required value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="08012345678" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                              <input type="text" required value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="08012345678" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">New First Name</label>
-                                <input type="text" required value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} placeholder="Enter new first name" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                                <input type="text" required value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} placeholder="Enter new first name" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                               </div>
                               <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">New Surname</label>
-                                <input type="text" required value={newSurname} onChange={(e) => setNewSurname(e.target.value)} placeholder="Enter new surname" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                                <input type="text" required value={newSurname} onChange={(e) => setNewSurname(e.target.value)} placeholder="Enter new surname" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                               </div>
                             </div>
                             <div>
                               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">New Middle Name <span className="text-slate-400 font-normal">(Optional)</span></label>
-                              <input type="text" value={newMiddleName} onChange={(e) => setNewMiddleName(e.target.value)} placeholder="Enter new middle name" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                              <input type="text" value={newMiddleName} onChange={(e) => setNewMiddleName(e.target.value)} placeholder="Enter new middle name" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                             </div>
                           </>
                         )}
@@ -372,11 +372,11 @@ export default function NinModificationClient({ services }: { services: ServiceD
                           <>
                             <div>
                               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Current Full Name on NIN</label>
-                              <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="First Last" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                              <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="First Last" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                             </div>
                             <div>
                               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">New Phone Number to Link</label>
-                              <input type="text" required value={newPhoneNumber} onChange={(e) => setNewPhoneNumber(e.target.value)} placeholder="08012345678" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                              <input type="text" required value={newPhoneNumber} onChange={(e) => setNewPhoneNumber(e.target.value)} placeholder="08012345678" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                             </div>
                           </>
                         )}
@@ -387,16 +387,16 @@ export default function NinModificationClient({ services }: { services: ServiceD
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Current Full Name</label>
-                                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="First Last" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="First Last" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                               </div>
                               <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Current Phone Number</label>
-                                <input type="text" required value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="08012345678" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                                <input type="text" required value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="08012345678" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                               </div>
                             </div>
                             <div>
                               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">New Address</label>
-                              <input type="text" required value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Enter full new residential address" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
+                              <input type="text" required value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Enter full new residential address" disabled={loading} className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-orange-500/50" />
                             </div>
                           </>
                         )}
@@ -444,7 +444,7 @@ export default function NinModificationClient({ services }: { services: ServiceD
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Track Your Status</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-medium">
-                  Modifications are processed by the national database and require time to verify. Check your history log to track progress.
+                  Modifications are processed by our admin team manually. Please check your history log to track progress and view feedback.
                 </p>
                 
                 <Link 
