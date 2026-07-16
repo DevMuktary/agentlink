@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Database, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  X, UploadCloud, phone
+  X, UploadCloud
 } from 'lucide-react';
 
 type ServiceData = {
@@ -163,7 +163,7 @@ export default function BvnRetrievalClient({ services }: { services: ServiceData
                   <p className="text-sm">For CRM retrievals, you must upload a clear screenshot as proof. Blurry or irrelevant images will be instantly rejected.</p>
                 </div>
                 <p>
-                  Requests are processed by our admins. You can check the final result (the retrieved 11-digit BVN) directly from your history log.
+                  Requests are processed manually by our admins. You can check the final result (the retrieved 11-digit BVN) directly from your history log.
                 </p>
               </div>
             </div>
@@ -354,7 +354,7 @@ export default function BvnRetrievalClient({ services }: { services: ServiceData
 
                   <button 
                     type="submit" 
-                    disabled={loading || !selectedServiceCode || (activeCodeStr === 'BVN_RETRIEVAL_PHONE' && phone.length < 10) || (activeCodeStr === 'BVN_RETRIEVAL_CRM' && !screenshot)}
+                    disabled={loading || !selectedServiceCode || (activeCodeStr === 'BVN_RETRIEVAL_PHONE' && phoneNumber.length < 10) || (activeCodeStr === 'BVN_RETRIEVAL_CRM' && !screenshot)}
                     className="w-full py-4 px-4 bg-fuchsia-600 hover:bg-fuchsia-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
                     {loading ? (
@@ -407,7 +407,7 @@ export default function BvnRetrievalClient({ services }: { services: ServiceData
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
-                  If the retrieval fails (e.g. record not found), your wallet will be fully refunded by the admin. Expect update within 24hours
+                  If the retrieval fails (e.g. record not found), your wallet will be fully refunded by the admin. You will usually receive an update within 24 Working Hours
                 </li>
               </ul>
             </div>
