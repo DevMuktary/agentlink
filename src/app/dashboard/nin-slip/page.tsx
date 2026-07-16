@@ -2,11 +2,18 @@ import prisma from '@/lib/prisma';
 import NinSlipClient from './ClientForm';
 
 export default async function NinSlipPage() {
-  // Fetch all V2 Slip Services (Both NIN and Phone versions)
+  // Fetch all V2 Slip Services using the exact Enum values
   const services = await prisma.service.findMany({
     where: {
       code: {
-        startsWith: 'NIN_SLIP_V2'
+        in: [
+          'NIN_SLIP_V2_PREMIUM',
+          'NIN_SLIP_V2_STANDARD',
+          'NIN_SLIP_V2_REGULAR',
+          'NIN_SLIP_V2_PHONE_PREMIUM',
+          'NIN_SLIP_V2_PHONE_STANDARD',
+          'NIN_SLIP_V2_PHONE_REGULAR'
+        ]
       }
     }
   });
