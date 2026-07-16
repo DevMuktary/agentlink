@@ -56,13 +56,13 @@ export async function POST(req: Request) {
         data: { walletBalance: { decrement: COST } }
       });
 
-      // B. Log Transaction
+      // B. Log Transaction (Processing)
       await tx.transaction.create({
         data: {
           userId: user!.id,
           amount: COST,
           type: 'SERVICE_CHARGE',
-          status: 'PROCESSING', // Set as processing until PDF is actually made
+          status: 'PROCESSING', 
           reference: reference, 
           description: `NIN Slip (${service.name}) - ${nin}`,
           serviceId: service.code 
@@ -85,15 +85,13 @@ export async function POST(req: Request) {
     const providerResponse = await lookupNinByNumber(nin);
 
     if (!providerResponse.success) {
-        // FAIL: Refund user
+        // FAIL: Lookup failed entirely (no data retrieved). Refund user.
         await prisma.$transaction(async (tx) => {
-            // A. Refund Wallet
             await tx.user.update({ 
                 where: { id: user!.id }, 
                 data: { walletBalance: { increment: COST } } 
             });
 
-            // B. Log Refund Transaction
             await tx.transaction.create({
                 data: {
                   userId: user!.id,
@@ -106,13 +104,11 @@ export async function POST(req: Request) {
                 }
             });
 
-            // C. Update Request
             await tx.serviceRequest.update({ 
                 where: { id: requestLog.id }, 
                 data: { status: 'FAILED', responseData: { error: providerResponse.error } } 
             });
             
-            // Delete processing transaction log to keep history clean
             await tx.transaction.deleteMany({
                where: { reference: reference, type: 'SERVICE_CHARGE' }
             });
@@ -158,25 +154,29 @@ export async function POST(req: Request) {
         console.error("PDF Error:", pdfError);
         
         // INTERCEPT PHOTO ERRORS
-        let errorMessage = 'System Error: Could not generate document';
+        let errorMessage = 'System Error: Could not generate document. Please contact support.';
         const errStr = String(pdfError?.message || '');
         if (errStr.includes('User Photo') || errStr.includes('SOI not found') || errStr.includes('JPEG')) {
-            errorMessage = 'NIMC database returned a corrupt or missing photo for this NIN. Cannot generate slip.';
+            errorMessage = 'NIMC database returned a corrupt photo. Data was retrieved but slip cannot be generated. Please contact support.';
         }
 
-        // ERROR: Refund if PDF fails
+        // ERROR: PDF failed but data was retrieved. STRICT NO REFUND.
         await prisma.$transaction(async (tx) => {
-            await tx.user.update({ 
-                where: { id: user!.id }, 
-                data: { walletBalance: { increment: COST } } 
+            // Finalize the charge since data verification cost money
+            await tx.transaction.updateMany({
+                where: { reference: reference, type: 'SERVICE_CHARGE' },
+                data: { status: 'COMPLETED' }
             });
 
-            // Erase the processing charge & request logs so it doesn't clutter user history
-            await tx.transaction.deleteMany({
-                where: { reference: reference, type: 'SERVICE_CHARGE' }
-            });
-            await tx.serviceRequest.delete({ 
-                where: { id: requestLog.id }
+            // Mark request as failed with admin note
+            await tx.serviceRequest.update({ 
+                where: { id: requestLog.id }, 
+                data: { 
+                  status: 'FAILED', 
+                  adminNote: 'Corrupt photo. Contact Support.',
+                  // We still save the retrieved raw data in case support needs to manually build it later
+                  responseData: { ...providerResponse.data, error: errorMessage, pdf_generated: false } 
+                } 
             });
         });
 
