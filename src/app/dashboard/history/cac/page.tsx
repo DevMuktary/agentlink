@@ -4,16 +4,23 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  Building2, Search, CheckCircle2, XCircle, 
-  Eye, Download, MapPin, User
+  CheckCircle2, XCircle, Clock, Search, 
+  Monitor, Code, ChevronLeft, ChevronRight, Briefcase, Eye, Info, XCircle as XCircleIcon, Download
 } from 'lucide-react';
 
-export default function CacHistory() {
+export default function CacHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'DASHBOARD' | 'API'>('ALL');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchHistory();
@@ -21,10 +28,9 @@ export default function CacHistory() {
 
   const fetchHistory = async () => {
     try {
-      const res = await axios.get('/api/user/requests'); 
-      const logs = res.data.filter((r: any) => r.serviceType === 'CAC_REGISTRATION');
-      setRequests(logs);
-      setFilteredRequests(logs);
+      const res = await axios.get('/api/user/requests?type=CAC_REGISTRATION'); 
+      setRequests(res.data);
+      setFilteredRequests(res.data);
     } catch (error) {
       console.error("Failed to load history");
     } finally {
@@ -33,186 +39,283 @@ export default function CacHistory() {
   };
 
   useEffect(() => {
+    let result = requests;
+
+    if (sourceFilter === 'DASHBOARD') {
+      result = result.filter(r => (r.requestData?.clientReference || '').startsWith('DASH-'));
+    } else if (sourceFilter === 'API') {
+      result = result.filter(r => !(r.requestData?.clientReference || '').startsWith('DASH-'));
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      setFilteredRequests(requests.filter(r => 
+      result = result.filter(r => 
         r.requestData?.business_details?.proposed_name_1?.toLowerCase().includes(q) || 
-        r.id.toLowerCase().includes(q)
-      ));
-    } else {
-      setFilteredRequests(requests);
+        r.requestData?.clientReference?.toLowerCase().includes(q)
+      );
     }
-  }, [searchQuery, requests]);
 
-  // --- BASE64 DOWNLOAD HELPER ---
-  const handleDownload = (base64: string, filename: string) => {
-    if (!base64) return alert("File data incomplete");
-    
-    // Ensure standard prefix
-    const pdfString = base64.startsWith('data:') 
-      ? base64 
-      : `data:application/pdf;base64,${base64}`;
-      
-    const link = document.createElement('a');
-    link.href = pdfString;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setFilteredRequests(result);
+    setCurrentPage(1);
+  }, [sourceFilter, searchQuery, requests]);
+
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
+
+  const getSourceDetails = (clientReference?: string) => {
+    const isDashboard = (clientReference || '').startsWith('DASH-');
+    return {
+      label: isDashboard ? 'Dashboard' : 'API Route',
+      icon: isDashboard ? <Monitor className="w-3.5 h-3.5 mr-1.5" /> : <Code className="w-3.5 h-3.5 mr-1.5" />,
+      colorClass: isDashboard 
+        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' 
+        : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+    };
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-5 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-8 h-8 text-orange-600" /> CAC Registration
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <Briefcase className="text-indigo-500" size={24} /> CAC Registrations
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Track Business Name registration requests.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">
+            Monitor submissions and download CAC Certificates.
+          </p>
         </div>
         
-        <div className="relative w-full md:w-auto">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search Business Name..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full md:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          {/* Source Toggle Buttons */}
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full sm:w-auto overflow-x-auto">
+            <button 
+              onClick={() => setSourceFilter('ALL')}
+              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${sourceFilter === 'ALL' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => setSourceFilter('API')}
+              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${sourceFilter === 'API' ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400'}`}
+            >
+              <Code className="w-4 h-4" /> API
+            </button>
+            <button 
+              onClick={() => setSourceFilter('DASHBOARD')}
+              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${sourceFilter === 'DASHBOARD' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+            >
+              <Monitor className="w-4 h-4" /> Dashboard
+            </button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search Business Name or Ref..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-72 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base sm:text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 shadow-sm"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* TABLE DATA */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+            <thead className="bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="px-6 py-4 font-semibold text-gray-500">Date</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">Proposed Name</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">Proprietor</th>
-                <th className="px-6 py-4 font-semibold text-gray-500">Status</th>
-                <th className="px-6 py-4 font-semibold text-gray-500 text-right">Action</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Date Submitted</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Origin</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Business Target</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Amount</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Status</th>
+                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {filteredRequests.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">No registrations found.</td></tr>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {paginatedRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center text-slate-500 dark:text-slate-400 font-medium">
+                    <div className="flex flex-col items-center justify-center">
+                      <Briefcase className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
+                      No CAC registration records found.
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                filteredRequests.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-orange-600">
-                      {item.requestData?.business_details?.proposed_name_1}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {item.requestData?.proprietor_details?.firstname} {item.requestData?.proprietor_details?.surname}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                        item.status === 'FAILED' ? 'bg-red-100 text-red-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => setSelectedItem(item)} className="text-orange-600 hover:text-orange-700 text-xs font-medium border border-orange-200 bg-orange-50 px-3 py-1 rounded-md">
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                paginatedRequests.map((item) => {
+                  const source = getSourceDetails(item.requestData?.clientReference);
+                  
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">
+                        {new Date(item.createdAt).toLocaleDateString('en-NG', { 
+                          dateStyle: 'medium'
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border ${source.colorClass}`}>
+                          {source.icon}
+                          {source.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-900 dark:text-white capitalize">
+                          {item.requestData?.business_details?.proposed_name_1 || 'Pending Name'}
+                        </div>
+                        <div className="font-mono text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 tracking-wider">
+                          REF: {item.requestData?.clientReference || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
+                        -₦{Number(item.cost).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          item.status === 'COMPLETED' ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-200 dark:border-green-500/20' :
+                          item.status === 'FAILED' ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20' :
+                          'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20'
+                        }`}>
+                          {item.status === 'COMPLETED' && <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
+                          {item.status === 'FAILED' && <XCircle className="w-3.5 h-3.5 mr-1.5" />}
+                          {item.status === 'PROCESSING' && <Clock className="w-3.5 h-3.5 mr-1.5 animate-pulse" />}
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => setSelectedItem(item)} 
+                          className="inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all shadow-sm"
+                        >
+                          <Eye className="w-4 h-4 mr-1.5" /> View
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        {/* PAGINATION CONTROLS */}
+        {totalPages > 1 && (
+          <div className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+              Showing <span className="font-bold text-slate-900 dark:text-white">{startIndex + 1}</span> to <span className="font-bold text-slate-900 dark:text-white">{Math.min(startIndex + itemsPerPage, filteredRequests.length)}</span> of <span className="font-bold text-slate-900 dark:text-white">{filteredRequests.length}</span> entries
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center px-4 font-bold text-sm text-slate-700 dark:text-slate-300">
+                {currentPage} / {totalPages}
+              </div>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Details Modal */}
+      {/* VIEW MODAL */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-800">
             
-            <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-              <h3 className="font-bold text-lg">CAC Application</h3>
-              <button onClick={() => setSelectedItem(null)}><XCircle className="w-6 h-6 text-gray-400 hover:text-red-500" /></button>
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Registration Details</h3>
+              <button onClick={() => setSelectedItem(null)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                <XCircleIcon className="w-6 h-6" />
+              </button>
             </div>
             
-            <div className="p-6 space-y-5 overflow-y-auto">
+            <div className="p-6 space-y-6 overflow-y-auto">
               
-              {/* Business Info */}
-              <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-lg border border-orange-100 dark:border-orange-800">
-                 <h4 className="text-xs font-bold text-orange-500 uppercase mb-2 flex items-center gap-1">
-                    <Building2 className="w-3 h-3" /> Business Details
-                 </h4>
-                 <div className="space-y-1 text-sm">
-                    <p><span className="text-gray-500">Name Option 1:</span> <span className="font-bold">{selectedItem.requestData?.business_details?.proposed_name_1}</span></p>
-                    <p><span className="text-gray-500">Name Option 2:</span> {selectedItem.requestData?.business_details?.proposed_name_2}</p>
-                    <p><span className="text-gray-500">Nature:</span> {selectedItem.requestData?.business_details?.nature_of_business}</p>
-                    <p><span className="text-gray-500">Address:</span> {selectedItem.requestData?.business_details?.address}, {selectedItem.requestData?.business_details?.state}</p>
-                 </div>
-              </div>
-
-              {/* Proprietor Info */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                 <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1">
-                    <User className="w-3 h-3" /> Proprietor Details
-                 </h4>
-                 <div className="space-y-1 text-sm">
-                    <p><span className="text-gray-500">Name:</span> {selectedItem.requestData?.proprietor_details?.firstname} {selectedItem.requestData?.proprietor_details?.surname}</p>
-                    <p><span className="text-gray-500">Phone:</span> {selectedItem.requestData?.proprietor_details?.phone}</p>
-                    <p><span className="text-gray-500">NIN:</span> {selectedItem.requestData?.proprietor_details?.nin}</p>
-                 </div>
-              </div>
-
-              {/* SUCCESS: Download Buttons */}
-              {selectedItem.status === 'COMPLETED' ? (
-                 <div className="p-4 bg-green-50 text-green-700 border border-green-200 rounded-lg text-center space-y-3">
-                    <div className="flex items-center justify-center gap-2 font-bold text-lg">
-                        <CheckCircle2 className="w-6 h-6" /> Registration Successful
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 mt-2">
-                        {/* Download Certificate */}
-                        {selectedItem.responseData?.certificate_base64 && (
-                           <button 
-                             onClick={() => handleDownload(selectedItem.responseData.certificate_base64, 'CAC_Certificate.pdf')}
-                             className="py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-bold flex flex-col items-center gap-1 text-center w-full"
-                           >
-                              <Download className="w-4 h-4" /> Download Certificate
-                           </button>
-                        )}
-                        {/* Download Status Report */}
-                        {selectedItem.responseData?.status_report_base64 && (
-                           <button 
-                             onClick={() => handleDownload(selectedItem.responseData.status_report_base64, 'CAC_Status_Report.pdf')}
-                             className="py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold flex flex-col items-center gap-1 text-center w-full"
-                           >
-                              <Download className="w-4 h-4" /> Download Status Report
-                           </button>
-                        )}
-                    </div>
-                 </div>
-              ) : selectedItem.status === 'FAILED' ? (
-                 <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg flex gap-2">
-                    <XCircle className="w-5 h-5 shrink-0" />
-                    <div>
-                        <p className="font-bold">Registration Failed</p>
-                        <p className="text-sm">{selectedItem.adminNote || 'Application rejected.'}</p>
-                    </div>
-                 </div>
-              ) : (
-                 <p className="text-center text-gray-500 italic text-sm">Application is currently under review at CAC.</p>
+              {/* --- SUCCESS LOGIC & DOWNLOAD BUTTONS --- */}
+              {selectedItem.status === 'COMPLETED' && (
+                <div className="space-y-4">
+                   <div className="flex items-center gap-2 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 p-3 rounded-xl border border-green-200 dark:border-green-500/20">
+                      <CheckCircle2 className="w-5 h-5 shrink-0" />
+                      <span className="font-bold text-sm">CAC Approved!</span>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                     {selectedItem.responseData?.certificate_url && (
+                        <a 
+                          href={selectedItem.responseData.certificate_url} 
+                          target="_blank" rel="noreferrer"
+                          className="flex flex-col items-center justify-center p-4 border border-indigo-200 dark:border-indigo-800 rounded-xl bg-indigo-50/50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all text-indigo-700 dark:text-indigo-400"
+                        >
+                          <Download className="w-6 h-6 mb-2" />
+                          <span className="text-xs font-bold uppercase tracking-wider">Get Certificate</span>
+                        </a>
+                     )}
+                     {selectedItem.responseData?.status_report_url && (
+                        <a 
+                          href={selectedItem.responseData.status_report_url} 
+                          target="_blank" rel="noreferrer"
+                          className="flex flex-col items-center justify-center p-4 border border-indigo-200 dark:border-indigo-800 rounded-xl bg-indigo-50/50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all text-indigo-700 dark:text-indigo-400"
+                        >
+                          <Download className="w-6 h-6 mb-2" />
+                          <span className="text-xs font-bold uppercase tracking-wider">Get Status Report</span>
+                        </a>
+                     )}
+                   </div>
+                </div>
               )}
+
+              {/* --- FAILED REASON --- */}
+              {selectedItem.status === 'FAILED' && (
+                 <div className="p-5 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-2xl flex flex-col gap-2">
+                    <div className="flex items-center gap-2 font-bold text-base">
+                        <XCircleIcon className="w-5 h-5 shrink-0" /> Application Rejected
+                    </div>
+                    <p className="text-sm pl-7 text-red-600/90 dark:text-red-400/90 font-medium">
+                        Reason: <span className="font-bold">{selectedItem.adminNote || 'Rejected by CAC'}</span>
+                    </p>
+                 </div>
+              )}
+
+              {/* --- PROCESSING --- */}
+              {selectedItem.status === 'PROCESSING' && (
+                 <div className="p-5 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 rounded-2xl flex flex-col items-center justify-center gap-3 text-center">
+                    <Clock className="w-8 h-8 opacity-70 animate-pulse" />
+                    <div>
+                      <h4 className="font-bold text-base">Under Review</h4>
+                      <p className="text-sm opacity-80 mt-1">CAC processing typically takes up to 3 working days.</p>
+                    </div>
+                 </div>
+              )}
+
+              {/* Data Summary */}
+              <div className="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <p className="font-bold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Business Data Submitted</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="col-span-2 p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                        <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Proposed Name</span>
+                        <span className="font-bold text-slate-900 dark:text-white capitalize text-base">{selectedItem.requestData?.business_details?.proposed_name_1}</span>
+                    </div>
+                    <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                        <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Proprietor</span>
+                        <span className="font-bold text-slate-900 dark:text-white capitalize">{selectedItem.requestData?.proprietor_details?.firstname} {selectedItem.requestData?.proprietor_details?.surname}</span>
+                    </div>
+                    <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/30">
+                        <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Proprietor NIN</span>
+                        <span className="font-bold font-mono text-slate-900 dark:text-white">{selectedItem.requestData?.proprietor_details?.nin}</span>
+                    </div>
+                </div>
+              </div>
 
             </div>
           </div>
