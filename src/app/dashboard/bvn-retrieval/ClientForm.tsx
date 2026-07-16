@@ -163,7 +163,7 @@ export default function BvnRetrievalClient({ services }: { services: ServiceData
                   <p className="text-sm">For CRM retrievals, you must upload a clear screenshot as proof. Blurry or irrelevant images will be instantly rejected.</p>
                 </div>
                 <p>
-                  Requests are processed manually by our admins. You can check the final result (the retrieved 11-digit BVN) directly from your history log.
+                  Requests are processed by our admins. You can check the final result (the retrieved 11-digit BVN) directly from your history log.
                 </p>
               </div>
             </div>
@@ -407,7 +407,7 @@ export default function BvnRetrievalClient({ services }: { services: ServiceData
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
-                  If the retrieval fails (e.g. record not found), your wallet will be fully refunded by the admin.
+                  If the retrieval fails (e.g. record not found), your wallet will be fully refunded by the admin. Expect update within 24hours
                 </li>
               </ul>
             </div>
