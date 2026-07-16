@@ -53,7 +53,6 @@ export default function BvnModificationClient({
   const activeService = modServices.find(s => s.serviceCode === Number(selectedModCode));
   const activeCodeStr = activeService?.code || '';
 
-  // Auto-hide error banner
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(''), 5000);
@@ -80,14 +79,6 @@ export default function BvnModificationClient({
   const handleNumericInput = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void, limit: number) => {
     const numericValue = e.target.value.replace(/\D/g, '').slice(0, limit);
     setter(numericValue);
-  };
-
-  const getPolishedName = (code: string, fallback: string) => {
-    if (code.includes('NAME')) return 'Change of Name';
-    if (code.includes('DOB')) return 'Change of DOB';
-    if (code.includes('PHONE')) return 'Change of Phone';
-    if (code.includes('FULL')) return 'Full Data Modification';
-    return fallback;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,7 +121,8 @@ export default function BvnModificationClient({
         reference: customReference,
         charged_amount: data.data?.charged_amount || (activeService?.price || 0),
         bank: data.data?.bank,
-        note: data.data?.note
+        note: data.data?.note,
+        serviceName: activeService?.name
       });
       
       // Reset Form
@@ -187,7 +179,7 @@ export default function BvnModificationClient({
               <ul className="space-y-3 list-decimal pl-4">
                 <li><span className="font-bold text-slate-800 dark:text-slate-200">Valid Banks Only:</span> Make sure it is an Agency Enrollment or one of our listed banks.</li>
                 <li><span className="font-bold text-slate-800 dark:text-slate-200">Reflect on VNIN:</span> If you did a NIN modification first, ensure it is fully reflecting on your VNIN Slip. NIBSS does not process double modifications.</li>
-                <li><span className="font-bold text-slate-800 dark:text-slate-200">One-Time Rule:</span> You can only change your details once. (e.g. If you modified your name before, you cannot do it again).</li>
+                <li><span className="font-bold text-slate-800 dark:text-slate-200">One-Time Rule:</span> You can only change your details once.</li>
               </ul>
 
               <div className="bg-red-50 dark:bg-red-500/10 p-4 rounded-xl border border-red-100 dark:border-red-500/20 text-red-700 dark:text-red-400">
@@ -247,7 +239,7 @@ export default function BvnModificationClient({
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Request Submitted!</h3>
                   <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8 text-sm font-medium">
-                    Your BVN Modification request for <span className="font-bold">{successData.bank}</span> has been routed to our admins for processing.
+                    Your {successData.serviceName} request for <span className="font-bold">{successData.bank}</span> has been routed to our admins.
                   </p>
                   
                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-5 max-w-sm mx-auto mb-8 text-left border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
@@ -305,7 +297,7 @@ export default function BvnModificationClient({
                           className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold focus:ring-2 focus:ring-rose-500/50"
                         >
                           <option value="">-- Choose Service --</option>
-                          {modServices.map(s => <option key={s.id} value={s.serviceCode}>{getPolishedName(s.code, s.name)}</option>)}
+                          {modServices.map(s => <option key={s.id} value={s.serviceCode}>{s.name}</option>)}
                         </select>
                      </div>
                   </div>
@@ -400,7 +392,7 @@ export default function BvnModificationClient({
 
                   {/* PRICE SUMMARY */}
                   {activeService && selectedBankCode && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 animate-in fade-in">
                       {surchargeApplies && (
                         <div className="p-3 bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs font-bold rounded-xl border border-orange-200 dark:border-orange-500/20 flex items-center gap-2">
                           <AlertTriangle size={16} className="shrink-0" />
