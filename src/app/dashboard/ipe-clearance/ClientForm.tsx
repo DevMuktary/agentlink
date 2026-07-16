@@ -39,9 +39,9 @@ export default function IpeClearanceClient({ service }: { service: ServiceData |
     setError('');
     setSuccessData(null);
     
-    // Smart Pre-validation: Ensure it contains 'IPE'
-    if (!trackingId.toUpperCase().includes('IPE')) {
-      setError('Invalid Tracking ID. The ID must contain "IPE".');
+    // Basic length validation for Tracking IDs (usually 15 digits)
+    if (trackingId.trim().length < 10) {
+      setError('Please enter a valid Tracking ID.');
       return;
     }
 
@@ -119,7 +119,7 @@ export default function IpeClearanceClient({ service }: { service: ServiceData |
               </h2>
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
                 <p>
-                  This service will be processed within <span className="font-bold text-slate-800 dark:text-slate-200">~24 hours</span>. Please ensure the Tracking ID you are submitting contains <span className="font-bold text-emerald-600 dark:text-emerald-500">"IPE"</span>.
+                  This service will be processed within <span className="font-bold text-slate-800 dark:text-slate-200">~24 hours</span>. Please ensure the Tracking ID you are submitting actually has an <span className="font-bold text-emerald-600 dark:text-emerald-500">IPE issue</span>.
                 </p>
                 <p>
                   Go to your history log and click the <span className="font-bold text-blue-600 dark:text-blue-400">"Check Status"</span> button to see if your result is ready.
@@ -229,7 +229,7 @@ export default function IpeClearanceClient({ service }: { service: ServiceData |
                         required
                         value={trackingId}
                         onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-                        placeholder="Enter the Tracking ID containing 'IPE'"
+                        placeholder="Enter the Tracking ID"
                         disabled={isServiceDown || loading}
                         className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm font-mono uppercase"
                       />
@@ -254,7 +254,7 @@ export default function IpeClearanceClient({ service }: { service: ServiceData |
 
                   <button 
                     type="submit" 
-                    disabled={isServiceDown || loading || trackingId.trim().length < 5}
+                    disabled={isServiceDown || loading || trackingId.trim().length < 10}
                     className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
                     {loading ? (
@@ -300,7 +300,7 @@ export default function IpeClearanceClient({ service }: { service: ServiceData |
                 <div className="p-1 bg-red-100 dark:bg-red-500/20 rounded-md text-red-600 dark:text-red-400">
                   <Info size={14} />
                 </div>
-                Strict No Refund Policy
+               No Refund Policy
               </h3>
               <ul className="space-y-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                 <li className="flex items-start gap-2.5">
@@ -309,7 +309,7 @@ export default function IpeClearanceClient({ service }: { service: ServiceData |
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
-                  Ensure the Tracking ID contains "IPE" before proceeding.
+                  Ensure the Tracking ID actually requires an IPE clearance before proceeding.
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
