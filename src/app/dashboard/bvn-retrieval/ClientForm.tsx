@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Database, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  X, UploadCloud
+  X, UploadCloud, Phone
 } from 'lucide-react';
 
 type ServiceData = {
