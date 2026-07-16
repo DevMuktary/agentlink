@@ -52,7 +52,7 @@ export default function HistoryDirectory() {
           <HistoryItem title="VNIN to NIBSS History" href="/dashboard/history/bvn/vnin-to-nibss" icon={<RefreshCcw size={20} />} color="text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400"/>
           <HistoryItem title="BVN USER History" href="/dashboard/history/bvn/enrollment" icon={<UserCheck size={20} />} color="text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400"/>
           <HistoryItem title="BVN Modification Logs" href="/dashboard/history/bvn/modification" icon={<FileText size={20} />} color="text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400"/>
-          <HistoryItem title="Premium Slip History" href="/dashboard/history/bvn/bvn-slip" icon={<FileBadge size={20} />} color="text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400"/>
+          <HistoryItem title="Premium Slip History" href="/dashboard/history/bvn-slip" icon={<FileBadge size={20} />} color="text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400"/>
           <HistoryItem title="Retrieval History" href="/dashboard/history/bvn/retrieval" icon={<Search size={20} />} color="text-cyan-600 bg-cyan-50 dark:bg-cyan-500/10 dark:text-cyan-400"/>
         </CategorySection>
 
