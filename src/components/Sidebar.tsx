@@ -49,7 +49,7 @@ const menuItems = [
   {
     category: "Corporate Filings",
     items: [
-      { name: "CAC Registration", href: "/dashboard/cac", icon: Building2 },
+      { name: "CAC Registration", href: "/dashboard/cac-registration", icon: Building2 },
       { name: "Tax ID Services", href: "/dashboard/tax-id", icon: CreditCard },
     ]
   },
