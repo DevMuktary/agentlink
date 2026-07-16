@@ -40,9 +40,9 @@ const menuItems = [
     items: [
       { name: "BVN Verification", href: "/dashboard/bvn-verification", icon: ShieldCheck },
       { name: "VNIN to NIBSS", href: "/dashboard/vnin-to-nibss", icon: RefreshCcw },
-      { name: "BVN Enrollment", href: "/dashboard/bvn-enrollment", icon: UserCheck },
+      { name: "BVN User", href: "/dashboard/bvn-enrollment", icon: UserCheck },
       { name: "BVN Modification", href: "/dashboard/bvn-modification", icon: FileCog },
-      { name: "Premium Slip", href: "/dashboard/bvn-premium-slip", icon: FileBadge },
+      { name: "Premium Slip", href: "/dashboard/bvn-slip", icon: FileBadge },
       { name: "BVN Retrieval", href: "/dashboard/bvn-retrieval", icon: Search },
     ]
   },
