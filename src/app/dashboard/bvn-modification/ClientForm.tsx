@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   FileEdit, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  X 
+  X, ChevronDown, Building2
 } from 'lucide-react';
 
 type ServiceData = {
@@ -81,6 +81,20 @@ export default function BvnModificationClient({
     setter(numericValue);
   };
 
+  // MASKING DATABASE NAMES TO CLEAN UX NAMES
+  const getPolishedName = (code: string, fallback: string) => {
+    switch (code) {
+      case 'BVN_MOD_NAME': return 'Change of Name';
+      case 'BVN_MOD_DOB': return 'Change of Date of Birth';
+      case 'BVN_MOD_PHONE': return 'Change of Phone Number';
+      case 'BVN_MOD_NAME_PHONE': return 'Change of Name & Phone';
+      case 'BVN_MOD_DOB_PHONE': return 'Change of DOB & Phone';
+      case 'BVN_MOD_NAME_DOB': return 'Change of Name & DOB';
+      case 'BVN_MOD_FULL': return 'Full Data Modification';
+      default: return fallback;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -122,7 +136,7 @@ export default function BvnModificationClient({
         charged_amount: data.data?.charged_amount || (activeService?.price || 0),
         bank: data.data?.bank,
         note: data.data?.note,
-        serviceName: activeService?.name
+        serviceName: getPolishedName(activeService?.code || '', activeService?.name || 'Modification')
       });
       
       // Reset Form
@@ -276,35 +290,65 @@ export default function BvnModificationClient({
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                   
-                  {/* SELECTION ROW */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Select Bank / Enrollment</label>
+                  <div className="space-y-6">
+                    {/* BANK SELECTION (Polished Dropdown) */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Select Enrolling Bank</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Building2 className="h-5 w-5 text-slate-400" />
+                        </div>
                         <select 
                           required value={selectedBankCode} onChange={(e) => setSelectedBankCode(Number(e.target.value))}
                           disabled={loading}
-                          className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold focus:ring-2 focus:ring-rose-500/50"
+                          className="w-full pl-11 pr-10 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold focus:ring-2 focus:ring-rose-500/50 appearance-none text-slate-800 dark:text-slate-200"
                         >
-                          <option value="">-- Choose Option --</option>
+                          <option value="">-- Choose Authorized Bank --</option>
                           {banks.map(b => <option key={b.id} value={b.serviceCode}>{b.name}</option>)}
                         </select>
-                     </div>
-                     <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">What to Modify</label>
-                        <select 
-                          required value={selectedModCode} onChange={(e) => setSelectedModCode(Number(e.target.value))}
-                          disabled={loading}
-                          className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold focus:ring-2 focus:ring-rose-500/50"
-                        >
-                          <option value="">-- Choose Service --</option>
-                          {modServices.map(s => <option key={s.id} value={s.serviceCode}>{s.name}</option>)}
-                        </select>
-                     </div>
+                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                          <ChevronDown className="h-5 w-5 text-slate-400" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SERVICE SELECTION (Button Grid) */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">What would you like to modify?</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {modServices.map(service => {
+                          const isSelected = selectedModCode === service.serviceCode;
+                          
+                          return (
+                            <button
+                              key={service.id}
+                              type="button"
+                              onClick={() => setSelectedModCode(service.serviceCode)}
+                              disabled={loading}
+                              className={`relative p-3 rounded-xl border text-left transition-all ${
+                                isSelected 
+                                  ? 'bg-rose-50 border-rose-500 shadow-sm dark:bg-rose-500/10 dark:border-rose-500 ring-1 ring-rose-500' 
+                                  : 'bg-slate-50 border-slate-200 hover:border-rose-300 dark:bg-slate-950 dark:border-slate-800 dark:hover:border-slate-600'
+                              } ${loading ? 'opacity-50 cursor-not-allowed hover:border-slate-200 dark:hover:border-slate-800' : ''}`}
+                            >
+                              <h4 className={`font-bold text-sm leading-snug pr-6 ${isSelected ? 'text-rose-700 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                {getPolishedName(service.code, service.name)}
+                              </h4>
+                              {isSelected && (
+                                <div className="absolute top-3 right-2.5 text-rose-500 dark:text-rose-400 animate-in zoom-in">
+                                  <CheckCircle2 size={18} strokeWidth={3} />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* IDENTIFIERS */}
+                  {/* IDENTIFIERS & DYNAMIC FIELDS */}
                   {selectedModCode && selectedBankCode && (
-                    <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+                    <div className="space-y-6 animate-in slide-in-from-top-4 duration-300 border-t border-slate-100 dark:border-slate-800 pt-6">
                       
                       <div>
                         <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
