@@ -58,7 +58,7 @@ export default function HistoryDirectory() {
 
         <CategorySection title="Corporate Logs" icon={<Building2 size={18} className="text-purple-600 dark:text-purple-400"/>}>
           <HistoryItem title="CAC Registration Logs" href="/dashboard/history/corporate/cac" icon={<Building2 size={20} />} color="text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400"/>
-          <HistoryItem title="Tax ID Logs" href="/dashboard/history/corporate/tax-id icon={<Receipt size={20} />} color="text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400"/>
+          <HistoryItem title="Tax ID Logs" href="/dashboard/history/corporate/tax-id" icon={<Receipt size={20} />} color="text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400"/>
         </CategorySection>
 
         <CategorySection title="Education Logs" icon={<GraduationCap size={18} className="text-pink-600 dark:text-pink-400"/>}>
