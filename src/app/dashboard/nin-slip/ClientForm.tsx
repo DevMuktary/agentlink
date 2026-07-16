@@ -5,21 +5,22 @@ import Link from 'next/link';
 import { 
   FileText, History, AlertTriangle, 
   CheckCircle2, Loader2, ArrowRight, Info,
-  X, Download
+  X, Download, Fingerprint, Phone
 } from 'lucide-react';
 
 type ServiceData = {
   id: string;
   name: string;
   code: string;
-  serviceCode: number;
   isActive: boolean;
   price: number;
 };
 
 export default function NinSlipClient({ services }: { services: ServiceData[] }) {
-  const [nin, setNin] = useState('');
-  const [selectedServiceCode, setSelectedServiceCode] = useState<number | ''>('');
+  // Mode Selection
+  const [searchMode, setSearchMode] = useState<'NIN' | 'PHONE'>('NIN');
+  const [searchValue, setSearchValue] = useState('');
+  const [slipType, setSlipType] = useState<'PREMIUM' | 'STANDARD' | 'REGULAR' | ''>('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,34 +28,34 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
   // Success states
   const [successData, setSuccessData] = useState<any>(null);
   const [pdfData, setPdfData] = useState<string | null>(null);
-  
   const [showModal, setShowModal] = useState(true);
 
-  // Auto-hide error banner after 5 seconds
+  // Auto-hide error banner
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(''), 5000);
+      const timer = setTimeout(() => setError(''), 6000);
       return () => clearTimeout(timer);
     }
   }, [error]);
 
-  const activeService = services.find(s => s.serviceCode === Number(selectedServiceCode));
-  const isEntireCategoryDown = services.length > 0 && services.every(s => !s.isActive);
+  // Determine which database service is currently active based on selections
+  const activeServiceCode = searchMode === 'NIN' 
+    ? `NIN_SLIP_V2_${slipType}` 
+    : `NIN_SLIP_V2_PHONE_${slipType}`;
+    
+  const activeService = services.find(s => s.code === activeServiceCode);
+  const isCategoryDown = slipType !== '' && (!activeService || !activeService.isActive);
 
-  // Helper to rename database codes to user-friendly names
-  const getPolishedName = (serviceCode: number, fallbackName: string) => {
-    switch (serviceCode) {
-      case 401: return 'Premium Slip';
-      case 402: return 'Standard Slip';
-      case 403: return 'Improved Slip';
-      default: return fallbackName;
-    }
+  // Clear value when switching modes
+  const handleModeSwitch = (mode: 'NIN' | 'PHONE') => {
+    setSearchMode(mode);
+    setSearchValue('');
+    setSlipType('');
   };
 
-  const handleNinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Strip all non-numeric characters and cap at 11 digits
-    const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setNin(numericValue);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numericValue = e.target.value.replace(/\D/g, '').slice(0, 15);
+    setSearchValue(numericValue);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,22 +64,26 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
     setSuccessData(null);
     setPdfData(null);
     
-    if (nin.length !== 11) {
-      setError('Please enter exactly 11 digits for the NIN.');
-      return;
+    if (searchMode === 'NIN' && searchValue.length !== 11) {
+      return setError('Please enter exactly 11 digits for the NIN.');
     }
+    if (searchMode === 'PHONE' && searchValue.length < 11) {
+      return setError('Please enter a valid Phone Number.');
+    }
+    if (!slipType) return setError('Please select a slip format.');
 
     setLoading(true);
 
     const customReference = `DASH-SLIP-${Date.now()}`;
+    const endpoint = searchMode === 'NIN' ? '/api/identity/nin/slip-v2' : '/api/identity/nin/slip-v2-phone';
 
     try {
-      const res = await fetch('/api/v1/identity/slip', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nin: nin,
-          service_code: selectedServiceCode,
+          nin: searchValue, // Backend uses 'nin' as the key for both endpoints
+          slip_type: slipType,
           reference: customReference
         })
       });
@@ -89,21 +94,21 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
         throw new Error(data.error || 'Failed to generate NIN slip.');
       }
 
-      // Success: Save the PDF base64 and the transaction details
-      setPdfData(data.pdf_base64);
+      setPdfData(data.data?.pdf_base64);
       setSuccessData({
         reference: customReference,
         charged_amount: activeService?.price || 0,
-        nin: nin,
-        serviceName: getPolishedName(activeService?.serviceCode || 0, 'NIN Slip')
+        target: searchValue,
+        mode: searchMode,
+        slipName: `NIN Slip (${slipType})`
       });
-      setNin('');
-      setSelectedServiceCode('');
+      
+      setSearchValue('');
+      setSlipType('');
     } catch (err: any) {
-      // DOUBLE PROTECTION: Intercept generic API errors
       let errorMsg = err.message;
       if (errorMsg.toLowerCase().includes('provider connection failed') || errorMsg.includes('400')) {
-        errorMsg = "No record found, please check your NIN.";
+        errorMsg = `No record found for this ${searchMode === 'NIN' ? 'NIN' : 'Phone Number'}.`;
       }
       setError(errorMsg);
     } finally {
@@ -113,13 +118,10 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
 
   const handleDownloadPDF = () => {
     if (!pdfData) return;
-    
     const linkSource = `data:application/pdf;base64,${pdfData}`;
     const downloadLink = document.createElement('a');
-    const fileName = `NIN_Slip_${successData?.nin || 'Generated'}.pdf`;
-    
     downloadLink.href = linkSource;
-    downloadLink.download = fileName;
+    downloadLink.download = `NIN_Slip_${successData?.target || 'Generated'}.pdf`;
     downloadLink.click();
   };
 
@@ -129,17 +131,13 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
 
   return (
     <>
-      {/* FLOATING ERROR TOAST BANNER */}
+      {/* FLOATING ERROR TOAST */}
       {error && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[200] w-[90%] sm:w-auto max-w-sm animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-2xl border border-red-500">
             <AlertTriangle size={20} className="shrink-0" />
             <span className="font-semibold text-sm flex-1 leading-snug">{error}</span>
-            <button 
-              onClick={() => setError('')} 
-              className="p-1.5 hover:bg-red-700 rounded-xl transition-colors shrink-0"
-              aria-label="Close error"
-            >
+            <button onClick={() => setError('')} className="p-1.5 hover:bg-red-700 rounded-xl transition-colors shrink-0">
               <X size={16} />
             </button>
           </div>
@@ -159,13 +157,14 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
               </h2>
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
                 <p>
-                  You are about to generate an official NIN Slip for the provided National Identity Number.
+                  You are about to generate an official NIN Slip using our V2 system. You can generate by NIN or Phone Number.
                 </p>
+                <div className="text-red-700 dark:text-red-400 font-bold bg-red-50 dark:bg-red-500/10 p-3.5 rounded-xl border border-red-100 dark:border-red-500/20">
+                  <p className="uppercase tracking-wider text-[11px] mb-1">Instant Download Only</p>
+                  <p className="text-sm">For security reasons, generated PDFs are NOT saved to your history. You MUST click the download button immediately after generation.</p>
+                </div>
                 <p className="text-teal-700 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-500/10 p-3 rounded-xl border border-teal-100 dark:border-teal-500/20">
                   Your wallet will only be charged if the slip is successfully generated by the database.
-                </p>
-                <p>
-                  Once generated, click the download button immediately to save your PDF slip to your device.
                 </p>
               </div>
             </div>
@@ -174,7 +173,7 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                 onClick={() => setShowModal(false)}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-sm w-full"
               >
-                I Understand & Agree
+                I Understand
               </button>
             </div>
           </div>
@@ -190,22 +189,32 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
             <div className="p-2.5 bg-teal-50 dark:bg-teal-500/10 rounded-xl text-teal-600 dark:text-teal-400">
               <FileText size={26} strokeWidth={2.5} />
             </div>
-            NIN Slip Generation
+            NIN Slip Generation V2
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-            Generate and download standard, premium, or improved NIN slips.
+            Generate standard, premium, or regular NIN slips via NIN or Phone Number.
           </p>
         </div>
 
-        {isEntireCategoryDown && (
-          <div className="mb-8 p-4 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-2xl flex items-start gap-4">
-            <AlertTriangle className="text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" size={20} />
-            <div>
-              <h3 className="text-sm font-bold text-orange-800 dark:text-orange-300">Service Currently Unavailable</h3>
-              <p className="text-sm text-orange-700 dark:text-orange-400/80 mt-1 font-medium">
-                NIN Slip generation is currently undergoing scheduled maintenance by our provider. Please check back later.
-              </p>
-            </div>
+        {/* TOGGLE TABS */}
+        {!successData && (
+          <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl mb-8 max-w-md border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => handleModeSwitch('NIN')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${
+                searchMode === 'NIN' ? 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <Fingerprint size={18} /> By NIN
+            </button>
+            <button
+              onClick={() => handleModeSwitch('PHONE')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl transition-all ${
+                searchMode === 'PHONE' ? 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <Phone size={18} /> By Phone
+            </button>
           </div>
         )}
 
@@ -220,9 +229,9 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                   <div className="w-16 h-16 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                     <CheckCircle2 size={32} strokeWidth={2.5} />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{successData.serviceName} Generated!</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{successData.slipName} Generated!</h3>
                   <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8 text-sm font-medium">
-                    Your official slip has been processed successfully and is ready for download.
+                    Your official slip has been processed successfully. Please download it immediately.
                   </p>
                   
                   {/* BIG DOWNLOAD BUTTON */}
@@ -232,6 +241,10 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                   >
                     <Download size={20} strokeWidth={2.5} /> Download PDF Slip
                   </button>
+
+                  <div className="p-3 mb-6 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 text-xs font-bold rounded-xl border border-red-200 dark:border-red-500/20 max-w-sm mx-auto flex items-center justify-center gap-2">
+                    <AlertTriangle size={16} /> Save this PDF now! It will not be in your history.
+                  </div>
                   
                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-5 max-w-sm mx-auto mb-8 text-left border border-slate-200 dark:border-slate-800 shadow-sm">
                     <div className="flex justify-between text-sm mb-3">
@@ -244,7 +257,7 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <div className="flex justify-center">
                     <button 
                       onClick={() => { setSuccessData(null); setPdfData(null); }}
                       className="px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm"
@@ -254,76 +267,74 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                  <div className="space-y-5">
-                    
-                    {/* SERVICE SELECTOR */}
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
-                        Select Slip Format
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {services.map(service => {
-                          const isSelected = selectedServiceCode === service.serviceCode;
-                          const isDisabled = !service.isActive || isEntireCategoryDown || loading;
-
-                          return (
-                            <button
-                              key={service.id}
-                              type="button"
-                              onClick={() => setSelectedServiceCode(service.serviceCode)}
-                              disabled={isDisabled}
-                              className={`relative p-4 rounded-xl border text-left transition-all ${
-                                isSelected 
-                                  ? 'bg-teal-50 border-teal-500 shadow-sm dark:bg-teal-500/10 dark:border-teal-500' 
-                                  : 'bg-slate-50 border-slate-200 hover:border-teal-300 dark:bg-slate-950 dark:border-slate-800 dark:hover:border-slate-600'
-                              } ${isDisabled ? 'opacity-50 cursor-not-allowed hover:border-slate-200 dark:hover:border-slate-800' : ''}`}
-                            >
-                              <h4 className={`font-bold text-sm leading-snug ${isSelected ? 'text-teal-700 dark:text-teal-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                                {getPolishedName(service.serviceCode, service.name)}
-                              </h4>
-                              {!service.isActive && (
-                                <span className="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider bg-red-100 dark:bg-red-500/20 px-2 py-0.5 rounded-md inline-block">
-                                  Maintenance
-                                </span>
-                              )}
-                              {isSelected && (
-                                <div className="absolute top-4 right-3 text-teal-500 dark:text-teal-400 animate-in zoom-in">
-                                  <CheckCircle2 size={18} strokeWidth={3} />
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+                  
+                  {/* SERVICE FORMAT SELECTOR */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
+                      Select Slip Format
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {['PREMIUM', 'STANDARD', 'REGULAR'].map(type => {
+                        const isSelected = slipType === type;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setSlipType(type as any)}
+                            disabled={loading}
+                            className={`relative p-4 rounded-xl border text-left transition-all ${
+                              isSelected 
+                                ? 'bg-teal-50 border-teal-500 shadow-sm dark:bg-teal-500/10 dark:border-teal-500' 
+                                : 'bg-slate-50 border-slate-200 hover:border-teal-300 dark:bg-slate-950 dark:border-slate-800 dark:hover:border-slate-600'
+                            } ${loading ? 'opacity-50 cursor-not-allowed hover:border-slate-200 dark:hover:border-slate-800' : ''}`}
+                          >
+                            <h4 className={`font-bold text-sm leading-snug ${isSelected ? 'text-teal-700 dark:text-teal-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                              {type.charAt(0) + type.slice(1).toLowerCase()} Slip
+                            </h4>
+                            {isSelected && (
+                              <div className="absolute top-4 right-3 text-teal-500 dark:text-teal-400 animate-in zoom-in">
+                                <CheckCircle2 size={18} strokeWidth={3} />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        Target NIN Number
-                      </label>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Target {searchMode === 'NIN' ? 'NIN' : 'Phone'} Number
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        {searchMode === 'NIN' ? <Fingerprint className="h-5 w-5 text-slate-400" /> : <Phone className="h-5 w-5 text-slate-400" />}
+                      </div>
                       <input 
                         type="text"
                         inputMode="numeric"
                         pattern="\d*"
-                        maxLength={11}
+                        maxLength={searchMode === 'NIN' ? 11 : 15}
                         required
-                        value={nin}
-                        onChange={handleNinChange}
-                        placeholder="Enter the 11-digit NIN"
-                        disabled={isEntireCategoryDown || loading}
-                        className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 placeholder:text-slate-400 dark:placeholder:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                        value={searchValue}
+                        onChange={handleInputChange}
+                        placeholder={searchMode === 'NIN' ? "Enter 11-digit NIN" : "Enter Registered Phone Number"}
+                        disabled={loading}
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 placeholder:text-slate-400 dark:placeholder:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm font-mono"
                       />
+                    </div>
+                    {searchMode === 'NIN' && (
                       <div className="mt-2 flex justify-end">
-                        <span className={`text-xs font-semibold ${nin.length === 11 ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
-                          {nin.length}/11 digits
+                        <span className={`text-xs font-semibold ${searchValue.length === 11 ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                          {searchValue.length}/11 digits
                         </span>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  {activeService && (
-                    <div className="p-4 bg-teal-50/50 dark:bg-teal-500/10 border border-teal-100 dark:border-teal-900/30 rounded-xl flex items-center justify-between shadow-sm">
+                  {slipType && activeService && (
+                    <div className="p-4 bg-teal-50/50 dark:bg-teal-500/10 border border-teal-100 dark:border-teal-900/30 rounded-xl flex items-center justify-between shadow-sm animate-in fade-in">
                       <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Generation Charge</span>
                       <span className="text-xl font-extrabold text-teal-700 dark:text-teal-400">
                         {formatCurrency(activeService.price)}
@@ -331,7 +342,7 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                     </div>
                   )}
 
-                  {activeService && !activeService.isActive && (
+                  {isCategoryDown && (
                     <div className="p-3.5 bg-orange-50 dark:bg-orange-500/10 rounded-xl text-sm text-orange-700 dark:text-orange-400 font-bold flex items-center gap-2 border border-orange-200 dark:border-orange-500/20 shadow-sm">
                       <AlertTriangle size={16} />
                       This slip format is currently disabled.
@@ -340,7 +351,7 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
 
                   <button 
                     type="submit" 
-                    disabled={isEntireCategoryDown || loading || nin.length !== 11 || !selectedServiceCode || (activeService && !activeService.isActive)}
+                    disabled={isCategoryDown || loading || !slipType || (searchMode === 'NIN' ? searchValue.length !== 11 : searchValue.length < 10)}
                     className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
                     {loading ? (
@@ -357,7 +368,6 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
           {/* RIGHT COLUMN: INSTRUCTIONS & HISTORY LINK */}
           <div className="lg:col-span-1 space-y-6">
             
-            {/* Quick Status Tracker Card */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10 group-hover:scale-110 transition-transform duration-500">
                 <History size={100} />
@@ -366,40 +376,35 @@ export default function NinSlipClient({ services }: { services: ServiceData[] })
                 <div className="w-12 h-12 bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-2xl flex items-center justify-center mb-5 shadow-inner">
                   <FileText size={24} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Track Your History</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Transaction Logs</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-medium">
-                  Monitor your previously generated slips from your history log.
+                  You can view your slip generation history logs, but please note that <span className="font-bold">PDFs cannot be re-downloaded</span> from there.
                 </p>
                 
                 <Link 
                   href="/dashboard/history/nin-slips"
                   className="w-full py-3.5 px-4 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-sm font-bold rounded-xl transition-all flex items-center justify-between group-hover:border-teal-200 dark:group-hover:border-teal-800 shadow-sm"
                 >
-                  Go to Slip History <ArrowRight size={16} className="text-slate-400 group-hover:translate-x-1 group-hover:text-teal-500 transition-all" />
+                  View History <ArrowRight size={16} className="text-slate-400 group-hover:translate-x-1 group-hover:text-teal-500 transition-all" />
                 </Link>
               </div>
             </div>
 
-            {/* Important Guidelines Card */}
             <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <div className="p-1 bg-teal-100 dark:bg-teal-500/20 rounded-md text-teal-600 dark:text-teal-400">
+                <div className="p-1 bg-red-100 dark:bg-red-500/20 rounded-md text-red-600 dark:text-red-400">
                   <Info size={14} />
                 </div>
-                Important Guidelines
+                Important Reminder
               </h3>
               <ul className="space-y-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                 <li className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-400 dark:bg-teal-500 mt-1.5 shrink-0" />
-                  Ensure the 11-digit NIN format is completely correct before submitting.
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
+                  Your wallet is fully refunded automatically if we fails to generate a valid slip.
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-400 dark:bg-teal-500 mt-1.5 shrink-0" />
-                  If we fails to generate the slip due to a database error, your wallet will be instantly refunded.
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-400 dark:bg-teal-500 mt-1.5 shrink-0" />
-                  Please download the PDF immediately upon successful generation.
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
+                  The PDF file is NOT saved on our servers for privacy reasons. You must save it to your device instantly.
                 </li>
               </ul>
             </div>
