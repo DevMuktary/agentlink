@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma'; // Fixed import (removed brackets if default export)
+import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { lookupNinByNumber } from '@/services/providers/robost-nin';
 import { generateNinSlipPdf } from '@/services/pdf-generator';
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
     const { nin, service_code } = body;
 
-    // FIX 1: Generate Reference if missing
+    // Generate Reference if missing
     const reference = body.reference || `SLIP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     // Validate Input
@@ -28,7 +28,6 @@ export async function POST(req: Request) {
     }
     
     // 2. CHECK SERVICE & ADMIN CONTROL
-    // We search by the integer code (e.g., 401, 402)
     const service = await prisma.service.findFirst({
       where: { serviceCode: Number(service_code) },
     });
@@ -63,10 +62,10 @@ export async function POST(req: Request) {
           userId: user!.id,
           amount: COST,
           type: 'SERVICE_CHARGE',
-          status: 'COMPLETED',
+          status: 'PROCESSING', // Set as processing until PDF is actually made
           reference: reference, 
           description: `NIN Slip (${service.name}) - ${nin}`,
-          serviceId: service.code // e.g. "NIN_SLIP_PREMIUM"
+          serviceId: service.code 
         }
       });
 
@@ -112,6 +111,11 @@ export async function POST(req: Request) {
                 where: { id: requestLog.id }, 
                 data: { status: 'FAILED', responseData: { error: providerResponse.error } } 
             });
+            
+            // Delete processing transaction log to keep history clean
+            await tx.transaction.deleteMany({
+               where: { reference: reference, type: 'SERVICE_CHARGE' }
+            });
         });
 
         return NextResponse.json({ status: false, error: providerResponse.error }, { status: 400 });
@@ -121,21 +125,26 @@ export async function POST(req: Request) {
     let templateType = 'regular';
     if (Number(service_code) === 401) templateType = 'premium';
     else if (Number(service_code) === 402) templateType = 'standard';
-    else if (Number(service_code) === 403) templateType = 'improved'; // Changed 'regular' to 'improved' based on standard naming
+    else if (Number(service_code) === 403) templateType = 'improved'; 
 
     // 7. GENERATE PDF
     try {
         const pdfBuffer = await generateNinSlipPdf(templateType, providerResponse.data);
         const pdfBase64 = pdfBuffer.toString('base64');
 
-        // SUCCESS: Save Log
-        await prisma.serviceRequest.update({
-            where: { id: requestLog.id },
-            data: { 
-                status: 'COMPLETED', 
-                // Store raw data internally, but don't expose it all in response if strictly PDF service
-                responseData: { ...providerResponse.data, pdf_generated: true } 
-            }
+        // SUCCESS: Finalize Logs
+        await prisma.$transaction(async (tx) => {
+           await tx.serviceRequest.update({
+               where: { id: requestLog.id },
+               data: { 
+                   status: 'COMPLETED', 
+                   responseData: { ...providerResponse.data, pdf_generated: true } 
+               }
+           });
+           await tx.transaction.updateMany({
+               where: { reference: reference, type: 'SERVICE_CHARGE' },
+               data: { status: 'COMPLETED' }
+           });
         });
 
         // RESPONSE: Return PDF Base64
@@ -145,8 +154,16 @@ export async function POST(req: Request) {
             pdf_base64: pdfBase64
         });
 
-    } catch (pdfError) {
+    } catch (pdfError: any) {
         console.error("PDF Error:", pdfError);
+        
+        // INTERCEPT PHOTO ERRORS
+        let errorMessage = 'System Error: Could not generate document';
+        const errStr = String(pdfError?.message || '');
+        if (errStr.includes('User Photo') || errStr.includes('SOI not found') || errStr.includes('JPEG')) {
+            errorMessage = 'NIMC database returned a corrupt or missing photo for this NIN. Cannot generate slip.';
+        }
+
         // ERROR: Refund if PDF fails
         await prisma.$transaction(async (tx) => {
             await tx.user.update({ 
@@ -154,25 +171,16 @@ export async function POST(req: Request) {
                 data: { walletBalance: { increment: COST } } 
             });
 
-            await tx.transaction.create({
-                data: {
-                  userId: user!.id,
-                  amount: COST,
-                  type: 'REFUND',
-                  status: 'COMPLETED',
-                  reference: `${reference}-REFUND-PDF`,
-                  description: `Refund: PDF Generation Failed (${nin})`,
-                  serviceId: service.code
-                }
+            // Erase the processing charge & request logs so it doesn't clutter user history
+            await tx.transaction.deleteMany({
+                where: { reference: reference, type: 'SERVICE_CHARGE' }
             });
-
-            await tx.serviceRequest.update({ 
-                where: { id: requestLog.id }, 
-                data: { status: 'FAILED', responseData: { error: 'Document Generation Failed' } } 
+            await tx.serviceRequest.delete({ 
+                where: { id: requestLog.id }
             });
         });
 
-        return NextResponse.json({ status: false, error: 'System Error: Could not generate document' }, { status: 500 });
+        return NextResponse.json({ status: false, error: errorMessage }, { status: 400 });
     }
 
   } catch (error) {
