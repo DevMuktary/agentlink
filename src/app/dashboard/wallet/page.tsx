@@ -18,7 +18,7 @@ declare global {
 
 export default function UserWallet() {
   const [loading, setLoading] = useState(true);
-  const [isSquadLoaded, setIsSquadLoaded] = useState(false); // Tracks if the payment script is ready
+  const [isSquadLoaded, setIsSquadLoaded] = useState(false); // Tracks if the payment script is actually attached to window
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
@@ -33,6 +33,19 @@ export default function UserWallet() {
   // Stats
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalRefunds, setTotalRefunds] = useState(0);
+
+  // Poll to check when SquadPay is successfully attached to the window
+  useEffect(() => {
+    const checkScript = setInterval(() => {
+      if (typeof window !== 'undefined' && window.SquadPay) {
+        setIsSquadLoaded(true);
+        clearInterval(checkScript);
+      }
+    }, 300); // check every 300ms
+
+    // Cleanup interval on unmount
+    return () => clearInterval(checkScript);
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -92,7 +105,7 @@ export default function UserWallet() {
     }
 
     if (typeof window === 'undefined' || !window.SquadPay) {
-      setErrorToast('Payment gateway is loading. Please check your internet connection or disable adblockers.');
+      setErrorToast('Payment gateway is still loading or blocked. Please disable adblockers.');
       return;
     }
 
@@ -142,11 +155,10 @@ export default function UserWallet() {
 
   return (
     <>
-      {/* SQUAD JS WIDGET - Loads immediately alongside data fetching */}
+      {/* SQUAD JS WIDGET */}
       <Script 
         src="https://checkout.squadco.com/widget/squad.min.js" 
         strategy="afterInteractive" 
-        onLoad={() => setIsSquadLoaded(true)}
       />
 
       {loading ? (
@@ -201,7 +213,8 @@ export default function UserWallet() {
                             onChange={handleAmountChange}
                             placeholder="Amount (Min. 100)"
                             disabled={fundingLoading}
-                            className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
+                            /* FIXED: Changed text-sm to text-base to prevent Safari iOS auto-zoom */
+                            className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-base font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
                         />
                         {/* HELPER TEXT ENFORCING THE 100 MINIMUM */}
                         <p className="text-[10px] text-slate-400 mt-1.5 font-medium ml-1">Minimum funding amount is ₦100</p>
@@ -262,7 +275,8 @@ export default function UserWallet() {
                         placeholder="Search reference or description..." 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                        /* Same fix here if this input also auto-zooms on mobile */
+                        className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-base md:text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
                     />
                 </div>
             </div>
