@@ -18,6 +18,7 @@ declare global {
 
 export default function UserWallet() {
   const [loading, setLoading] = useState(true);
+  const [isSquadLoaded, setIsSquadLoaded] = useState(false); // Tracks if the payment script is ready
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
@@ -139,202 +140,205 @@ export default function UserWallet() {
     squadInstance.open();
   };
 
-  if (loading) return <GlobalLoader />;
-
   return (
     <>
-      {/* PERFECTLY LOAD THE SQUAD JS WIDGET USING NEXT/SCRIPT */}
+      {/* SQUAD JS WIDGET - Loads immediately alongside data fetching */}
       <Script 
         src="https://checkout.squadco.com/widget/squad.min.js" 
         strategy="afterInteractive" 
+        onLoad={() => setIsSquadLoaded(true)}
       />
 
-      <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
-        
-        {/* FLOATING ERROR TOAST */}
-        {errorToast && (
-          <div className="fixed bottom-6 right-6 z-[200] max-w-sm animate-in slide-in-from-bottom-5">
-            <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-xl border border-red-500 text-sm font-semibold">
-              <AlertTriangle size={18} className="shrink-0" />
-              <span>{errorToast}</span>
-              <button onClick={() => setErrorToast('')} className="ml-auto p-1 hover:bg-red-700 rounded-lg transition-colors">
-                <X size={14} />
-              </button>
+      {loading ? (
+        <GlobalLoader />
+      ) : (
+        <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
+          
+          {/* FLOATING ERROR TOAST */}
+          {errorToast && (
+            <div className="fixed bottom-6 right-6 z-[200] max-w-sm animate-in slide-in-from-bottom-5">
+              <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-xl border border-red-500 text-sm font-semibold">
+                <AlertTriangle size={18} className="shrink-0" />
+                <span>{errorToast}</span>
+                <button onClick={() => setErrorToast('')} className="ml-auto p-1 hover:bg-red-700 rounded-lg transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 1. HEADER */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Wallet className="w-8 h-8 text-blue-600" /> Wallet & Finance
+              </h1>
+              <p className="text-slate-500 dark:text-gray-400 text-sm">Manage your funds and view transaction history.</p>
             </div>
           </div>
-        )}
 
-        {/* 1. HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Wallet className="w-8 h-8 text-blue-600" /> Wallet & Finance
-            </h1>
-            <p className="text-slate-500 dark:text-gray-400 text-sm">Manage your funds and view transaction history.</p>
-          </div>
-        </div>
+          {/* 2. FINANCIAL OVERVIEW CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Main Balance Card & Funding Input */}
+            <div className="bg-[#0B1120] rounded-3xl p-6 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden group flex flex-col justify-between">
+                <div className="relative z-10 mb-6">
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Available Balance</p>
+                    <h2 className="text-4xl font-bold text-white mb-1 tracking-tight">₦{Number(user?.walletBalance).toLocaleString()}</h2>
+                </div>
 
-        {/* 2. FINANCIAL OVERVIEW CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Main Balance Card & Funding Input */}
-          <div className="bg-[#0B1120] rounded-3xl p-6 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden group flex flex-col justify-between">
-              <div className="relative z-10 mb-6">
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Available Balance</p>
-                  <h2 className="text-4xl font-bold text-white mb-1 tracking-tight">₦{Number(user?.walletBalance).toLocaleString()}</h2>
-              </div>
-
-              {/* FUNDING INPUT SECTION */}
-              <div className="relative z-10 mt-auto pt-5 border-t border-slate-800">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fund Wallet</label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
-                      <input 
-                          type="text" 
-                          inputMode="numeric"
-                          pattern="\d*"
-                          value={fundAmount}
-                          onChange={handleAmountChange}
-                          placeholder="Amount (Min. 100)"
-                          disabled={fundingLoading}
-                          className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
-                      />
-                      {/* HELPER TEXT ENFORCING THE 100 MINIMUM */}
-                      <p className="text-[10px] text-slate-400 mt-1.5 font-medium ml-1">Minimum funding amount is ₦100</p>
+                {/* FUNDING INPUT SECTION */}
+                <div className="relative z-10 mt-auto pt-5 border-t border-slate-800">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fund Wallet</label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
+                        <input 
+                            type="text" 
+                            inputMode="numeric"
+                            pattern="\d*"
+                            value={fundAmount}
+                            onChange={handleAmountChange}
+                            placeholder="Amount (Min. 100)"
+                            disabled={fundingLoading}
+                            className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
+                        />
+                        {/* HELPER TEXT ENFORCING THE 100 MINIMUM */}
+                        <p className="text-[10px] text-slate-400 mt-1.5 font-medium ml-1">Minimum funding amount is ₦100</p>
+                      </div>
+                      <button 
+                        onClick={handleFundWallet}
+                        disabled={fundingLoading || !fundAmount || Number(fundAmount) < 100 || !isSquadLoaded}
+                        className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-bold px-6 py-3 h-[46px] rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center min-w-[120px]"
+                      >
+                        {fundingLoading || !isSquadLoaded ? <Loader2 size={18} className="animate-spin" /> : 'Pay Now'}
+                      </button>
                     </div>
-                    <button 
-                      onClick={handleFundWallet}
-                      disabled={fundingLoading || !fundAmount || Number(fundAmount) < 100}
-                      className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-bold px-6 py-3 h-[46px] rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center min-w-[120px]"
-                    >
-                      {fundingLoading ? <Loader2 size={18} className="animate-spin" /> : 'Pay Now'}
+                </div>
+
+                {/* Background Decor */}
+                <div className="absolute right-0 top-0 h-48 w-48 bg-blue-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-red-200 dark:hover:border-red-900/30 transition-colors">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="text-slate-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">Total Spent</p>
+                        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₦{totalSpent.toLocaleString()}</h3>
+                    </div>
+                    <div className="h-10 w-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center">
+                        <TrendingDown size={20} />
+                    </div>
+                </div>
+                <div className="mt-4 text-xs text-slate-400">Lifetime usage on services</div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-emerald-200 dark:hover:border-emerald-900/30 transition-colors">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="text-slate-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">Total Refunds</p>
+                        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₦{totalRefunds.toLocaleString()}</h3>
+                    </div>
+                    <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
+                        <TrendingUp size={20} />
+                    </div>
+                </div>
+                <div className="mt-4 text-xs text-slate-400">Reversed failed transactions</div>
+            </div>
+          </div>
+
+          {/* 3. TRANSACTION HISTORY */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-gray-900/30">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-slate-500" /> Transaction History
+                </h3>
+                
+                <div className="relative w-full md:w-72">
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Search reference or description..." 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                    />
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-slate-50 dark:bg-gray-900/50 text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-gray-700 font-medium">
+                        <tr>
+                            <th className="px-6 py-4">Reference</th>
+                            <th className="px-6 py-4">Description</th>
+                            <th className="px-6 py-4">Type</th>
+                            <th className="px-6 py-4">Amount</th>
+                            <th className="px-6 py-4 text-right">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="h-12 w-12 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                                            <History className="w-6 h-6 text-slate-300 dark:text-gray-600" />
+                                        </div>
+                                        <p>No transactions found.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (
+                            filtered.map(t => (
+                                <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-gray-700/30 transition-colors group">
+                                    <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-gray-400">{t.reference}</td>
+                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{t.description || 'System Transaction'}</td>
+                                    <td className="px-6 py-4"><Badge type={t.type} /></td>
+                                    <td className={`px-6 py-4 font-mono font-bold ${
+                                        ['DEPOSIT', 'REFUND', 'BONUS'].includes(t.type) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'
+                                    }`}>
+                                        {['DEPOSIT', 'REFUND', 'BONUS'].includes(t.type) ? '+' : '-'}
+                                        ₦{Number(t.amount).toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-slate-500 dark:text-gray-400 text-xs">
+                                        {new Date(t.createdAt).toLocaleDateString()}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+          </div>
+
+          {/* SUCCESS MODAL */}
+          {successModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center relative animate-in zoom-in-95">
+                    <button onClick={() => setSuccessModal(false)} className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <X size={20} />
                     </button>
-                  </div>
-              </div>
+                    <div className="w-20 h-20 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                        <CheckCircle2 size={40} strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Funding Successful!</h3>
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                        Your wallet has been credited successfully. You can now use your balance to purchase services.
+                    </p>
+                    <button 
+                        onClick={() => setSuccessModal(false)}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-95"
+                    >
+                        Continue
+                    </button>
+                </div>
+            </div>
+          )}
 
-              {/* Background Decor */}
-              <div className="absolute right-0 top-0 h-48 w-48 bg-blue-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-red-200 dark:hover:border-red-900/30 transition-colors">
-              <div className="flex justify-between items-start">
-                  <div>
-                      <p className="text-slate-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">Total Spent</p>
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₦{totalSpent.toLocaleString()}</h3>
-                  </div>
-                  <div className="h-10 w-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center">
-                      <TrendingDown size={20} />
-                  </div>
-              </div>
-              <div className="mt-4 text-xs text-slate-400">Lifetime usage on services</div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-emerald-200 dark:hover:border-emerald-900/30 transition-colors">
-              <div className="flex justify-between items-start">
-                  <div>
-                      <p className="text-slate-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">Total Refunds</p>
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₦{totalRefunds.toLocaleString()}</h3>
-                  </div>
-                  <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
-                      <TrendingUp size={20} />
-                  </div>
-              </div>
-              <div className="mt-4 text-xs text-slate-400">Reversed failed transactions</div>
-          </div>
         </div>
-
-        {/* 3. TRANSACTION HISTORY */}
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-gray-900/30">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-slate-500" /> Transaction History
-              </h3>
-              
-              <div className="relative w-full md:w-72">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                  <input 
-                      type="text" 
-                      placeholder="Search reference or description..." 
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                  />
-              </div>
-          </div>
-
-          <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-slate-50 dark:bg-gray-900/50 text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-gray-700 font-medium">
-                      <tr>
-                          <th className="px-6 py-4">Reference</th>
-                          <th className="px-6 py-4">Description</th>
-                          <th className="px-6 py-4">Type</th>
-                          <th className="px-6 py-4">Amount</th>
-                          <th className="px-6 py-4 text-right">Date</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
-                      {filtered.length === 0 ? (
-                          <tr>
-                              <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
-                                  <div className="flex flex-col items-center gap-3">
-                                      <div className="h-12 w-12 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                                          <History className="w-6 h-6 text-slate-300 dark:text-gray-600" />
-                                      </div>
-                                      <p>No transactions found.</p>
-                                  </div>
-                              </td>
-                          </tr>
-                      ) : (
-                          filtered.map(t => (
-                              <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-gray-700/30 transition-colors group">
-                                  <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-gray-400">{t.reference}</td>
-                                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{t.description || 'System Transaction'}</td>
-                                  <td className="px-6 py-4"><Badge type={t.type} /></td>
-                                  <td className={`px-6 py-4 font-mono font-bold ${
-                                      ['DEPOSIT', 'REFUND', 'BONUS'].includes(t.type) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'
-                                  }`}>
-                                      {['DEPOSIT', 'REFUND', 'BONUS'].includes(t.type) ? '+' : '-'}
-                                      ₦{Number(t.amount).toLocaleString()}
-                                  </td>
-                                  <td className="px-6 py-4 text-right text-slate-500 dark:text-gray-400 text-xs">
-                                      {new Date(t.createdAt).toLocaleDateString()}
-                                  </td>
-                              </tr>
-                          ))
-                      )}
-                  </tbody>
-              </table>
-          </div>
-        </div>
-
-        {/* SUCCESS MODAL */}
-        {successModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center relative animate-in zoom-in-95">
-                  <button onClick={() => setSuccessModal(false)} className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                      <X size={20} />
-                  </button>
-                  <div className="w-20 h-20 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                      <CheckCircle2 size={40} strokeWidth={2.5} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Funding Successful!</h3>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                      Your wallet has been credited successfully. You can now use your balance to purchase services.
-                  </p>
-                  <button 
-                      onClick={() => setSuccessModal(false)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-95"
-                  >
-                      Continue
-                  </button>
-              </div>
-          </div>
-        )}
-
-      </div>
+      )}
     </>
   );
 }
