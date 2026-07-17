@@ -6,7 +6,7 @@ import Link from 'next/link';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Key, Copy, RefreshCw, CheckCircle2, AlertTriangle, 
-  Eye, EyeOff, Loader2, Terminal, ArrowRight, BookOpen, Coins,
+  Eye, EyeOff, Loader2, Terminal, ArrowRight, ArrowDown, BookOpen, Coins,
   Lock, Globe, Building2, Server, Save, Clock, X, Check
 } from 'lucide-react';
 
@@ -55,11 +55,24 @@ export default function DevelopersPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Submit Request Handler
+  // Submit Request Handler (With Strict URL Validation)
   const handleRequestAccess = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bizName || !webLink) return;
     
+    // Strict URL formatting & validation
+    let finalUrl = webLink.trim();
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      finalUrl = 'https://' + finalUrl;
+    }
+    
+    // Basic Regex to ensure it looks like a real domain
+    const urlRegex = /^(https?:\/\/)?([\w\d-]+\.)+[\w\d]{2,}(\/.*)?$/i;
+    if (!urlRegex.test(finalUrl)) {
+       setErrorToast('Please enter a valid, active website link (e.g., https://yourplatform.com)');
+       return;
+    }
+
     setSubmitLoading(true);
     setErrorToast('');
 
@@ -67,15 +80,15 @@ export default function DevelopersPage() {
       const res = await axios.post('/api/user/credentials', {
         action: 'SUBMIT_REQUEST',
         businessName: bizName,
-        websiteUrl: webLink // Synced with DB Schema
+        websiteUrl: finalUrl // Synced with DB Schema
       });
 
       if (res.data?.status) {
         setData({
           ...data,
-          apiStatus: 'PENDING', // Synced with DB Schema
+          apiStatus: 'PENDING',
           businessName: bizName,
-          websiteUrl: webLink
+          websiteUrl: finalUrl
         });
       }
     } catch (err: any) {
@@ -104,15 +117,21 @@ export default function DevelopersPage() {
   };
 
   const handleRotateKeys = async () => {
-    if (!confirm("⚠️ WARNING: Rotating your key will immediately invalidate the old one.\n\nAny production scripts using the old key will STOP working immediately.\n\nAre you sure?")) return;
+    // Determine the warning text based on if they already have a key
+    const hasKey = !!data?.apiKeySecret;
+    if (hasKey) {
+      if (!confirm("⚠️ WARNING: Rotating your key will immediately invalidate the old one.\n\nAny production scripts using the old key will STOP working immediately.\n\nAre you sure?")) return;
+    }
     
     setRotating(true);
     try {
       const res = await axios.post('/api/user/credentials');
       setData({ ...data, ...res.data });
-      alert('New API Keys rotated successfully.');
+      if (!hasKey) {
+        alert('Success! Your first live API Keys have been generated.');
+      }
     } catch (error) {
-      alert('Failed to rotate keys. Please try again.');
+      alert('Failed to generate keys. Please try again.');
     } finally {
       setRotating(false);
     }
@@ -131,7 +150,7 @@ export default function DevelopersPage() {
           <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-xl border border-red-500 text-sm font-semibold">
             <AlertTriangle size={18} className="shrink-0" />
             <span>{errorToast}</span>
-            <button onClick={() => setErrorToast('')} className="ml-auto p-1 hover:bg-red-700 rounded-lg">
+            <button onClick={() => setErrorToast('')} className="ml-auto p-1 hover:bg-red-700 rounded-lg transition-colors">
               <X size={14} />
             </button>
           </div>
@@ -209,7 +228,7 @@ export default function DevelopersPage() {
                     <Globe size={18} />
                   </div>
                   <input 
-                    type="url" required value={webLink} onChange={(e) => setWebLink(e.target.value)} placeholder="https://yourplatform.com"
+                    type="text" required value={webLink} onChange={(e) => setWebLink(e.target.value)} placeholder="https://yourplatform.com"
                     className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-base sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white font-mono"
                   />
                 </div>
@@ -217,7 +236,7 @@ export default function DevelopersPage() {
 
               <button
                 type="submit" disabled={submitLoading}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2"
               >
                 {submitLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Access Request'}
               </button>
@@ -244,12 +263,13 @@ export default function DevelopersPage() {
            <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-100 dark:border-amber-900/30">
               <Clock className="w-8 h-8 animate-pulse" />
            </div>
-           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Access Request Pending Review</h2>
+           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Access Request Under Review</h2>
            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium max-w-md mx-auto leading-relaxed mb-6">
-              Our engineering support team is evaluating the environment configuration submitted for <span className="font-bold text-slate-800 dark:text-slate-200">"{data?.businessName}"</span>. Production access tokens will generate automatically upon verification.
+              Our integration team is currently reviewing the platform details submitted for <span className="font-bold text-slate-800 dark:text-slate-200">"{data?.businessName}"</span>. You will be granted access shortly.
            </p>
-           <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-semibold font-mono shadow-inner">
-              <Terminal size={14} className="text-slate-400" /> STATUS_CODE: AWAITING_ADMIN_CLEARANCE
+           <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-bold shadow-inner">
+              <CheckCircle2 size={16} className="text-amber-500" />
+              Verification in progress (Est. 24h)
            </div>
         </div>
       )}
@@ -278,56 +298,73 @@ export default function DevelopersPage() {
               </div>
             </div>
 
-            <div className="p-6 sm:p-8 space-y-6">
-              <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Secret Private Key</label>
-                  <div className="relative">
-                    <div className="flex rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
-                      <div className="relative flex-1 bg-slate-50 dark:bg-slate-950">
-                        <input 
-                          type={showSecret ? "text" : "password"} 
-                          readOnly 
-                          value={data?.apiKeySecret || ''} 
-                          className="block w-full pl-4 pr-12 py-3.5 bg-transparent text-slate-800 dark:text-slate-200 font-mono text-base sm:text-sm focus:outline-none tracking-wide"
-                        />
+            <div className="p-6 sm:p-8">
+              {!data?.apiKeySecret ? (
+                // FIRST TIME USER PROMPT
+                <div className="flex flex-col items-center justify-center p-8 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 text-center">
+                   <div className="text-4xl mb-3 animate-bounce">🔑</div>
+                   <h4 className="font-bold text-slate-900 dark:text-white text-lg mb-1">Generate Your First Keys</h4>
+                   <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-5 font-medium leading-relaxed">
+                      Your API access has been approved! Please generate your first live Secret Key to start authenticating your server requests.
+                   </p>
+                   <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm bg-white dark:bg-slate-900 px-4 py-2 rounded-full border border-indigo-200 dark:border-indigo-800 shadow-sm animate-pulse">
+                      Click 'Generate Key' below <ArrowDown size={16} />
+                   </div>
+                </div>
+              ) : (
+                // NORMAL KEY DISPLAY
+                <div className="space-y-6 animate-in zoom-in-95 duration-300">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Secret Private Key</label>
+                    <div className="relative">
+                      <div className="flex rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
+                        <div className="relative flex-1 bg-slate-50 dark:bg-slate-950">
+                          <input 
+                            type={showSecret ? "text" : "password"} 
+                            readOnly 
+                            value={data?.apiKeySecret || ''} 
+                            className="block w-full pl-4 pr-12 py-3.5 bg-transparent text-slate-800 dark:text-slate-200 font-mono text-base sm:text-sm focus:outline-none tracking-wide"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowSecret(!showSecret)}
+                            className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                          >
+                            {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+
                         <button 
                           type="button"
-                          onClick={() => setShowSecret(!showSecret)}
-                          className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                          onClick={() => handleCopy(data?.apiKeySecret)}
+                          className="flex items-center gap-2 px-5 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-colors text-xs uppercase tracking-wider min-w-[100px] justify-center"
                         >
-                          {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                          {copied ? <CheckCircle2 size={16} className="text-green-600" /> : <Copy size={16} />}
+                          <span>{copied ? 'Copied' : 'Copy'}</span>
                         </button>
                       </div>
-
-                      <button 
-                        type="button"
-                        onClick={() => handleCopy(data?.apiKeySecret)}
-                        className="flex items-center gap-2 px-5 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition-colors text-xs uppercase tracking-wider min-w-[100px] justify-center"
-                      >
-                        {copied ? <CheckCircle2 size={16} className="text-green-600" /> : <Copy size={16} />}
-                        <span>{copied ? 'Copied' : 'Copy'}</span>
-                      </button>
                     </div>
                   </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-4 bg-amber-50/60 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-900/20 rounded-xl text-amber-800 dark:text-amber-400">
-                <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-                <div className="text-xs font-medium leading-relaxed">
-                    <p className="font-bold mb-0.5">Wallet API Liability Protection</p>
-                    <p className="opacity-90">This signature directly handles server wallet drawdowns. Do not inject tokens into client bundles, GitHub code trees, or public mobile configurations.</p>
+                  <div className="flex items-start gap-3 p-4 bg-amber-50/60 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-900/20 rounded-xl text-amber-800 dark:text-amber-400">
+                    <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                    <div className="text-xs font-medium leading-relaxed">
+                        <p className="font-bold mb-0.5">Wallet API Liability Protection</p>
+                        <p className="opacity-90">This signature directly handles server wallet drawdowns. Do not inject tokens into client bundles, GitHub code trees, or public mobile configurations.</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-950/40 px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button 
                 onClick={handleRotateKeys}
                 disabled={rotating}
-                className="flex items-center gap-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30 font-bold uppercase tracking-wider"
+                className={`flex items-center gap-2 text-xs hover:bg-opacity-10 px-5 py-2.5 rounded-xl transition-all font-bold uppercase tracking-wider ${!data?.apiKeySecret ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md' : 'text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-100 dark:hover:border-red-900/30'}`}
               >
-                {rotating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                Roll Key Token
+                {rotating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                {!data?.apiKeySecret ? 'Generate Key' : 'Roll Key Token'}
               </button>
             </div>
           </div>
@@ -399,7 +436,7 @@ export default function DevelopersPage() {
                   <Coins size={20} />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg mb-1 flex items-center gap-2">
-                  Channel Pricing  <ArrowRight size={16} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0" />
+                  Channel Pricing Tiers <ArrowRight size={16} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0" />
               </h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm leading-relaxed font-medium">
                   Review direct endpoint margins for premium identity checking matrices, utilities vending arrays, and corporate registries.
