@@ -42,6 +42,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
   const [phone, setPhone] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
+  const [isManualOverride, setIsManualOverride] = useState(false); // Smart UX tracker
   
   // UI State
   const [loading, setLoading] = useState(false);
@@ -57,15 +58,20 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
     }
   }, [error]);
 
-  // Network Auto-Detection Hook
+  // SMART Network Auto-Detection Hook
   useEffect(() => {
-    if (phone.length >= 4 && !selectedNetwork) {
+    // Only auto-detect if the user hasn't manually clicked a network logo
+    if (phone.length >= 4 && !isManualOverride) {
       const detected = detectNetwork(phone);
-      if (detected) setSelectedNetwork(detected);
+      if (detected && detected !== selectedNetwork) {
+        setSelectedNetwork(detected);
+      }
     } else if (phone.length < 4) {
-      setSelectedNetwork(null); // Reset if they clear the input
+      // If they clear the input, reset everything so auto-detect works again
+      setSelectedNetwork(null);
+      setIsManualOverride(false);
     }
-  }, [phone, selectedNetwork]);
+  }, [phone, isManualOverride, selectedNetwork]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
@@ -75,6 +81,12 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value.replace(/\D/g, ''), 10);
     setAmount(isNaN(val) ? '' : val);
+  };
+
+  // Handle Manual Network Selection
+  const handleNetworkClick = (networkId: string) => {
+    setSelectedNetwork(networkId);
+    setIsManualOverride(true); // Stop auto-detecting for this transaction
   };
 
   const activeNetworkData = NETWORKS.find(n => n.id === selectedNetwork);
@@ -135,6 +147,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
     setPhone('');
     setAmount('');
     setSelectedNetwork(null);
+    setIsManualOverride(false);
     setReceiptData(null);
     setStep('INPUT');
   };
@@ -291,7 +304,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
                           <button
                             key={net.id}
                             type="button"
-                            onClick={() => setSelectedNetwork(net.id)}
+                            onClick={() => handleNetworkClick(net.id)}
                             className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
                               isSelected 
                                 ? 'bg-amber-50 border-amber-500 shadow-sm dark:bg-amber-500/10 dark:border-amber-500 ring-1 ring-amber-500' 
@@ -414,7 +427,7 @@ export default function AirtimeClient({ services }: { services: ServiceData[] })
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 mt-1.5 shrink-0" />
-                  If you ported your phone number, manually select your new network by tapping the correct Network.
+                  If you ported your phone number, manually select your new network by tapping the correct logo.
                 </li>
               </ul>
             </div>
