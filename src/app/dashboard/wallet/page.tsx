@@ -4,9 +4,16 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
-  Wallet, ArrowUpRight, Search, CreditCard, Copy, Check,
-  History, TrendingUp, TrendingDown, Loader2, Building2, CheckCircle2, X 
+  Wallet, Search, CreditCard,
+  History, TrendingUp, TrendingDown, Loader2, ArrowRight, X, AlertTriangle, CheckCircle2 
 } from 'lucide-react';
+
+// Extend the Window object to include Squad
+declare global {
+  interface Window {
+    SquadPay: any;
+  }
+}
 
 export default function UserWallet() {
   const [loading, setLoading] = useState(true);
@@ -15,12 +22,11 @@ export default function UserWallet() {
   const [filtered, setFiltered] = useState<any[]>([]);
   const [search, setSearch] = useState('');
 
-  // Account Generation State
-  const [generatingAccount, setGeneratingAccount] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  
-  // Copy Feedback State
-  const [copied, setCopied] = useState(false);
+  // Funding States
+  const [fundAmount, setFundAmount] = useState<string>('');
+  const [fundingLoading, setFundingLoading] = useState(false);
+  const [errorToast, setErrorToast] = useState('');
+  const [successModal, setSuccessModal] = useState(false);
 
   // Stats
   const [totalSpent, setTotalSpent] = useState(0);
@@ -28,7 +34,6 @@ export default function UserWallet() {
 
   const fetchData = async () => {
     try {
-      // Force fresh data to ensure account number appears after refresh
       const [uRes, tRes] = await Promise.all([
         axios.get('/api/user/me?t=' + Date.now()), 
         axios.get('/api/user/transactions')
@@ -59,7 +64,18 @@ export default function UserWallet() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  // Load Squad Script on mount
+  useEffect(() => {
+    fetchData();
+    const script = document.createElement('script');
+    script.src = 'https://checkout.squadco.com/widget/squad.min.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   useEffect(() => {
     const q = search.toLowerCase();
@@ -69,36 +85,66 @@ export default function UserWallet() {
     ));
   }, [search, transactions]);
 
-  // --- GENERATE ACCOUNT ---
-  const handleGenerateAccount = async () => {
-    setGeneratingAccount(true);
-    try {
-        const res = await axios.post('/api/wallet/virtual-account');
-        if (res.data.status) {
-            setShowSuccessModal(true);
-            // Update local state immediately
-            setUser((prev: any) => ({
-                ...prev,
-                virtualAccountNumber: res.data.data.accountNumber,
-                virtualAccountName: res.data.data.accountName,
-                virtualBankName: res.data.data.bankName
-            }));
-        } else {
-            alert(res.data.error || 'Failed to generate account');
-        }
-    } catch (error: any) {
-        alert(error.response?.data?.error || 'Connection Failed');
-    } finally {
-        setGeneratingAccount(false);
-    }
+  // Handle Amount Input Formatting
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numericValue = e.target.value.replace(/\D/g, '');
+    setFundAmount(numericValue);
   };
 
-  // --- BETTER COPY FUNCTION ---
-  const copyToClipboard = (text: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+  // --- SQUAD CHECKOUT LOGIC ---
+  const handleFundWallet = () => {
+    if (!fundAmount || Number(fundAmount) < 100) {
+      setErrorToast('Minimum funding amount is ₦100');
+      return;
+    }
+
+    if (!window.SquadPay) {
+      setErrorToast('Payment gateway is loading. Please try again in a few seconds.');
+      return;
+    }
+
+    const amountInKobo = Number(fundAmount) * 100;
+    
+    // Squad requires a unique reference for every attempt
+    const transactionRef = `FW-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const squadInstance = new window.SquadPay({
+      onClose: () => {
+        setFundingLoading(false);
+      },
+      onLoad: () => {
+        setFundingLoading(true);
+      },
+      onSuccess: async (response: any) => {
+        // Verification Call to our Backend
+        try {
+          const verifyRes = await axios.post('/api/wallet/fund', {
+            reference: response.transaction_ref
+          });
+
+          if (verifyRes.data.status) {
+            setSuccessModal(true);
+            setFundAmount('');
+            fetchData(); // Refresh balances and history
+          } else {
+            setErrorToast(verifyRes.data.error || 'Verification failed. Please contact support.');
+          }
+        } catch (err: any) {
+          setErrorToast(err.response?.data?.error || 'Verification failed. Please contact support.');
+        } finally {
+          setFundingLoading(false);
+        }
+      },
+      key: process.env.NEXT_PUBLIC_SQUAD_PUBLIC_KEY,
+      email: user.email,
+      amount: amountInKobo,
+      currency_code: "NGN",
+      transaction_ref: transactionRef,
+      customer_name: `${user.firstName} ${user.lastName}`,
+    });
+
+    squadInstance.setup();
+    squadInstance.open();
   };
 
   if (loading) return <GlobalLoader />;
@@ -106,6 +152,19 @@ export default function UserWallet() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
       
+      {/* FLOATING ERROR TOAST */}
+      {errorToast && (
+        <div className="fixed bottom-6 right-6 z-[200] max-w-sm animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-xl border border-red-500 text-sm font-semibold">
+            <AlertTriangle size={18} className="shrink-0" />
+            <span>{errorToast}</span>
+            <button onClick={() => setErrorToast('')} className="ml-auto p-1 hover:bg-red-700 rounded-lg transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -119,57 +178,38 @@ export default function UserWallet() {
       {/* 2. FINANCIAL OVERVIEW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Main Balance Card (Dark Premium) */}
-        <div className="bg-[#0B1120] rounded-2xl p-6 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden group flex flex-col justify-between min-h-[240px]">
-            <div className="relative z-10">
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Available Funds</p>
+        {/* Main Balance Card & Funding Input */}
+        <div className="bg-[#0B1120] rounded-3xl p-6 text-white shadow-xl shadow-slate-200 dark:shadow-none relative overflow-hidden group flex flex-col justify-between">
+            <div className="relative z-10 mb-6">
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Available Balance</p>
                 <h2 className="text-4xl font-bold text-white mb-1 tracking-tight">₦{Number(user?.walletBalance).toLocaleString()}</h2>
-                <p className="text-xs text-slate-500">Updated just now</p>
             </div>
 
-            {/* VIRTUAL ACCOUNT SECTION - BIGGER & BOLDER */}
-            <div className="relative z-10 mt-6 pt-6 border-t border-slate-800">
-                {user?.virtualAccountNumber ? (
-                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2">
-                        
-                        {/* Bank Name Badge */}
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-900/30 px-2 py-1 rounded">
-                                {user.virtualBankName}
-                            </span>
-                            <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">Active</span>
-                        </div>
-                        
-                        {/* Account Number (BIG) */}
-                        <div className="flex items-center justify-between gap-3 my-2">
-                            <span className="text-3xl font-mono font-bold text-white tracking-widest selection:bg-blue-500 selection:text-white">
-                                {user.virtualAccountNumber}
-                            </span>
-                            
-                            <button 
-                                onClick={() => copyToClipboard(user.virtualAccountNumber)} 
-                                className="p-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-white shadow-lg active:scale-95"
-                                title="Copy Account Number"
-                            >
-                                {copied ? <Check size={20} className="text-green-400" /> : <Copy size={20} />}
-                            </button>
-                        </div>
-                        
-                        {/* Account Name */}
-                        <p className="text-xs text-slate-400 font-medium truncate tracking-wide">
-                            {user.virtualAccountName}
-                        </p>
-                    </div>
-                ) : (
-                    <button 
-                        onClick={handleGenerateAccount}
-                        disabled={generatingAccount}
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                        {generatingAccount ? <Loader2 className="animate-spin" /> : <Building2 size={18} />}
-                        {generatingAccount ? 'Generating Account...' : 'Generate Account Number'}
-                    </button>
-                )}
+            {/* FUNDING INPUT SECTION */}
+            <div className="relative z-10 mt-auto pt-5 border-t border-slate-800">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fund Wallet</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                   <div className="relative flex-1">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
+                     <input 
+                        type="text" 
+                        inputMode="numeric"
+                        pattern="\d*"
+                        value={fundAmount}
+                        onChange={handleAmountChange}
+                        placeholder="Amount (e.g. 5000)"
+                        disabled={fundingLoading}
+                        className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
+                     />
+                   </div>
+                   <button 
+                     onClick={handleFundWallet}
+                     disabled={fundingLoading || !fundAmount}
+                     className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center min-w-[120px]"
+                   >
+                     {fundingLoading ? <Loader2 size={18} className="animate-spin" /> : 'Pay Now'}
+                   </button>
+                </div>
             </div>
 
             {/* Background Decor */}
@@ -177,26 +217,26 @@ export default function UserWallet() {
         </div>
 
         {/* Stats Cards */}
-        <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between group hover:border-red-200 dark:hover:border-red-900/30 transition-colors">
+        <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-red-200 dark:hover:border-red-900/30 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="text-slate-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">Total Spent</p>
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₦{totalSpent.toLocaleString()}</h3>
                 </div>
-                <div className="h-10 w-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center">
+                <div className="h-10 w-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center">
                     <TrendingDown size={20} />
                 </div>
             </div>
             <div className="mt-4 text-xs text-slate-400">Lifetime usage on services</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between group hover:border-emerald-200 dark:hover:border-emerald-900/30 transition-colors">
+        <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-emerald-200 dark:hover:border-emerald-900/30 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="text-slate-500 dark:text-gray-400 font-bold text-xs uppercase tracking-wider">Total Refunds</p>
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₦{totalRefunds.toLocaleString()}</h3>
                 </div>
-                <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center">
+                <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
                     <TrendingUp size={20} />
                 </div>
             </div>
@@ -205,7 +245,7 @@ export default function UserWallet() {
       </div>
 
       {/* 3. TRANSACTION HISTORY */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-gray-900/30">
             <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-slate-500" /> Transaction History
@@ -270,29 +310,24 @@ export default function UserWallet() {
       </div>
 
       {/* SUCCESS MODAL */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center relative animate-in zoom-in-95">
-                <button onClick={() => setShowSuccessModal(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+      {successModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center relative animate-in zoom-in-95">
+                <button onClick={() => setSuccessModal(false)} className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                     <X size={20} />
                 </button>
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 size={32} />
+                <div className="w-20 h-20 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <CheckCircle2 size={40} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Account Created!</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    Your permanent virtual account is ready.
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Funding Successful!</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                    Your wallet has been credited successfully. You can now use your balance to purchase services.
                 </p>
-                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl mb-6 border border-gray-100 dark:border-gray-700">
-                    <p className="text-xs text-gray-400 uppercase font-bold mb-1">{user?.virtualBankName}</p>
-                    <p className="text-3xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">{user?.virtualAccountNumber}</p>
-                    <p className="text-xs text-gray-500 mt-1">{user?.virtualAccountName}</p>
-                </div>
                 <button 
-                    onClick={() => setShowSuccessModal(false)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors"
+                    onClick={() => setSuccessModal(false)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-95"
                 >
-                    Done
+                    Continue
                 </button>
             </div>
         </div>
@@ -315,7 +350,7 @@ function Badge({ type }: { type: string }) {
     const label = type.replace(/_/g, ' ');
     const style = styles[type] || 'bg-gray-100 text-gray-600 border-gray-200';
     return (
-        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${style}`}>
+        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${style}`}>
             {label}
         </span>
     );
