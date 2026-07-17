@@ -517,7 +517,7 @@ export default function DataClient() {
       </div>
 
       {/* Global CSS for scrollbars */}
-      <style dangerouslySetContent>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
@@ -525,7 +525,7 @@ export default function DataClient() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #334155; }
-      `}</style>
+      `}} />
     </>
   );
 }
