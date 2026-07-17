@@ -16,16 +16,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: false, error: 'Transaction reference is required' }, { status: 400 });
     }
 
-    // 2. Check if this reference was already processed
-    const existingTransaction = await prisma.transaction.findUnique({
-      where: { reference }
-    });
-
-    if (existingTransaction) {
-      return NextResponse.json({ status: false, error: 'Transaction already processed' }, { status: 400 });
+    // 2. Poll the database to see if the webhook has already processed and credited the user
+    // We will check up to 3 times, with a 1-second delay between checks.
+    let existingTransaction = null;
+    for (let i = 0; i < 3; i++) {
+      existingTransaction = await prisma.transaction.findUnique({ 
+        where: { reference } 
+      });
+      
+      if (existingTransaction) break; // Found it! Webhook did its job.
+      
+      // Wait 1 second before checking again
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
     }
 
-    // 3. Verify with Squad API
+    // If the webhook already processed it, return success immediately!
+    if (existingTransaction) {
+      return NextResponse.json({
+        status: true,
+        message: 'Wallet funded successfully',
+        data: {
+          amount: existingTransaction.amount,
+          reference: reference
+        }
+      });
+    }
+
+    // 3. If the webhook hasn't arrived yet, verify the transaction directly with Squad API
+    // This ensures the user actually paid and didn't just send a fake reference to the endpoint.
     const squadSecretKey = process.env.SQUAD_SECRET_KEY;
     if (!squadSecretKey) {
        console.error("Missing SQUAD_SECRET_KEY in environment variables.");
@@ -50,41 +68,21 @@ export async function POST(req: Request) {
     const { status: isSuccessful, data } = squadResponse.data;
 
     // 4. Validate Squad Response
-    // 'success' status means the payment was completely successful on Squad's end.
     if (!isSuccessful || data?.transaction_status !== 'success') {
       return NextResponse.json({ status: false, error: 'Transaction was not successful' }, { status: 400 });
     }
 
-    // Amount returned is in Kobo. Convert back to Naira.
+    // 5. Return "Pending Webhook" status.
+    // Notice: We DO NOT credit the wallet here. The webhook handles the database credit.
     const amountFunded = Number(data.transaction_amount) / 100;
-
-    // 5. Credit User Wallet securely
-    await prisma.$transaction(async (tx) => {
-      // Add funds to user
-      await tx.user.update({
-        where: { id: user.id },
-        data: { walletBalance: { increment: amountFunded } }
-      });
-
-      // Log the Deposit
-      await tx.transaction.create({
-        data: {
-          userId: user.id,
-          amount: amountFunded,
-          type: 'DEPOSIT',
-          status: 'COMPLETED',
-          reference: reference,
-          description: `Wallet Funding via Card/Bank Transfer`,
-        }
-      });
-    });
 
     return NextResponse.json({
       status: true,
-      message: 'Wallet funded successfully',
+      message: 'Payment verified! Awaiting final webhook confirmation to credit wallet.',
       data: {
         amount: amountFunded,
-        reference: reference
+        reference: reference,
+        pending_webhook: true // Let the frontend know it might take a moment to reflect
       }
     });
 
