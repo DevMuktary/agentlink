@@ -45,10 +45,12 @@ export default function DataClient() {
   // Form State
   const [phone, setPhone] = useState('');
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
-  const [isManualOverride, setIsManualOverride] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedPlanCode, setSelectedPlanCode] = useState<string | ''>('');
   
+  // Tracking prefix to avoid fighting the user if they override a ported number
+  const [lastDetectedPrefix, setLastDetectedPrefix] = useState<string>('');
+
   // UI State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -83,40 +85,39 @@ export default function DataClient() {
     }
   }, [error]);
 
-  // SMART Network Auto-Detection Hook
+  // NEW SMART Network Auto-Detection Hook
   useEffect(() => {
-    if (phone.length >= 4 && !isManualOverride) {
-      const detected = detectNetwork(phone);
-      if (detected && detected !== selectedNetwork) {
-        setSelectedNetwork(detected);
-        setSelectedCategory('ALL'); // Reset category filter on network switch
-        setSelectedPlanCode('');
+    if (phone.length >= 4) {
+      const currentPrefix = phone.substring(0, 4);
+      if (currentPrefix !== lastDetectedPrefix) {
+        const detected = detectNetwork(phone);
+        if (detected) {
+          setSelectedNetwork(detected);
+          setSelectedCategory('ALL'); // Reset category filter on network switch
+          setSelectedPlanCode('');
+        }
+        setLastDetectedPrefix(currentPrefix);
       }
     } else if (phone.length < 4) {
-      setSelectedNetwork(null);
-      setIsManualOverride(false);
-      setSelectedCategory('ALL');
-      setSelectedPlanCode('');
+      setLastDetectedPrefix('');
     }
-  }, [phone, isManualOverride, selectedNetwork]);
+  }, [phone, lastDetectedPrefix]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
     setPhone(numericValue);
   };
 
-  const handleNetworkClick = (networkId: string) => {
-    setSelectedNetwork(networkId);
-    setIsManualOverride(true);
-    setSelectedCategory('ALL');
-    setSelectedPlanCode('');
-  };
-
   const activeNetworkData = NETWORKS.find(n => n.id === selectedNetwork);
   const activePlan = plans.find(p => p.productCode === selectedPlanCode);
 
-  // Filter plans based on selected network and category
-  const networkPlans = plans.filter(p => p.network === selectedNetwork);
+  // STRICT FILTERING: Only show plans for selected network that are active AND price > 0
+  const networkPlans = plans.filter(p => 
+    p.network === selectedNetwork && 
+    p.isActive === true && 
+    p.price > 0
+  );
+  
   const categories = ['ALL', ...Array.from(new Set(networkPlans.map(p => p.category)))];
   
   const displayPlans = selectedCategory === 'ALL' 
@@ -175,7 +176,7 @@ export default function DataClient() {
   const handleReset = () => {
     setPhone('');
     setSelectedNetwork(null);
-    setIsManualOverride(false);
+    setLastDetectedPrefix('');
     setSelectedPlanCode('');
     setSelectedCategory('ALL');
     setReceiptData(null);
@@ -332,24 +333,6 @@ export default function DataClient() {
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm">
                   <form onSubmit={handleProceed} className="space-y-8">
                     
-                    {/* PHONE NUMBER */}
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        Phone Number
-                      </label>
-                      <input 
-                        type="text"
-                        inputMode="numeric"
-                        pattern="\d*"
-                        maxLength={11}
-                        required
-                        value={phone}
-                        onChange={handlePhoneChange}
-                        placeholder="08012345678"
-                        className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-lg font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-all shadow-sm font-mono tracking-wider"
-                      />
-                    </div>
-
                     {/* NETWORK SELECTOR */}
                     <div>
                       <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
@@ -362,7 +345,11 @@ export default function DataClient() {
                             <button
                               key={net.id}
                               type="button"
-                              onClick={() => handleNetworkClick(net.id)}
+                              onClick={() => {
+                                setSelectedNetwork(net.id);
+                                setSelectedCategory('ALL');
+                                setSelectedPlanCode('');
+                              }}
                               className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
                                 isSelected 
                                   ? 'bg-emerald-50 border-emerald-500 shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500 ring-1 ring-emerald-500' 
@@ -382,6 +369,24 @@ export default function DataClient() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* PHONE NUMBER */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                        Phone Number
+                      </label>
+                      <input 
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={11}
+                        required
+                        value={phone}
+                        onChange={handlePhoneChange}
+                        placeholder="08012345678"
+                        className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-lg font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-all shadow-sm font-mono tracking-wider"
+                      />
                     </div>
 
                     {/* PLAN SELECTION (Only visible if network is selected) */}
