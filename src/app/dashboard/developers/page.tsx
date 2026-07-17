@@ -7,7 +7,7 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Key, Copy, RefreshCw, CheckCircle2, AlertTriangle, 
   Eye, EyeOff, Loader2, Terminal, ArrowRight, BookOpen, Coins,
-  Lock, Globe, Building2, Server, Save, Clock
+  Lock, Globe, Building2, Server, Save, Clock, X
 } from 'lucide-react';
 
 export default function DevelopersPage() {
