@@ -9,16 +9,17 @@ import {
   History, TrendingUp, TrendingDown, Loader2, X, AlertTriangle, CheckCircle2 
 } from 'lucide-react';
 
-// Extend the Window object to include Squad
+// Extend the Window object to include Squad's documented object
 declare global {
   interface Window {
-    SquadPay: any;
+    squad: any;
+    SquadPay: any; // Kept as fallback
   }
 }
 
 export default function UserWallet() {
   const [loading, setLoading] = useState(true);
-  const [isSquadLoaded, setIsSquadLoaded] = useState(false); // Tracks if the payment script is actually attached to window
+  const [isSquadLoaded, setIsSquadLoaded] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
@@ -33,19 +34,6 @@ export default function UserWallet() {
   // Stats
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalRefunds, setTotalRefunds] = useState(0);
-
-  // Poll to check when SquadPay is successfully attached to the window
-  useEffect(() => {
-    const checkScript = setInterval(() => {
-      if (typeof window !== 'undefined' && window.SquadPay) {
-        setIsSquadLoaded(true);
-        clearInterval(checkScript);
-      }
-    }, 300); // check every 300ms
-
-    // Cleanup interval on unmount
-    return () => clearInterval(checkScript);
-  }, []);
 
   const fetchData = async () => {
     try {
@@ -104,8 +92,11 @@ export default function UserWallet() {
       return;
     }
 
-    if (typeof window === 'undefined' || !window.SquadPay) {
-      setErrorToast('Payment gateway is still loading or blocked. Please disable adblockers.');
+    // Reference the correct Squad object based on their docs
+    const SquadCheckout = window.squad || window.SquadPay;
+
+    if (typeof window === 'undefined' || !SquadCheckout) {
+      setErrorToast('Payment gateway is loading. Please check your internet connection or disable adblockers.');
       return;
     }
 
@@ -114,7 +105,7 @@ export default function UserWallet() {
     // Squad requires a unique reference for every attempt
     const transactionRef = `FW-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    const squadInstance = new window.SquadPay({
+    const squadInstance = new SquadCheckout({
       onClose: () => {
         setFundingLoading(false);
       },
@@ -125,7 +116,7 @@ export default function UserWallet() {
         // Verification Call to our Backend
         try {
           const verifyRes = await axios.post('/api/wallet/fund', {
-            reference: response.transaction_ref
+            reference: response.transaction_ref || transactionRef
           });
 
           if (verifyRes.data.status) {
@@ -155,10 +146,10 @@ export default function UserWallet() {
 
   return (
     <>
-      {/* SQUAD JS WIDGET */}
       <Script 
         src="https://checkout.squadco.com/widget/squad.min.js" 
         strategy="afterInteractive" 
+        onLoad={() => setIsSquadLoaded(true)}
       />
 
       {loading ? (
@@ -213,10 +204,9 @@ export default function UserWallet() {
                             onChange={handleAmountChange}
                             placeholder="Amount (Min. 100)"
                             disabled={fundingLoading}
-                            /* FIXED: Changed text-sm to text-base to prevent Safari iOS auto-zoom */
-                            className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-base font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
+                            // Changed to text-[16px] below to prevent Safari auto-zoom on iOS
+                            className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-[16px] md:text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
                         />
-                        {/* HELPER TEXT ENFORCING THE 100 MINIMUM */}
                         <p className="text-[10px] text-slate-400 mt-1.5 font-medium ml-1">Minimum funding amount is ₦100</p>
                       </div>
                       <button 
@@ -275,8 +265,8 @@ export default function UserWallet() {
                         placeholder="Search reference or description..." 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        /* Same fix here if this input also auto-zooms on mobile */
-                        className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-base md:text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                        // Prevent zoom here too just in case
+                        className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-[16px] md:text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
                     />
                 </div>
             </div>
