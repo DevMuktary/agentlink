@@ -37,9 +37,15 @@ export default function UserWallet() {
 
   const fetchData = async () => {
     try {
+      // Added cache-busting timestamps to both endpoints
+      const timestamp = Date.now();
       const [uRes, tRes] = await Promise.all([
-        axios.get('/api/user/me?t=' + Date.now()), 
-        axios.get('/api/user/transactions')
+        axios.get(`/api/user/me?t=${timestamp}`, {
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        }), 
+        axios.get(`/api/user/transactions?t=${timestamp}`, {
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
       ]);
       
       const userData = uRes.data.id ? uRes.data : uRes.data.data;
@@ -104,6 +110,13 @@ export default function UserWallet() {
     
     // Squad requires a unique reference for every attempt
     const transactionRef = `FW-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const publicKey = process.env.NEXT_PUBLIC_SQUAD_PUBLIC_KEY;
+
+    // Safety check so you know immediately if it's still grabbing the secret key
+    if (publicKey && publicKey.includes('_sk_')) {
+      setErrorToast('Configuration Error: Still using a Secret Key. Please redeploy your app on Railway.');
+      return;
+    }
 
     const squadInstance = new SquadCheckout({
       onClose: () => {
@@ -132,7 +145,7 @@ export default function UserWallet() {
           setFundingLoading(false);
         }
       },
-      key: process.env.NEXT_PUBLIC_SQUAD_PUBLIC_KEY,
+      key: publicKey,
       email: user.email,
       amount: amountInKobo,
       currency_code: "NGN",
@@ -146,8 +159,9 @@ export default function UserWallet() {
 
   return (
     <>
+      {/* Appended a version string to bypass aggressive browser caching */}
       <Script 
-        src="https://checkout.squadco.com/widget/squad.min.js" 
+        src="https://checkout.squadco.com/widget/squad.min.js?v=2.0" 
         strategy="afterInteractive" 
         onLoad={() => setIsSquadLoaded(true)}
       />
@@ -204,7 +218,6 @@ export default function UserWallet() {
                             onChange={handleAmountChange}
                             placeholder="Amount (Min. 100)"
                             disabled={fundingLoading}
-                            // Changed to text-[16px] below to prevent Safari auto-zoom on iOS
                             className="w-full pl-8 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-[16px] md:text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors text-white"
                         />
                         <p className="text-[10px] text-slate-400 mt-1.5 font-medium ml-1">Minimum funding amount is ₦100</p>
@@ -265,7 +278,6 @@ export default function UserWallet() {
                         placeholder="Search reference or description..." 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        // Prevent zoom here too just in case
                         className="pl-10 pr-4 py-2.5 w-full border border-slate-200 dark:border-gray-700 rounded-xl text-[16px] md:text-sm bg-white dark:bg-gray-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
                     />
                 </div>
