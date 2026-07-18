@@ -6,7 +6,7 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Users, Search, Shield, ShieldOff, Ban, Trash2, 
   CheckCircle2, Wallet, X, Loader2, RefreshCcw, 
-  Copy, Check, ChevronLeft, ChevronRight, AlertTriangle, Info
+  Copy, Check, ChevronLeft, ChevronRight, AlertTriangle, Info, User
 } from 'lucide-react';
 
 export default function AdminUserManagement() {
