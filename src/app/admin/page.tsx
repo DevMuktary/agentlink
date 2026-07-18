@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Users, AlertCircle, Wallet, 
-  ChevronRight, ArrowRight, Activity, Database, Cloud, ShieldCheck, Sun, Moon, BarChart3
+  ChevronRight, ArrowRight, Activity, Database, Cloud, ShieldCheck, Sun, Moon, CheckCircle2
 } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
@@ -54,42 +54,30 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       
-      {/* 1. HEADER & THEME TOGGLE */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Admin Command Center</h1>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-              Live
-            </div>
-          </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Monitor platform metrics, queues, and system health.</p>
-        </div>
-        
+      {/* 1. THEME TOGGLE (MINIMAL HEADER) */}
+      <div className="flex justify-end mb-2">
         <button 
           onClick={toggleTheme}
-          className="p-3 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95 self-start md:self-auto"
+          className="p-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
           aria-label="Toggle Theme"
         >
-          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
       </div>
 
       {/* 2. KEY METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {/* Replaced Revenue with Total Transactions */}
         <MetricCard 
-          title="Total Transactions" 
-          value={(stats?.totalTransactions || 0).toLocaleString()} 
-          icon={<BarChart3 size={22} />} 
+          title="Total Completed Jobs" 
+          value={(stats?.completedRequests || 0).toLocaleString()} 
+          icon={<CheckCircle2 size={22} />} 
           color="text-emerald-600 dark:text-emerald-400"
           bg="bg-emerald-100 dark:bg-emerald-900/30"
           border="border-emerald-200 dark:border-emerald-800/50"
-          sub="Platform volume"
+          sub="Successfully processed"
         />
         
         <MetricCard 
