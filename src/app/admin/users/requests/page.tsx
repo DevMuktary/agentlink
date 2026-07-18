@@ -246,9 +246,9 @@ export default function ApiAccessRequests() {
                         {user.businessName || <span className="text-slate-400 italic normal-case">Not Provided</span>}
                       </td>
                       <td className="px-6 py-4">
-                        {user.website ? (
-                            <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`} target="_blank" className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs">
-                                <Globe size={14} /> {user.website}
+                        {user.websiteUrl ? (
+                            <a href={user.websiteUrl.startsWith('http') ? user.websiteUrl : `https://${user.websiteUrl}`} target="_blank" className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs">
+                                <Globe size={14} /> {user.websiteUrl}
                             </a>
                         ) : (
                             <span className="text-slate-400 italic text-xs">No Link</span>
@@ -348,8 +348,8 @@ export default function ApiAccessRequests() {
                     
                     <div className="bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-blue-800/50 p-4 shadow-sm shadow-blue-100/50 dark:shadow-none">
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block mb-2">Submitted Website / Platform Link</span>
-                        {selectedUser.website ? (
-                            <a href={selectedUser.website.startsWith('http') ? selectedUser.website : `https://${selectedUser.website}`} target="_blank" className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 bg-slate-50 dark:bg-slate-800 py-3 rounded-lg font-bold text-sm transition-colors border border-blue-100 dark:border-blue-800/50">
+                        {selectedUser.websiteUrl ? (
+                            <a href={selectedUser.websiteUrl.startsWith('http') ? selectedUser.websiteUrl : `https://${selectedUser.websiteUrl}`} target="_blank" className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 bg-slate-50 dark:bg-slate-800 py-3 rounded-lg font-bold text-sm transition-colors border border-blue-100 dark:border-blue-800/50">
                                 <LinkIcon size={16} /> Open Project Link
                             </a>
                         ) : (
