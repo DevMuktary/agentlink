@@ -21,12 +21,14 @@ export async function PUT(req: Request) {
       return NextResponse.json({}, { status: 403 });
   }
 
-  const { type, id, dashboardPrice, apiPrice, isActive } = await req.json(); // type: 'SERVICE' or 'DATAPLAN'
+  const { type, id, dashboardPrice, apiPrice, isDashboardActive, isApiActive } = await req.json();
 
   // Build the update payload dynamically based on what was sent
-  const updateData: any = { isActive };
+  const updateData: any = {};
   if (dashboardPrice !== undefined) updateData.dashboardPrice = Number(dashboardPrice);
   if (apiPrice !== undefined) updateData.apiPrice = Number(apiPrice);
+  if (isDashboardActive !== undefined) updateData.isDashboardActive = isDashboardActive;
+  if (isApiActive !== undefined) updateData.isApiActive = isApiActive;
 
   try {
       if (type === 'SERVICE') {
@@ -37,6 +39,6 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: true });
   } catch (error) {
       console.error("Pricing Update Error:", error);
-      return NextResponse.json({ error: "Failed to update pricing" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to update pricing/status" }, { status: 500 });
   }
 }
