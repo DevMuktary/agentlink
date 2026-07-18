@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
-import { randomBytes } from 'crypto';
+import crypto from 'crypto';
 
 export async function GET(req: Request) {
   try {
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
         lastName: true,
         phoneNumber: true,
         businessName: true,
-        website: true, // Assuming you added this to your schema
+        websiteUrl: true, // Matches your DB Schema
         role: true,
         apiStatus: true,
         walletBalance: true,
@@ -54,14 +54,16 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     if (action === 'APPROVE') {
-        // Generate a secure API Key if they don't already have one
-        const apiKey = user.apiKey || `pk_live_${randomBytes(24).toString('hex')}`;
+        // Generate secure API Keys matching your live credentials flow
+        const newPublic = user.apiKeyPublic || 'pk_live_' + crypto.randomBytes(12).toString('hex');
+        const newSecret = user.apiKeySecret || 'sk_live_' + crypto.randomBytes(24).toString('hex');
         
         await prisma.user.update({
             where: { id: userId },
             data: { 
-                apiStatus: 'ACTIVE', 
-                apiKey: apiKey 
+                apiStatus: 'APPROVED', // Matches your DB Enum
+                apiKeyPublic: newPublic, 
+                apiKeySecret: newSecret 
             }
         });
     } else if (action === 'REJECT') {
