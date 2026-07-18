@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Smartphone, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, MapPin, CreditCard
+  AlertTriangle, User, MapPin, CreditCard, Layers,
+  Globe, Code, Copy, Check
 } from 'lucide-react';
 
 export default function AdminBvnUserQueue() {
@@ -23,13 +24,37 @@ export default function AdminBvnUserQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
+  // Filters
+  const [channelFilter, setChannelFilter] = useState('ALL'); // ALL, WEB, API
+
+  // Copy State
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyText = (text: string, id: string) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Helper to determine channel based on reference prefix
+  const getChannel = (reference: string) => {
+    if (!reference) return 'WEB'; // Fallback
+    if (reference.includes('DASH') || reference.startsWith('FW-')) {
+        return 'WEB';
+    }
+    return 'API';
+  };
+
   // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
     try {
       const res = await axios.get('/api/admin/requests/all?service=ANDROID_BVN_ENROLLMENT&status=ALL'); 
       if (res.data.status) {
-          setRequests(res.data.data);
+          // Sort by newest first
+          const sortedData = res.data.data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setRequests(sortedData);
       }
     } catch (error) {
         console.error("Failed to fetch queue", error);
@@ -44,21 +69,32 @@ export default function AdminBvnUserQueue() {
   useEffect(() => {
     if (selectedItem) {
         setRefundAmount(selectedItem.cost.toString());
+        setRejectionReason('');
+        setAdminNote('');
+        setShouldRefund(true);
     }
   }, [selectedItem]);
 
+  // Apply Filter
+  const filteredRequests = useMemo(() => {
+    if (channelFilter === 'ALL') return requests;
+    return requests.filter(req => getChannel(req.requestData?.reference || req.requestData?.clientReference || req.id) === channelFilter);
+  }, [requests, channelFilter]);
+
   // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
-    if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
+    if (action === 'REJECT' && !rejectionReason) return alert("Please enter a rejection reason.");
     
-    if(!confirm(`Confirm ${action} action?`)) return;
+    if(!confirm(`Are you sure you want to ${action} this request?`)) return;
 
     setProcessing(true);
     try {
       const formData = new FormData();
       formData.append('requestId', selectedItem.id);
       formData.append('action', action);
-      formData.append('note', action === 'REJECT' ? rejectionReason : (adminNote || 'Onboarding Successful'));
+      
+      const note = action === 'REJECT' ? rejectionReason : (adminNote || 'Onboarding Successful');
+      formData.append('note', note);
       
       if (action === 'REJECT') {
           const finalRefund = shouldRefund ? (parseFloat(refundAmount) || 0) : 0;
@@ -67,193 +103,269 @@ export default function AdminBvnUserQueue() {
 
       await axios.post('/api/admin/requests/action', formData);
       
-      alert(`Request ${action}D Successfully!`);
+      alert(`Success! Request has been ${action}D successfully.`);
       closeModal();
       fetchQueue();
     } catch (e: any) {
-      alert(e.response?.data?.error || "Action Failed");
+      alert(e.response?.data?.error || "Action Failed. Please try again.");
     } finally {
       setProcessing(false);
     }
   };
 
-  const closeModal = () => {
-    setSelectedItem(null);
-    setRejectionReason('');
-    setAdminNote('');
-    setShouldRefund(true);
+  const closeModal = () => setSelectedItem(null);
+
+  // Helper for Badges
+  const getChannelBadge = (ref: string) => {
+    const isDash = ref?.includes('DASH') || false;
+    return isDash ? (
+        <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded text-[9px] font-bold uppercase border border-slate-200 dark:border-slate-700 flex items-center gap-1 w-fit">
+            <Globe size={10} /> Dashboard
+        </span>
+    ) : (
+        <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-[9px] font-bold uppercase border border-purple-200 dark:border-purple-800/50 flex items-center gap-1 w-fit">
+            <Code size={10} /> API
+        </span>
+    );
+  };
+
+  // Reusable Copy Row Component
+  const CopyableRow = ({ label, value, id, isEmail = false }: { label: string, value: any, id: string, isEmail?: boolean }) => {
+    const strValue = String(value || 'N/A').trim();
+    const displayValue = isEmail || strValue === 'N/A' ? strValue : strValue.toUpperCase();
+    
+    return (
+        <div className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-700/50 last:border-0 group">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider max-w-[40%] truncate pr-2" title={label}>{label}</span>
+            <div className="flex items-center gap-3">
+                <span className={`font-bold text-slate-900 dark:text-slate-100 text-sm text-right max-w-[200px] truncate ${!isEmail ? 'uppercase tracking-wide' : ''}`} title={displayValue}>
+                    {displayValue}
+                </span>
+                {strValue !== 'N/A' && (
+                    <button 
+                        onClick={() => copyText(displayValue, id)} 
+                        className="text-slate-300 dark:text-slate-600 hover:text-teal-500 dark:hover:text-teal-400 transition-colors bg-white dark:bg-slate-800 p-1.5 rounded-md shadow-sm border border-slate-200 dark:border-slate-700"
+                        title="Copy to clipboard"
+                    >
+                        {copiedId === id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
-      <div className="flex justify-between items-center">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-            <Smartphone className="w-8 h-8 text-teal-600" /> BVN User Enrollment
+            <h1 className="text-2xl font-black flex items-center gap-2 text-slate-900 dark:text-white tracking-tight">
+            <Smartphone className="w-8 h-8 text-teal-600 dark:text-teal-400" /> BVN User Enrollment
             </h1>
-            <p className="text-slate-500 text-sm mt-1">NIBSS Agent Onboarding Requests</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Manage NIBSS Agent Onboarding Requests.</p>
         </div>
-        <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
-          <RefreshCw className="w-5 h-5 text-slate-600" />
+        <button onClick={fetchQueue} className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition shadow-sm self-start md:self-auto">
+          <RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </button>
       </div>
 
+      {/* FILTER & TOGGLE */}
+      <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl w-full md:w-fit border border-slate-200 dark:border-slate-700 shrink-0">
+          {['ALL', 'WEB', 'API'].map((chan) => (
+              <button
+                  key={chan}
+                  onClick={() => setChannelFilter(chan)}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold rounded-lg transition-all ${
+                      channelFilter === chan 
+                      ? 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm border border-slate-200 dark:border-slate-700' 
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+              >
+                  {chan === 'WEB' && <Globe size={14} />}
+                  {chan === 'API' && <Code size={14} />}
+                  {chan === 'ALL' ? 'All Channels' : chan === 'WEB' ? 'Dashboard Only' : 'API Only'}
+              </button>
+          ))}
+      </div>
+
       {/* TABLE */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm min-w-[1000px]">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Applicant Name</th>
-                <th className="px-6 py-4 font-medium">Parkway ID</th>
-                <th className="px-6 py-4 font-medium">Agent</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 text-right font-medium">Action</th>
+                <th className="px-6 py-4 font-bold">Date & Ref</th>
+                <th className="px-6 py-4 font-bold">Channel</th>
+                <th className="px-6 py-4 font-bold">Applicant Name</th>
+                <th className="px-6 py-4 font-bold">Parkway ID</th>
+                <th className="px-6 py-4 font-bold">Agent</th>
+                <th className="px-6 py-4 font-bold">Status</th>
+                <th className="px-6 py-4 text-right font-bold">Action</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
-                {requests.length === 0 ? (
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {filteredRequests.length === 0 ? (
                     <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                            No requests found.
+                        <td colSpan={7} className="px-6 py-16 text-center text-slate-500 dark:text-slate-400 font-medium">
+                            No onboarding requests found for the selected channel.
                         </td>
                     </tr>
                 ) : (
-                    requests.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 font-bold text-slate-800">
-                            {item.requestData?.first_name} {item.requestData?.last_name}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600 font-mono">
-                            {item.requestData?.parkway_wallet_id || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">
-                            <div className="flex flex-col">
-                                <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
-                                <span className="text-xs text-slate-400">{item.user?.email}</span>
-                            </div>
-                        </td>
-                        <td className="px-6 py-4">
-                            {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Approved</span>}
-                            {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Rejected</span>}
-                            {item.status === 'PROCESSING' && <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Processing</span>}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                        <button 
-                            onClick={() => setSelectedItem(item)} 
-                            className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
-                                item.status === 'PROCESSING' 
-                                ? 'bg-slate-900 text-white hover:bg-slate-800' 
-                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
-                        </button>
-                        </td>
-                    </tr>
-                    ))
+                    filteredRequests.map((item) => {
+                        const ref = item.requestData?.reference || item.requestData?.clientReference || item.id;
+                        return (
+                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                            <td className="px-6 py-4">
+                                <div className="flex flex-col">
+                                    <span className="text-slate-600 dark:text-slate-300 font-medium">{new Date(item.createdAt).toLocaleDateString()}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono mt-0.5">{ref}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                {getChannelBadge(ref)}
+                            </td>
+                            <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide text-xs">
+                                {item.requestData?.first_name} {item.requestData?.last_name}
+                            </td>
+                            <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-400 font-bold">
+                                {item.requestData?.parkway_wallet_id || '-'}
+                            </td>
+                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-slate-900 dark:text-white text-xs">{item.user?.firstName} {item.user?.lastName}</span>
+                                    <span className="text-[10px] text-slate-400">{item.user?.email}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                {item.status === 'COMPLETED' && <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex w-fit items-center gap-1 border border-green-200 dark:border-green-800/50"><CheckCircle2 size={12}/> Approved</span>}
+                                {item.status === 'FAILED' && <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex w-fit items-center gap-1 border border-red-200 dark:border-red-800/50"><XCircle size={12}/> Rejected</span>}
+                                {item.status === 'PROCESSING' && <span className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex w-fit items-center gap-1 border border-teal-200 dark:border-teal-800/50"><RefreshCw size={12} className="animate-spin"/> Pending</span>}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                            <button 
+                                onClick={() => setSelectedItem(item)} 
+                                className={`px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 ${
+                                    item.status === 'PROCESSING' 
+                                    ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-600/20' 
+                                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                {item.status === 'PROCESSING' ? 'Process' : 'View Data'}
+                            </button>
+                            </td>
+                        </tr>
+                        );
+                    })
                 )}
             </tbody>
             </table>
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* ADMIN MODAL */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-6xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-6xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             
             {/* Modal Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
+            <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4 sticky top-0 bg-white dark:bg-slate-900 z-10 pt-2">
               <div>
-                  <h3 className="font-bold text-xl text-slate-900">
-                      {selectedItem.status === 'PROCESSING' ? 'Process Agent Onboarding' : 'Request Details'}
-                  </h3>
-                  <p className="text-slate-500 text-xs">Ref: {selectedItem.requestData?.reference || 'N/A'} | ID: {selectedItem.id}</p>
+                 <h3 className="font-black text-2xl text-slate-900 dark:text-white tracking-tight mb-2">
+                     {selectedItem.status === 'PROCESSING' ? 'Process Agent Onboarding' : 'Onboarding Record'}
+                 </h3>
+                 <div className="flex flex-wrap items-center gap-3">
+                     {getChannelBadge(selectedItem.requestData?.reference || selectedItem.requestData?.clientReference || selectedItem.id)}
+                     <span className="text-slate-500 dark:text-slate-400 text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">Ref: {selectedItem.requestData?.reference || selectedItem.requestData?.clientReference || selectedItem.id}</span>
+                 </div>
               </div>
-              <button onClick={closeModal}><XCircle className="w-8 h-8 text-slate-300 hover:text-slate-500 transition-colors" /></button>
+              <button onClick={closeModal} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                  <XCircle size={24} />
+              </button>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* LEFT COLUMN: DATA */}
-                <div className="lg:col-span-2 space-y-6 text-sm h-full overflow-y-auto pr-2">
+                {/* LEFT COLUMN: COPYABLE DATA */}
+                <div className="lg:col-span-2 space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
                     
-                    {/* 1. AGENT INFO */}
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
-                            <User size={16} className="text-blue-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Submitting Agent</h4>
+                    {/* 1. AGENT INFO (COPYABLE) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <User size={18} className="text-slate-700 dark:text-slate-300" />
+                            <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Submitting Agent</h4>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-700">
-                            <div>
-                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Name</span>
-                                <span className="font-medium text-slate-900">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Email</span>
-                                <span className="font-medium text-slate-900">{selectedItem.user?.email}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Phone</span>
-                                <span className="font-medium text-slate-900">{selectedItem.user?.phoneNumber || 'N/A'}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-500 text-[10px] uppercase block font-semibold">Wallet Balance</span>
-                                <span className="font-bold text-green-700">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 p-2">
+                            <CopyableRow label="Agent Name" value={`${selectedItem.user?.firstName} ${selectedItem.user?.lastName}`} id="agent-name" />
+                            <CopyableRow label="Agent Email" value={selectedItem.user?.email} id="agent-email" isEmail />
+                            <CopyableRow label="Agent Phone" value={selectedItem.user?.phoneNumber} id="agent-phone" />
+                            <div className="flex justify-between items-center py-2.5 px-2">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Wallet Balance</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* 2. APPLICANT DETAILS */}
-                    <div className="bg-teal-50 p-5 rounded-xl border border-teal-100">
-                        <div className="flex items-center gap-2 mb-3 border-b border-teal-200 pb-2">
-                            <User size={16} className="text-teal-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Applicant Details</h4>
+                    {/* 2. APPLICANT DETAILS (COPYABLE) */}
+                    <div className="bg-teal-50 dark:bg-teal-900/10 p-5 rounded-2xl border border-teal-100 dark:border-teal-800/30">
+                        <div className="flex items-center gap-2 mb-4">
+                            <User size={18} className="text-teal-700 dark:text-teal-400" />
+                            <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Applicant Details</h4>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700">
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">First Name</span> <span className="text-slate-900">{selectedItem.requestData?.first_name}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Last Name</span> <span className="text-slate-900 font-bold">{selectedItem.requestData?.last_name}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Date of Birth</span> <span className="text-slate-900">{selectedItem.requestData?.date_of_birth}</span></p>
-                            
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Phone</span> <span className="text-slate-900">{selectedItem.requestData?.phone_number}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Email</span> <span className="text-slate-900">{selectedItem.requestData?.email}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">BVN</span> <span className="text-slate-900 font-mono bg-teal-100 px-2 rounded">{selectedItem.requestData?.bvn}</span></p>
-                        </div>
-                    </div>
-
-                    {/* 3. PARKWAY & BANKING */}
-                    <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
-                        <div className="flex items-center gap-2 mb-3 border-b border-purple-200 pb-2">
-                            <CreditCard size={16} className="text-purple-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Banking & Wallet</h4>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-700">
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Parkway Wallet ID</span> <span className="text-slate-900 font-bold font-mono">{selectedItem.requestData?.parkway_wallet_id}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Bank Name</span> <span className="text-slate-900">{selectedItem.requestData?.bank_name}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Account Number</span> <span className="text-slate-900 font-mono">{selectedItem.requestData?.account_number}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Account Name</span> <span className="text-slate-900">{selectedItem.requestData?.account_name}</span></p>
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-teal-100 dark:border-teal-800/50 p-2">
+                            <CopyableRow label="First Name" value={selectedItem.requestData?.first_name} id="app-first" />
+                            <CopyableRow label="Last Name" value={selectedItem.requestData?.last_name} id="app-last" />
+                            <CopyableRow label="Date of Birth" value={selectedItem.requestData?.date_of_birth} id="app-dob" />
+                            <CopyableRow label="Phone Number" value={selectedItem.requestData?.phone_number} id="app-phone" />
+                            <CopyableRow label="Email Address" value={selectedItem.requestData?.email} id="app-email" isEmail />
+                            <CopyableRow label="BVN Number" value={selectedItem.requestData?.bvn} id="app-bvn" />
                         </div>
                     </div>
 
-                    {/* 4. ADDRESS & LOCATION */}
-                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                        <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
-                            <MapPin size={16} className="text-slate-600" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Location Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {/* 3. PARKWAY & BANKING (COPYABLE) */}
+                        <div className="bg-purple-50 dark:bg-purple-900/10 p-5 rounded-2xl border border-purple-100 dark:border-purple-800/30 h-fit">
+                            <div className="flex items-center gap-2 mb-4">
+                                <CreditCard size={18} className="text-purple-700 dark:text-purple-400" />
+                                <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Banking & Wallet</h4>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-purple-800/50 p-2">
+                                <CopyableRow label="Parkway Wallet ID" value={selectedItem.requestData?.parkway_wallet_id} id="bank-parkway" />
+                                <CopyableRow label="Bank Name" value={selectedItem.requestData?.bank_name} id="bank-name" />
+                                <CopyableRow label="Account Number" value={selectedItem.requestData?.account_number} id="bank-acc" />
+                                <CopyableRow label="Account Name" value={selectedItem.requestData?.account_name} id="bank-acc-name" />
+                            </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-700">
-                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Home Address</span> <span className="text-slate-900">{selectedItem.requestData?.home_address}</span></p>
-                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Agent Location</span> <span className="text-slate-900">{selectedItem.requestData?.agent_location}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">State of Residence</span> <span className="text-slate-900">{selectedItem.requestData?.state_of_residence}</span></p>
-                            <p><span className="text-slate-600 text-xs uppercase block font-semibold">Local Govt</span> <span className="text-slate-900">{selectedItem.requestData?.local_government}</span></p>
-                            <p className="md:col-span-2"><span className="text-slate-600 text-xs uppercase block font-semibold">Senatorial District</span> <span className="text-slate-900">{selectedItem.requestData?.senatorial_district}</span></p>
+
+                        {/* 4. ADDRESS & LOCATION (COPYABLE) */}
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700/50 h-fit">
+                            <div className="flex items-center gap-2 mb-4">
+                                <MapPin size={18} className="text-slate-600 dark:text-slate-300" />
+                                <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Location Details</h4>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 p-2">
+                                <CopyableRow label="Home Address" value={selectedItem.requestData?.home_address} id="loc-home" />
+                                <CopyableRow label="Agent Location" value={selectedItem.requestData?.agent_location} id="loc-agent" />
+                                <CopyableRow label="State of Residence" value={selectedItem.requestData?.state_of_residence} id="loc-state" />
+                                <CopyableRow label="Local Govt" value={selectedItem.requestData?.local_government} id="loc-lga" />
+                                <CopyableRow label="Senatorial District" value={selectedItem.requestData?.senatorial_district} id="loc-senatorial" />
+                            </div>
                         </div>
                     </div>
+
+                    {/* RAW DATA DUMP */}
+                    <details className="group">
+                        <summary className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <Layers size={14} /> Toggle Raw JSON Payload
+                        </summary>
+                        <div className="bg-slate-900 p-4 rounded-xl mt-2 overflow-hidden">
+                            <pre className="text-[10px] text-emerald-400 overflow-x-auto font-mono custom-scrollbar pb-2">
+                                {JSON.stringify(selectedItem.requestData, null, 2)}
+                            </pre>
+                        </div>
+                    </details>
                 </div>
 
                 {/* RIGHT COLUMN: ACTIONS */}
@@ -261,21 +373,23 @@ export default function AdminBvnUserQueue() {
                     {selectedItem.status === 'PROCESSING' ? (
                         <>
                             {/* APPROVE BOX */}
-                            <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
-                                <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-                                    <CheckCircle2 className="text-green-600" size={20} /> Approve & Onboard
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 flex-1 flex flex-col justify-center">
+                                <h4 className="font-black text-slate-900 dark:text-white mb-5 flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3 uppercase tracking-wide text-sm">
+                                    <CheckCircle2 className="text-green-600 dark:text-green-500" size={20} /> Approve & Onboard
                                 </h4>
-                                <div className="space-y-4">
-                                    <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded">
-                                        Confirming this action marks the agent as successfully onboarded to NIBSS.
-                                    </p>
+                                <div className="space-y-5">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                        <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
+                                            Confirming this action marks the agent as successfully onboarded to NIBSS.
+                                        </p>
+                                    </div>
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note (Optional)</label>
+                                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Admin Note (Optional)</label>
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                                            className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none text-slate-900 dark:text-white" 
                                             placeholder="e.g. Account Created Successfully" 
                                             rows={3} 
                                         />
@@ -284,7 +398,7 @@ export default function AdminBvnUserQueue() {
                                     <button 
                                         onClick={() => handleAction('APPROVE')} 
                                         disabled={processing} 
-                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 shadow-md shadow-green-200"
+                                        className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/20 active:scale-95 transition-all"
                                     >
                                         {processing ? 'Processing...' : 'Confirm Approval'}
                                     </button>
@@ -292,39 +406,39 @@ export default function AdminBvnUserQueue() {
                             </div>
 
                             {/* REJECT BOX */}
-                            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
-                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline Request</h4>
-                                <div className="space-y-3">
+                            <div className="bg-red-50 dark:bg-red-900/10 p-6 rounded-2xl border border-red-200 dark:border-red-900/30 mt-4">
+                                <h4 className="font-bold text-red-700 dark:text-red-400 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest border-b border-red-100 dark:border-red-900/30 pb-2"><AlertTriangle size={16} /> Decline Request</h4>
+                                <div className="space-y-4">
                                     <input 
                                         value={rejectionReason} 
                                         onChange={e => setRejectionReason(e.target.value)} 
-                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
-                                        placeholder="Reason for rejection (Required)..." 
+                                        className="w-full p-3 bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800/50 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none text-slate-900 dark:text-white" 
+                                        placeholder="Required: Reason for rejection..." 
                                     />
                                     
                                     {/* REFUND CONTROLS */}
-                                    <div className="pt-2 border-t border-red-100">
-                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                    <div className="pt-2">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 dark:text-red-400 mb-3 cursor-pointer select-none">
                                             <input 
                                                 type="checkbox" 
                                                 checked={shouldRefund} 
                                                 onChange={e => setShouldRefund(e.target.checked)}
-                                                className="accent-red-600" 
+                                                className="w-4 h-4 accent-red-600 rounded" 
                                             />
-                                            Refund User?
+                                            Refund Wallet Balance?
                                         </label>
                                         
                                         {shouldRefund && (
-                                            <div>
-                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-red-100 dark:border-red-800/50">
+                                                <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest block mb-1.5">Amount to Refund (₦)</label>
                                                 <input 
                                                     type="number" 
                                                     value={refundAmount} 
                                                     onChange={e => setRefundAmount(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white font-mono font-bold"
                                                 />
-                                                <p className="text-[10px] text-slate-400 mt-1">
-                                                    Original Cost: ₦{Number(selectedItem.cost).toLocaleString()}
+                                                <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                                                    Original Charge: ₦{Number(selectedItem.cost).toLocaleString()}
                                                 </p>
                                             </div>
                                         )}
@@ -333,31 +447,39 @@ export default function AdminBvnUserQueue() {
                                     <button 
                                         onClick={() => handleAction('REJECT')} 
                                         disabled={processing || !rejectionReason} 
-                                        className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
+                                        className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-red-600/20 active:scale-95 transition-all"
                                     >
-                                        Reject
+                                        Reject & Close
                                     </button>
                                 </div>
                             </div>
                         </>
                     ) : (
                         // READ ONLY VIEW
-                        <div className={`p-8 rounded-xl border flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                        <div className={`p-8 rounded-3xl border-2 flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
                             {selectedItem.status === 'COMPLETED' ? (
                                 <>
-                                    <CheckCircle2 size={64} className="text-green-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-green-800">Agent Onboarded</h3>
-                                    <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
-                                    <div className="mt-4 p-3 bg-white/60 rounded border border-green-200 text-xs text-green-800">
-                                        <strong>Admin Note:</strong> {selectedItem.adminNote}
+                                    <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-5">
+                                        <CheckCircle2 size={40} className="text-green-600 dark:text-green-500" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-green-800 dark:text-green-400 mb-1">Agent Onboarded</h3>
+                                    <p className="text-green-600 dark:text-green-500/80 text-sm font-medium mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    
+                                    <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-xl border border-green-200 dark:border-green-800/30 text-sm text-slate-800 dark:text-slate-200 font-medium w-full text-left">
+                                        <p className="text-[10px] text-green-600 dark:text-green-500 font-bold uppercase tracking-widest mb-1.5">Admin Note</p>
+                                        {selectedItem.adminNote}
                                     </div>
                                 </>
                             ) : (
                                 <>
-                                    <XCircle size={64} className="text-red-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
-                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
-                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
+                                    <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-5">
+                                        <XCircle size={40} className="text-red-600 dark:text-red-500" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-red-800 dark:text-red-400 mb-4">Request Declined</h3>
+                                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-200 dark:border-red-900/50 text-left w-full">
+                                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest mb-1">Rejection Reason</p>
+                                        <p className="text-slate-700 dark:text-slate-300 text-sm font-medium">{selectedItem.adminNote}</p>
+                                    </div>
                                 </>
                             )}
                         </div>
