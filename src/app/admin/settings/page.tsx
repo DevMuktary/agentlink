@@ -39,7 +39,7 @@ export default function ServiceSettings() {
   const handleUpdate = async (
       type: 'SERVICE' | 'DATAPLAN', 
       item: any, 
-      updates: { dashboardPrice: number, apiPrice: number, isDashboardActive: boolean, isApiActive: boolean }
+      updates: { dashboardPrice: number, apiPrice: number, isActive: boolean }
   ) => {
     setSavingId(item.id);
     try {
@@ -74,9 +74,9 @@ export default function ServiceSettings() {
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div>
                 <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-                    <Settings className="w-8 h-8 text-blue-600 dark:text-blue-400"/> Service Matrix
+                    <Settings className="w-8 h-8 text-blue-600 dark:text-blue-400"/> Service Pricing Matrix
                 </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage pricing and toggle service availability specifically for Dashboard or API.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage pricing and toggle service availability across channels.</p>
             </div>
             
             <div className="relative">
@@ -102,7 +102,7 @@ export default function ServiceSettings() {
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                 >
-                    <Globe size={14} /> Dashboard Config
+                    <Globe size={14} /> Dashboard Pricing
                 </button>
                 <button
                     onClick={() => setPriceMode('API')}
@@ -112,12 +112,12 @@ export default function ServiceSettings() {
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                 >
-                    <Code size={14} /> API Config
+                    <Code size={14} /> API Pricing
                 </button>
             </div>
             
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-2">
-                Currently Editing: <span className={priceMode === 'DASHBOARD' ? 'text-blue-500' : 'text-purple-500'}>{priceMode}</span>
+                Currently Editing: <span className={priceMode === 'DASHBOARD' ? 'text-blue-500' : 'text-purple-500'}>{priceMode} Prices</span>
             </p>
         </div>
 
@@ -132,9 +132,7 @@ export default function ServiceSettings() {
                         <tr>
                             <th className="px-6 py-4 font-bold">Service Name</th>
                             <th className="px-6 py-4 font-bold">Price Configuration (₦)</th>
-                            <th className="px-6 py-4 font-bold text-right">
-                                {priceMode === 'DASHBOARD' ? 'Dashboard Status' : 'API Status'}
-                            </th>
+                            <th className="px-6 py-4 font-bold text-right">Global Status</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -160,9 +158,7 @@ export default function ServiceSettings() {
                         <tr>
                             <th className="px-6 py-4 font-bold">Plan Name</th>
                             <th className="px-6 py-4 font-bold">Price Configuration (₦)</th>
-                            <th className="px-6 py-4 font-bold text-right">
-                                {priceMode === 'DASHBOARD' ? 'Dashboard Status' : 'API Status'}
-                            </th>
+                            <th className="px-6 py-4 font-bold text-right">Global Status</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -182,30 +178,25 @@ export default function ServiceSettings() {
 
 // --- ROW COMPONENT ---
 function Row({ item, type, priceMode, onUpdate, savingId }: any) {
-    // Pricing States
+    // Fallback to item.price if the specific channel price isn't set yet (legacy support)
     const [dashPrice, setDashPrice] = useState(item.dashboardPrice ?? item.price ?? 0);
     const [apiPrice, setApiPrice] = useState(item.apiPrice ?? item.price ?? 0);
     
-    // Status States (Fallback to legacy `isActive` if the new specific fields aren't set yet)
-    const isDashboardActive = item.isDashboardActive ?? item.isActive ?? true;
-    const isApiActive = item.isApiActive ?? item.isActive ?? true;
-
     useEffect(() => {
         setDashPrice(item.dashboardPrice ?? item.price ?? 0);
         setApiPrice(item.apiPrice ?? item.price ?? 0);
     }, [item.dashboardPrice, item.apiPrice, item.price]);
 
     // Determine current active input based on mode
-    const currentPriceVal = priceMode === 'DASHBOARD' ? dashPrice : apiPrice;
-    const setPriceVal = priceMode === 'DASHBOARD' ? setDashPrice : setApiPrice;
-    const currentActiveVal = priceMode === 'DASHBOARD' ? isDashboardActive : isApiActive;
+    const currentVal = priceMode === 'DASHBOARD' ? dashPrice : apiPrice;
+    const setVal = priceMode === 'DASHBOARD' ? setDashPrice : setApiPrice;
     
     // Check if the current visible price has been modified
-    const originalPriceVal = priceMode === 'DASHBOARD' 
+    const originalVal = priceMode === 'DASHBOARD' 
         ? (item.dashboardPrice ?? item.price ?? 0) 
         : (item.apiPrice ?? item.price ?? 0);
         
-    const hasChanged = Number(currentPriceVal) !== Number(originalPriceVal);
+    const hasChanged = Number(currentVal) !== Number(originalVal);
     const isSaving = savingId === item.id;
 
     // Handle Saving Pricing Update
@@ -213,18 +204,16 @@ function Row({ item, type, priceMode, onUpdate, savingId }: any) {
         onUpdate(type, item, {
             dashboardPrice: Number(dashPrice),
             apiPrice: Number(apiPrice),
-            isDashboardActive: isDashboardActive,
-            isApiActive: isApiActive
+            isActive: item.isActive
         });
     };
 
-    // Handle Toggling Specific Service Channel
+    // Handle Toggling Service
     const handleToggleActive = () => {
         onUpdate(type, item, {
             dashboardPrice: Number(dashPrice),
             apiPrice: Number(apiPrice),
-            isDashboardActive: priceMode === 'DASHBOARD' ? !isDashboardActive : isDashboardActive,
-            isApiActive: priceMode === 'API' ? !isApiActive : isApiActive
+            isActive: !item.isActive
         });
     };
 
@@ -244,8 +233,8 @@ function Row({ item, type, priceMode, onUpdate, savingId }: any) {
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
                         <input 
                             type="number" 
-                            value={currentPriceVal} 
-                            onChange={e => setPriceVal(e.target.value)} 
+                            value={currentVal} 
+                            onChange={e => setVal(e.target.value)} 
                             className={`w-32 pl-7 pr-3 py-2 bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white font-mono font-bold outline-none transition-all shadow-sm ${
                                 priceMode === 'DASHBOARD' 
                                 ? 'focus:ring-2 focus:ring-blue-500 border-slate-200 dark:border-slate-700' 
@@ -270,14 +259,14 @@ function Row({ item, type, priceMode, onUpdate, savingId }: any) {
                     onClick={handleToggleActive} 
                     disabled={isSaving}
                     className={`text-3xl transition-all active:scale-90 ${
-                        currentActiveVal 
+                        item.isActive 
                         ? 'text-emerald-500 dark:text-emerald-400 drop-shadow-sm' 
                         : 'text-slate-300 dark:text-slate-600'
                     }`}
-                    title={currentActiveVal ? `Deactivate on ${priceMode}` : `Activate on ${priceMode}`}
+                    title={item.isActive ? "Deactivate Globally" : "Activate Globally"}
                 >
                     {isSaving ? <Loader2 className="w-7 h-7 animate-spin text-slate-400 inline-block" /> : (
-                        currentActiveVal ? <ToggleRight className="w-9 h-9 inline-block" /> : <ToggleLeft className="w-9 h-9 inline-block" />
+                        item.isActive ? <ToggleRight className="w-9 h-9 inline-block" /> : <ToggleLeft className="w-9 h-9 inline-block" />
                     )}
                 </button>
             </td>
