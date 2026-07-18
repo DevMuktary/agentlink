@@ -58,9 +58,6 @@ model Service {
   dashboardPrice  Decimal     @default(0.00) @db.Decimal(10, 2)
   apiPrice        Decimal     @default(0.00) @db.Decimal(10, 2)
 
-  isDashboardActive Boolean @default(true)
-  isApiActive       Boolean @default(true)
-  
   isActive        Boolean     @default(true)
 
   updatedAt       DateTime    @updatedAt
@@ -80,9 +77,6 @@ model DataPlan {
   dashboardPrice  Decimal  @default(0.00) @db.Decimal(10, 2)
   apiPrice        Decimal  @default(0.00) @db.Decimal(10, 2)
 
-  isDashboardActive Boolean @default(true)
-  isApiActive       Boolean @default(true)
-  
   productCode     String   @unique 
   validity        String?  
   isActive        Boolean  @default(true)
