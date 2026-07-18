@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Search, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Hash, Download, Layers
+  AlertTriangle, User, Hash, Download, Layers,
+  Globe, Code, Copy, Check, ImageIcon
 } from 'lucide-react';
 
 export default function AdminBvnRetrievalQueue() {
@@ -23,6 +24,28 @@ export default function AdminBvnRetrievalQueue() {
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [shouldRefund, setShouldRefund] = useState(true);
 
+  // Filters
+  const [channelFilter, setChannelFilter] = useState('ALL'); // ALL, WEB, API
+
+  // Copy State
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyText = (text: string, id: string) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Helper to determine channel based on reference
+  const getChannel = (reference: string) => {
+    if (!reference) return 'WEB'; // Fallback
+    if (reference.includes('DASH') || reference.startsWith('FW-')) {
+        return 'WEB';
+    }
+    return 'API';
+  };
+
   // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
@@ -33,7 +56,6 @@ export default function AdminBvnRetrievalQueue() {
         '/api/admin/requests/all?service=BVN_RETRIEVAL_CRM&status=ALL',
       ];
 
-      // Robust fetching
       const results = await Promise.allSettled(endpoints.map(ep => axios.get(ep)));
       const combined: any[] = [];
       results.forEach(res => {
@@ -65,7 +87,13 @@ export default function AdminBvnRetrievalQueue() {
     }
   }, [selectedItem]);
 
-  // 2. Handle Action (UPDATED LOGIC HERE)
+  // Apply Filter
+  const filteredRequests = useMemo(() => {
+    if (channelFilter === 'ALL') return requests;
+    return requests.filter(req => getChannel(req.requestData?.clientReference || req.id) === channelFilter);
+  }, [requests, channelFilter]);
+
+  // 2. Handle Action
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
     if (action === 'APPROVE') {
         if (!retrievedBVN && !resultFile) return alert("Please enter the Recovered BVN or upload a slip.");
@@ -73,7 +101,7 @@ export default function AdminBvnRetrievalQueue() {
     }
     if (action === 'REJECT' && !rejectionReason) return alert("Enter a rejection reason.");
     
-    if(!confirm(`Confirm ${action} action?`)) return;
+    if(!confirm(`Are you sure you want to ${action} this request?`)) return;
 
     setProcessing(true);
     try {
@@ -82,10 +110,8 @@ export default function AdminBvnRetrievalQueue() {
       formData.append('action', action);
       
       if (action === 'APPROVE') {
-          // Send Note separate from Data
           formData.append('note', adminNote || 'Retrieval Successful');
           
-          // FIX: Send BVN specifically so API saves it to responseData
           if (retrievedBVN) {
               formData.append('result_text', retrievedBVN); 
           }
@@ -101,200 +127,267 @@ export default function AdminBvnRetrievalQueue() {
 
       await axios.post('/api/admin/requests/action', formData);
       
-      alert(`Request ${action}D Successfully!`);
+      alert(`Success! Request has been ${action}D successfully.`);
       closeModal();
       fetchQueue();
     } catch (e: any) {
-      alert(e.response?.data?.error || "Action Failed");
+      alert(e.response?.data?.error || "Action Failed. Please try again.");
     } finally {
       setProcessing(false);
     }
   };
 
-  const closeModal = () => {
-    setSelectedItem(null);
+  const closeModal = () => setSelectedItem(null);
+
+  // Helpers for Badges
+  const getTypeBadge = (type: string) => {
+      if (type.includes('PHONE')) return <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-bold uppercase border border-blue-200 dark:border-blue-800/50">Phone Retrieval</span>;
+      if (type.includes('CRM')) return <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded text-[9px] font-bold uppercase border border-purple-200 dark:border-purple-800/50">CRM Search</span>;
+      return <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded text-[9px] uppercase border border-gray-200 dark:border-gray-700">Retrieval</span>;
   };
 
-  const getTypeBadge = (type: string) => {
-      if (type.includes('PHONE')) return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-blue-200">Phone Retrieval</span>;
-      if (type.includes('CRM')) return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-purple-200">CRM Search</span>;
-      return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] uppercase">Retrieval</span>;
+  const getChannelBadge = (ref: string) => {
+    const isDash = ref?.includes('DASH') || false;
+    return isDash ? (
+        <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded text-[9px] font-bold uppercase border border-slate-200 dark:border-slate-700 flex items-center gap-1 w-fit">
+            <Globe size={10} /> Dashboard
+        </span>
+    ) : (
+        <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-[9px] font-bold uppercase border border-purple-200 dark:border-purple-800/50 flex items-center gap-1 w-fit">
+            <Code size={10} /> API
+        </span>
+    );
+  };
+
+  // Reusable Copy Row Component
+  const CopyableRow = ({ label, value, id, isEmail = false }: { label: string, value: any, id: string, isEmail?: boolean }) => {
+    const strValue = String(value || 'N/A').trim();
+    const displayValue = isEmail || strValue === 'N/A' ? strValue : strValue.toUpperCase();
+    
+    return (
+        <div className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-700/50 last:border-0 group">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider max-w-[40%] truncate pr-2" title={label}>{label}</span>
+            <div className="flex items-center gap-3">
+                <span className={`font-bold text-slate-900 dark:text-slate-100 text-sm text-right max-w-[200px] truncate ${!isEmail ? 'uppercase tracking-wide' : ''}`} title={displayValue}>
+                    {displayValue}
+                </span>
+                {strValue !== 'N/A' && (
+                    <button 
+                        onClick={() => copyText(displayValue, id)} 
+                        className="text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors bg-white dark:bg-slate-800 p-1.5 rounded-md shadow-sm border border-slate-200 dark:border-slate-700"
+                        title="Copy to clipboard"
+                    >
+                        {copiedId === id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
   };
 
   if (loading) return <GlobalLoader />;
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
-      <div className="flex justify-between items-center">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-            <Search className="w-8 h-8 text-indigo-600" /> BVN Retrieval
+            <h1 className="text-2xl font-black flex items-center gap-2 text-slate-900 dark:text-white tracking-tight">
+            <Search className="w-8 h-8 text-indigo-600 dark:text-indigo-400" /> BVN Retrieval
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Process lost BVN recovery requests</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Process lost BVN recovery requests.</p>
         </div>
-        <button onClick={fetchQueue} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full transition shadow-sm">
-          <RefreshCw className="w-5 h-5 text-slate-600" />
+        <button onClick={fetchQueue} className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition shadow-sm self-start md:self-auto">
+          <RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </button>
       </div>
 
+      {/* FILTER & TOGGLE */}
+      <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl w-full md:w-fit border border-slate-200 dark:border-slate-700 shrink-0">
+          {['ALL', 'WEB', 'API'].map((chan) => (
+              <button
+                  key={chan}
+                  onClick={() => setChannelFilter(chan)}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-bold rounded-lg transition-all ${
+                      channelFilter === chan 
+                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-700' 
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+              >
+                  {chan === 'WEB' && <Globe size={14} />}
+                  {chan === 'API' && <Code size={14} />}
+                  {chan === 'ALL' ? 'All Channels' : chan === 'WEB' ? 'Dashboard Only' : 'API Only'}
+              </button>
+          ))}
+      </div>
+
       {/* TABLE */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm min-w-[1000px]">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Search Criteria</th>
-                <th className="px-6 py-4 font-medium">Agent</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 text-right font-medium">Action</th>
+                <th className="px-6 py-4 font-bold">Date & Ref</th>
+                <th className="px-6 py-4 font-bold">Channel & Type</th>
+                <th className="px-6 py-4 font-bold">Search Criteria</th>
+                <th className="px-6 py-4 font-bold">Agent</th>
+                <th className="px-6 py-4 font-bold">Status</th>
+                <th className="px-6 py-4 text-right font-bold">Action</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 whitespace-nowrap">
-                {requests.length === 0 ? (
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {filteredRequests.length === 0 ? (
                     <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                            No retrieval requests found.
+                        <td colSpan={6} className="px-6 py-16 text-center text-slate-500 dark:text-slate-400 font-medium">
+                            No retrieval requests found for the selected channel.
                         </td>
                     </tr>
                 ) : (
-                    requests.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{getTypeBadge(item.serviceType)}</td>
-                        <td className="px-6 py-4 font-mono text-slate-700 font-bold">
-                            {item.requestData?.phoneNumber || item.requestData?.phone || item.requestData?.name || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">
-                            <div className="flex flex-col">
-                                <span className="font-medium text-slate-900">{item.user?.firstName} {item.user?.lastName}</span>
-                                <span className="text-xs text-slate-400">{item.user?.email}</span>
-                            </div>
-                        </td>
-                        <td className="px-6 py-4">
-                            {item.status === 'COMPLETED' && <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><CheckCircle2 size={12}/> Found</span>}
-                            {item.status === 'FAILED' && <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><XCircle size={12}/> Not Found</span>}
-                            {item.status === 'PROCESSING' && <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold flex w-fit items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Searching</span>}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                        <button 
-                            onClick={() => setSelectedItem(item)} 
-                            className={`px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all ${
-                                item.status === 'PROCESSING' 
-                                ? 'bg-slate-900 text-white hover:bg-slate-800' 
-                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            {item.status === 'PROCESSING' ? 'Process' : 'View Details'}
-                        </button>
-                        </td>
-                    </tr>
-                    ))
+                    filteredRequests.map((item) => {
+                        const ref = item.requestData?.clientReference || item.id;
+                        return (
+                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                            <td className="px-6 py-4">
+                                <div className="flex flex-col">
+                                    <span className="text-slate-600 dark:text-slate-300 font-medium">{new Date(item.createdAt).toLocaleDateString()}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono mt-0.5">{ref}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 flex flex-col gap-1.5 items-start">
+                                {getChannelBadge(ref)}
+                                {getTypeBadge(item.serviceType)}
+                            </td>
+                            <td className="px-6 py-4 font-mono text-slate-800 dark:text-slate-200 font-bold tracking-wide">
+                                {item.requestData?.phoneNumber || item.requestData?.phone || item.requestData?.name || '-'}
+                            </td>
+                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-slate-900 dark:text-white text-xs">{item.user?.firstName} {item.user?.lastName}</span>
+                                    <span className="text-[10px] text-slate-400">{item.user?.email}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                {item.status === 'COMPLETED' && <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex w-fit items-center gap-1 border border-green-200 dark:border-green-800/50"><CheckCircle2 size={12}/> Found</span>}
+                                {item.status === 'FAILED' && <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex w-fit items-center gap-1 border border-red-200 dark:border-red-800/50"><XCircle size={12}/> Not Found</span>}
+                                {item.status === 'PROCESSING' && <span className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex w-fit items-center gap-1 border border-indigo-200 dark:border-indigo-800/50"><RefreshCw size={12} className="animate-spin"/> Searching</span>}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                            <button 
+                                onClick={() => setSelectedItem(item)} 
+                                className={`px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 ${
+                                    item.status === 'PROCESSING' 
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20' 
+                                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                {item.status === 'PROCESSING' ? 'Process' : 'View Data'}
+                            </button>
+                            </td>
+                        </tr>
+                        );
+                    })
                 )}
             </tbody>
             </table>
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* ADMIN MODAL */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-5xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-6xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             
             {/* Modal Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
-              <div className="flex items-center gap-3">
-                  <div>
-                    <h3 className="font-bold text-xl text-slate-900">
-                        {selectedItem.status === 'PROCESSING' ? 'Process Retrieval' : 'Request Details'}
-                    </h3>
-                    <p className="text-slate-500 text-xs">ID: {selectedItem.id}</p>
-                  </div>
-                  {getTypeBadge(selectedItem.serviceType)}
+            <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4 sticky top-0 bg-white dark:bg-slate-900 z-10 pt-2">
+              <div>
+                 <h3 className="font-black text-2xl text-slate-900 dark:text-white tracking-tight mb-2">
+                     {selectedItem.status === 'PROCESSING' ? 'Process Retrieval Request' : 'Retrieval Record'}
+                 </h3>
+                 <div className="flex flex-wrap items-center gap-3">
+                     {getChannelBadge(selectedItem.requestData?.clientReference || selectedItem.id)}
+                     {getTypeBadge(selectedItem.serviceType)}
+                     <span className="text-slate-500 dark:text-slate-400 text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">Ref: {selectedItem.requestData?.clientReference || selectedItem.id}</span>
+                 </div>
               </div>
-              <button onClick={closeModal}><XCircle className="w-8 h-8 text-slate-300 hover:text-slate-500 transition-colors" /></button>
+              <button onClick={closeModal} className="p-2 bg-slate-50 dark:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                  <XCircle size={24} />
+              </button>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* LEFT COLUMN: DATA */}
-                <div className="space-y-6 text-sm h-full overflow-y-auto pr-2">
+                {/* LEFT COLUMN: COPYABLE DATA */}
+                <div className="space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
                     
-                    {/* AGENT INFO */}
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        <div className="flex items-center gap-2 mb-3 border-b border-blue-200 pb-2">
-                            <User size={16} className="text-blue-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Agent Information</h4>
+                    {/* AGENT INFO (COPYABLE) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <User size={18} className="text-slate-700 dark:text-slate-300" />
+                            <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Agent Information</h4>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-slate-700">
-                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Name</span> <span className="font-medium text-slate-900">{selectedItem.user?.firstName} {selectedItem.user?.lastName}</span></p>
-                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Email</span> <span className="font-medium text-slate-900">{selectedItem.user?.email}</span></p>
-                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Phone</span> <span className="font-medium text-slate-900">{selectedItem.user?.phoneNumber || 'N/A'}</span></p>
-                            <p><span className="text-slate-500 text-[10px] uppercase block font-semibold">Wallet Balance</span> <span className="font-bold text-green-700">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span></p>
-                        </div>
-                    </div>
-
-                    {/* SEARCH PARAMETERS */}
-                    <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
-                        <div className="flex items-center gap-2 mb-3 border-b border-indigo-200 pb-2">
-                            <Search size={16} className="text-indigo-700" />
-                            <h4 className="font-bold uppercase text-xs tracking-wider text-slate-900">Search Criteria</h4>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 gap-4 text-slate-700">
-                            {selectedItem.requestData?.phoneNumber && (
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Phone Number</span>
-                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-indigo-200">
-                                        <span className="font-mono font-bold text-xl text-slate-900 tracking-widest">
-                                            {selectedItem.requestData?.phoneNumber}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {selectedItem.requestData?.name && (
-                                <div>
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-1">Full Name</span>
-                                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-indigo-200">
-                                        <span className="font-bold text-lg text-slate-900 uppercase">
-                                            {selectedItem.requestData?.name}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                            
-                             {/* CRM Screenshot */}
-                             {selectedItem.requestData?.screenshotUrl && (
-                                <div className="mt-4">
-                                    <span className="text-slate-500 text-xs uppercase block font-semibold mb-2">CRM Proof</span>
-                                    <a href={selectedItem.requestData.screenshotUrl} target="_blank" className="block w-full h-32 bg-slate-100 rounded border border-indigo-200 overflow-hidden relative group">
-                                        <img src={selectedItem.requestData.screenshotUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition">
-                                            <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">View Image</span>
-                                        </div>
-                                    </a>
-                                </div>
-                            )}
-
-                            {/* Show full raw data if complex */}
-                            <div className="mt-4 pt-4 border-t border-indigo-200">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold mb-2 block">All Submitted Data</span>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
-                                        if (typeof value === 'object' || !value || key === 'phoneNumber' || key === 'name' || key.includes('Url')) return null;
-                                        return (
-                                            <div key={key} className="flex justify-between text-xs">
-                                                <span className="text-slate-500 capitalize">{key.replace(/_/g, ' ')}:</span>
-                                                <span className="text-slate-900 font-mono font-medium">{String(value)}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 p-2">
+                            <CopyableRow label="Agent Name" value={`${selectedItem.user?.firstName} ${selectedItem.user?.lastName}`} id="agent-name" />
+                            <CopyableRow label="Agent Email" value={selectedItem.user?.email} id="agent-email" isEmail />
+                            <CopyableRow label="Agent Phone" value={selectedItem.user?.phoneNumber} id="agent-phone" />
+                            <div className="flex justify-between items-center py-2.5 px-2">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Wallet Balance</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
+
+                    {/* SEARCH PARAMETERS (COPYABLE) */}
+                    <div className="bg-indigo-50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Search size={18} className="text-indigo-700 dark:text-indigo-400" />
+                            <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Search Criteria</h4>
+                        </div>
+                        
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-800/50 p-2">
+                            {selectedItem.requestData?.phoneNumber && (
+                                <CopyableRow label="Phone Number" value={selectedItem.requestData.phoneNumber} id="req-phone" />
+                            )}
+                            {selectedItem.requestData?.name && (
+                                <CopyableRow label="Full Name" value={selectedItem.requestData.name} id="req-name" />
+                            )}
+                            
+                            {/* Render any additional generic data sent during retrieval */}
+                            {Object.entries(selectedItem.requestData || {}).map(([key, value]) => {
+                                if (typeof value === 'object' || !value || key === 'phoneNumber' || key === 'phone' || key === 'name' || key.includes('Url')) return null;
+                                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                return (
+                                    <CopyableRow key={key} label={label} value={String(value)} id={`req-${key}`} />
+                                );
+                            })}
+                        </div>
+                        
+                        {/* CRM Screenshot Viewer */}
+                        {selectedItem.requestData?.screenshotUrl && (
+                            <div className="mt-4 pt-4 border-t border-indigo-200 dark:border-indigo-800/30">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold mb-2 block tracking-widest flex items-center gap-1">
+                                    <ImageIcon size={12} /> CRM Proof
+                                </span>
+                                <a href={selectedItem.requestData.screenshotUrl} target="_blank" className="block w-full h-36 bg-slate-100 dark:bg-slate-800 rounded-xl border border-indigo-200 dark:border-indigo-800/50 overflow-hidden relative group shadow-sm">
+                                    <img src={selectedItem.requestData.screenshotUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-300" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 backdrop-blur-sm">
+                                        <span className="text-white text-xs font-bold bg-indigo-600 px-4 py-2 rounded-lg shadow-lg">View Full Image</span>
+                                    </div>
+                                </a>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* RAW DATA DUMP */}
+                    <details className="group">
+                        <summary className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <Layers size={14} /> Toggle Raw JSON Payload
+                        </summary>
+                        <div className="bg-slate-900 p-4 rounded-xl mt-2 overflow-hidden">
+                            <pre className="text-[10px] text-emerald-400 overflow-x-auto font-mono custom-scrollbar pb-2">
+                                {JSON.stringify(selectedItem.requestData, null, 2)}
+                            </pre>
+                        </div>
+                    </details>
                 </div>
 
                 {/* RIGHT COLUMN: ACTIONS */}
@@ -302,17 +395,17 @@ export default function AdminBvnRetrievalQueue() {
                     {selectedItem.status === 'PROCESSING' ? (
                         <>
                             {/* APPROVE BOX */}
-                            <div className="bg-white p-6 rounded-xl border-2 border-slate-100 shadow-lg flex-1">
-                                <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-                                    <CheckCircle2 className="text-green-600" size={20} /> Found & Deliver
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 flex-1 flex flex-col justify-center">
+                                <h4 className="font-black text-slate-900 dark:text-white mb-5 flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3 uppercase tracking-wide text-sm">
+                                    <CheckCircle2 className="text-green-600 dark:text-green-500" size={20} /> Found & Deliver
                                 </h4>
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Recovered BVN (Required)</label>
-                                        <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500">
-                                            <div className="bg-slate-50 px-3 py-3 border-r border-slate-300 text-slate-500">
-                                                <Hash size={16} />
+                                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Recovered BVN (Required)</label>
+                                        <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-green-500 transition-all bg-white dark:bg-slate-900 shadow-sm">
+                                            <div className="bg-slate-50 dark:bg-slate-800 px-3.5 py-3.5 border-r border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500">
+                                                <Hash size={18} />
                                             </div>
                                             <input 
                                                 type="text" 
@@ -321,27 +414,27 @@ export default function AdminBvnRetrievalQueue() {
                                                     const val = e.target.value.replace(/\D/g, '').slice(0, 11);
                                                     setRetrievedBVN(val);
                                                 }}
-                                                className="w-full p-3 text-sm outline-none font-mono tracking-widest font-bold text-slate-900"
+                                                className="w-full p-3.5 text-sm outline-none font-mono tracking-widest font-bold text-slate-900 dark:text-white bg-transparent"
                                                 placeholder="Enter 11-digit BVN" 
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Upload Slip (Optional)</label>
+                                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Upload Slip (Optional)</label>
                                         <input 
                                             type="file" 
                                             onChange={(e) => setResultFile(e.target.files?.[0] || null)} 
-                                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" 
+                                            className="block w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 dark:file:bg-indigo-900/30 file:text-indigo-700 dark:file:text-indigo-400 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900/50 cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-1" 
                                         />
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-700 mb-2 uppercase">Admin Note</label>
+                                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Admin Note (Optional)</label>
                                         <textarea 
                                             value={adminNote} 
                                             onChange={e => setAdminNote(e.target.value)} 
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                                            className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none text-slate-900 dark:text-white" 
                                             placeholder="Optional comments..." 
                                             rows={2} 
                                         />
@@ -350,45 +443,48 @@ export default function AdminBvnRetrievalQueue() {
                                     <button 
                                         onClick={() => handleAction('APPROVE')} 
                                         disabled={processing || (!retrievedBVN && !resultFile)} 
-                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-200"
+                                        className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/20 active:scale-95 transition-all"
                                     >
-                                        {processing ? 'Processing...' : 'Complete & Send'}
+                                        {processing ? 'Processing...' : 'Complete & Send Data'}
                                     </button>
                                 </div>
                             </div>
 
                             {/* REJECT BOX */}
-                            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
-                                <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm"><AlertTriangle size={16} /> Decline (Not Found)</h4>
-                                <div className="space-y-3">
+                            <div className="bg-red-50 dark:bg-red-900/10 p-6 rounded-2xl border border-red-200 dark:border-red-900/30 mt-4">
+                                <h4 className="font-bold text-red-700 dark:text-red-400 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest border-b border-red-100 dark:border-red-900/30 pb-2"><AlertTriangle size={16} /> Decline (Not Found)</h4>
+                                <div className="space-y-4">
                                     <input 
                                         value={rejectionReason} 
                                         onChange={e => setRejectionReason(e.target.value)} 
-                                        className="w-full p-3 bg-white border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-200 outline-none" 
-                                        placeholder="Reason (e.g. Invalid Details)..." 
+                                        className="w-full p-3 bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800/50 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none text-slate-900 dark:text-white" 
+                                        placeholder="Required: Reason (e.g. Invalid Details)..." 
                                     />
                                     
                                     {/* REFUND CONTROLS */}
-                                    <div className="pt-2 border-t border-red-100">
-                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 mb-2">
+                                    <div className="pt-2">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-red-800 dark:text-red-400 mb-3 cursor-pointer select-none">
                                             <input 
                                                 type="checkbox" 
                                                 checked={shouldRefund} 
                                                 onChange={e => setShouldRefund(e.target.checked)}
-                                                className="accent-red-600" 
+                                                className="w-4 h-4 accent-red-600 rounded" 
                                             />
-                                            Refund User?
+                                            Refund Wallet Balance?
                                         </label>
                                         
                                         {shouldRefund && (
-                                            <div>
-                                                <label className="text-[10px] text-red-500 uppercase block mb-1">Refund Amount (₦)</label>
+                                            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-red-100 dark:border-red-800/50">
+                                                <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest block mb-1.5">Amount to Refund (₦)</label>
                                                 <input 
                                                     type="number" 
                                                     value={refundAmount} 
                                                     onChange={e => setRefundAmount(e.target.value)}
-                                                    className="w-full p-2 bg-white border border-red-200 rounded text-sm text-slate-800"
+                                                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white font-mono font-bold"
                                                 />
+                                                <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                                                    Original Charge: ₦{Number(selectedItem.cost).toLocaleString()}
+                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -396,44 +492,50 @@ export default function AdminBvnRetrievalQueue() {
                                     <button 
                                         onClick={() => handleAction('REJECT')} 
                                         disabled={processing || !rejectionReason} 
-                                        className="w-full py-2.5 bg-white border border-red-200 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50"
+                                        className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-red-600/20 active:scale-95 transition-all"
                                     >
-                                        Reject
+                                        Reject & Close
                                     </button>
                                 </div>
                             </div>
                         </>
                     ) : (
                         // READ ONLY VIEW
-                        <div className={`p-8 rounded-xl border flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                        <div className={`p-8 rounded-3xl border-2 flex flex-col items-center justify-center text-center h-full ${selectedItem.status === 'COMPLETED' ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}`}>
                             {selectedItem.status === 'COMPLETED' ? (
                                 <>
-                                    <CheckCircle2 size={64} className="text-green-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-green-800">BVN Recovered</h3>
-                                    <p className="text-green-600 text-sm mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
+                                    <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-5">
+                                        <CheckCircle2 size={40} className="text-green-600 dark:text-green-500" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-green-800 dark:text-green-400 mb-1">BVN Recovered</h3>
+                                    <p className="text-green-600 dark:text-green-500/80 text-sm font-medium mb-6">Completed on {new Date(selectedItem.updatedAt).toLocaleDateString()}</p>
                                     
                                     {/* Show BVN if in ResponseData */}
-                                    {(selectedItem.responseData?.bvn || selectedItem.responseData?.number) && (
-                                        <div className="bg-green-100 p-4 rounded-lg mb-4 w-full">
-                                            <p className="text-xs text-green-600 uppercase font-bold mb-1">Recovered BVN</p>
-                                            <p className="text-3xl font-mono font-bold text-green-900 tracking-widest">
-                                                {selectedItem.responseData.bvn || selectedItem.responseData.number}
+                                    {(selectedItem.responseData?.bvn || selectedItem.responseData?.number || selectedItem.responseData?.result_text) && (
+                                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-green-200 dark:border-green-800/50 mb-6 w-full shadow-sm shadow-green-100/50 dark:shadow-none">
+                                            <p className="text-[10px] text-green-600 dark:text-green-500 uppercase font-bold tracking-widest mb-1.5">Recovered BVN</p>
+                                            <p className="text-3xl font-mono font-bold text-slate-900 dark:text-white tracking-widest">
+                                                {selectedItem.responseData.bvn || selectedItem.responseData.number || selectedItem.responseData.result_text}
                                             </p>
                                         </div>
                                     )}
 
                                     {selectedItem.responseData?.resultUrl && (
-                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition flex items-center gap-2">
-                                            <Download size={18} /> Download Slip
+                                        <a href={selectedItem.responseData.resultUrl} target="_blank" className="bg-green-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all flex items-center gap-2 active:scale-95">
+                                            <Download size={18} /> Download Uploaded Slip
                                         </a>
                                     )}
                                 </>
                             ) : (
                                 <>
-                                    <XCircle size={64} className="text-red-500 mb-4" />
-                                    <h3 className="text-2xl font-bold text-red-800">Request Declined</h3>
-                                    <p className="text-red-600 text-sm mb-4 bg-white/50 p-2 rounded">Reason: {selectedItem.adminNote}</p>
-                                    <div className="text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-medium">Status: Failed</div>
+                                    <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-5">
+                                        <XCircle size={40} className="text-red-600 dark:text-red-500" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-red-800 dark:text-red-400 mb-4">Request Declined</h3>
+                                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-200 dark:border-red-900/50 text-left w-full">
+                                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest mb-1">Rejection Reason</p>
+                                        <p className="text-slate-700 dark:text-slate-300 text-sm font-medium">{selectedItem.adminNote}</p>
+                                    </div>
                                 </>
                             )}
                         </div>
