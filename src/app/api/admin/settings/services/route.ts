@@ -4,7 +4,9 @@ import { validateApiKey } from '@/lib/api-auth';
 
 export async function GET(req: Request) {
   const admin = await validateApiKey(req);
-  if (!admin || admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN') return NextResponse.json({}, { status: 403 });
+  if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN')) {
+      return NextResponse.json({}, { status: 403 });
+  }
 
   // Fetch Services AND Data Plans
   const services = await prisma.service.findMany({ orderBy: { code: 'asc' } });
@@ -15,15 +17,26 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   const admin = await validateApiKey(req);
-  if (!admin || admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN') return NextResponse.json({}, { status: 403 });
-
-  const { type, id, price, isActive } = await req.json(); // type: 'SERVICE' or 'DATAPLAN'
-
-  if (type === 'SERVICE') {
-    await prisma.service.update({ where: { id }, data: { price, isActive } });
-  } else {
-    await prisma.dataPlan.update({ where: { id }, data: { price, isActive } });
+  if (!admin || (admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN')) {
+      return NextResponse.json({}, { status: 403 });
   }
 
-  return NextResponse.json({ success: true });
+  const { type, id, dashboardPrice, apiPrice, isActive } = await req.json(); // type: 'SERVICE' or 'DATAPLAN'
+
+  // Build the update payload dynamically based on what was sent
+  const updateData: any = { isActive };
+  if (dashboardPrice !== undefined) updateData.dashboardPrice = Number(dashboardPrice);
+  if (apiPrice !== undefined) updateData.apiPrice = Number(apiPrice);
+
+  try {
+      if (type === 'SERVICE') {
+        await prisma.service.update({ where: { id }, data: updateData });
+      } else {
+        await prisma.dataPlan.update({ where: { id }, data: updateData });
+      }
+      return NextResponse.json({ success: true });
+  } catch (error) {
+      console.error("Pricing Update Error:", error);
+      return NextResponse.json({ error: "Failed to update pricing" }, { status: 500 });
+  }
 }
