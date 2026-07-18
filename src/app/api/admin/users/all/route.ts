@@ -16,6 +16,8 @@ export async function GET(req: Request) {
         email: true,
         firstName: true,
         lastName: true,
+        phoneNumber: true, // Now returning phone number
+        businessName: true,
         role: true,
         isActive: true,
         walletBalance: true,
