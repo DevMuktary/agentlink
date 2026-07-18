@@ -59,7 +59,7 @@ export default function UserDashboard() {
   });
 
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-in fade-in duration-500 pb-10">
       
       {/* HEADER WITH THEME TOGGLE */}
       <div className="flex justify-between items-center mb-6">
@@ -117,10 +117,10 @@ export default function UserDashboard() {
         <CategorySection title="Identity Verification">
           <ServiceCard title="NIN Verification" href="/dashboard/nin-verification" imageSrc="/nimc.png" />
           <ServiceCard title="NIN Validation" href="/dashboard/nin-validation" imageSrc="/nimc.png" />
+          <ServiceCard title="Slip Generation" href="/dashboard/nin-slip" imageSrc="/nimc.png" />
           <ServiceCard title="VNIN Slip" href="/dashboard/vnin-slip" imageSrc="/nimc.png" />
           <ServiceCard title="NIN Personalization" href="/dashboard/nin-personalization" imageSrc="/nimc.png" />
           <ServiceCard title="NIN Modification" href="/dashboard/nin-modification" imageSrc="/nimc.png" />
-          <ServiceCard title="Slip Generation" href="/dashboard/nin-slip" imageSrc="/nimc.png" />
           <ServiceCard title="IPE Clearance" href="/dashboard/ipe-clearance" imageSrc="/nimc.png" />
         </CategorySection>
 
@@ -139,8 +139,9 @@ export default function UserDashboard() {
         </CategorySection>
 
         <CategorySection title="Education">
-          <ServiceCard title="JAMB Services" href="/dashboard/jamb" imageSrc="/jamb.png" />
-          <ServiceCard title="Exam Pins" href="/dashboard/exam-pins" imageSrc="/jamb.png" />
+          {/* Marked as coming soon, href ignored */}
+          <ServiceCard title="JAMB Services" href="#" imageSrc="/jamb.png" comingSoon />
+          <ServiceCard title="Exam Pins" href="#" imageSrc="/jamb.png" comingSoon />
         </CategorySection>
 
         <CategorySection title="Utilities & Bills">
@@ -162,31 +163,52 @@ function CategorySection({ title, children }: { title: string, children: React.R
         <div className="h-4 w-1 bg-blue-500 rounded-full"></div>
         <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm tracking-wide uppercase">{title}</h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+      {/* Tighter gaps for a more compact layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         {children}
       </div>
     </div>
   );
 }
 
-function ServiceCard({ title, href, imageSrc }: { title: string, href: string, imageSrc: string }) {
-  return (
-    <Link 
-      href={href} 
-      className="group relative bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-lg hover:shadow-blue-500/5 dark:hover:shadow-blue-900/20 hover:border-blue-200 dark:hover:border-slate-700 transition-all duration-300 hover:-translate-y-1 flex flex-col items-center justify-center text-center gap-4"
-    >
-      <div className="h-16 w-16 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 shadow-inner">
+function ServiceCard({ title, href, imageSrc, comingSoon }: { title: string, href: string, imageSrc: string, comingSoon?: boolean }) {
+  const CardContent = (
+    <div className={`group relative bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-300 flex flex-col items-center justify-center text-center gap-3 h-full ${comingSoon ? 'opacity-75 grayscale-[20%]' : 'hover:shadow-lg hover:shadow-blue-500/5 dark:hover:shadow-blue-900/20 hover:border-blue-200 dark:hover:border-slate-700 hover:-translate-y-1'}`}>
+      
+      {/* Coming Soon Animated Badge */}
+      {comingSoon && (
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 z-10">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Soon</span>
+        </div>
+      )}
+
+      {/* Reduced icon container size */}
+      <div className={`h-12 w-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center transition-transform duration-500 shadow-inner ${comingSoon ? '' : 'group-hover:scale-110'}`}>
         <Image 
           src={imageSrc} 
           alt={title} 
-          width={36} 
-          height={36} 
+          width={26} 
+          height={26} 
           className="object-contain drop-shadow-sm"
         />
       </div>
-      <h4 className="font-semibold text-sm text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+      
+      <h4 className={`font-semibold text-xs leading-snug transition-colors ${comingSoon ? 'text-slate-500 dark:text-slate-400' : 'text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>
         {title}
       </h4>
+    </div>
+  );
+
+  // If it's coming soon, render a non-clickable div
+  if (comingSoon) {
+    return <div className="cursor-not-allowed block h-full">{CardContent}</div>;
+  }
+
+  // Otherwise, render the active link
+  return (
+    <Link href={href} className="block h-full">
+      {CardContent}
     </Link>
   );
 }
