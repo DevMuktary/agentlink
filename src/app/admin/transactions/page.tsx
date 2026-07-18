@@ -5,7 +5,8 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   ArrowUpRight, ArrowDownLeft, Search, Filter, 
-  CreditCard, RefreshCw, Download, FileText, Globe, Code
+  CreditCard, RefreshCw, Download, FileText, Globe, Code,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 export default function AdminTransactionsPage() {
@@ -18,6 +19,10 @@ export default function AdminTransactionsPage() {
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, CREDIT, DEBIT
   const [channelFilter, setChannelFilter] = useState('ALL'); // ALL, WEB, API
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     fetchTransactions();
   }, []);
@@ -25,7 +30,6 @@ export default function AdminTransactionsPage() {
   // Helper to determine channel based on reference prefix
   const getChannel = (reference: string) => {
     if (!reference) return 'WEB'; // Fallback
-    // If it contains DASH or is a Fund Wallet (FW-) transaction, it's from the Dashboard
     if (reference.includes('DASH') || reference.startsWith('FW-')) {
         return 'WEB';
     }
@@ -61,6 +65,7 @@ export default function AdminTransactionsPage() {
     }
 
     setFilteredDocs(result);
+    setCurrentPage(1); // Reset to page 1 whenever filters change
   }, [search, typeFilter, channelFilter, transactions]);
 
   const fetchTransactions = async () => {
@@ -70,11 +75,25 @@ export default function AdminTransactionsPage() {
       const data = res.data.status ? res.data.data : (Array.isArray(res.data) ? res.data : []);
       setTransactions(data);
       setFilteredDocs(data);
+      setCurrentPage(1);
     } catch (error) {
         console.error("Failed to load transactions", error);
     } finally {
         setLoading(false);
     }
+  };
+
+  // --- PAGINATION LOGIC ---
+  const totalPages = Math.ceil(filteredDocs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentDocs = filteredDocs.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleNextPage = () => {
+      if (currentPage < totalPages) setCurrentPage(p => p + 1);
+  };
+
+  const handlePrevPage = () => {
+      if (currentPage > 1) setCurrentPage(p => p - 1);
   };
 
   // --- EXPORT CSV LOGIC ---
@@ -84,16 +103,12 @@ export default function AdminTransactionsPage() {
         return;
     }
 
-    // Define Headers
     const headers = ['Reference', 'First Name', 'Last Name', 'Email', 'Type', 'Amount (NGN)', 'Channel', 'Description', 'Date'];
 
-    // Map Data
     const csvRows = filteredDocs.map(tx => {
         const isCredit = ['CREDIT', 'DEPOSIT', 'REFUND', 'BONUS'].includes(tx.type);
         const sign = isCredit ? '+' : '-';
         const txChannel = getChannel(tx.reference);
-        
-        // Escape quotes in description to prevent CSV breaking
         const safeDesc = tx.description ? `"${tx.description.replace(/"/g, '""')}"` : 'N/A';
         
         return [
@@ -109,10 +124,7 @@ export default function AdminTransactionsPage() {
         ].join(',');
     });
 
-    // Combine Headers and Rows
     const csvContent = [headers.join(','), ...csvRows].join('\n');
-    
-    // Create Blob and Trigger Download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -159,7 +171,7 @@ export default function AdminTransactionsPage() {
       {/* FILTERS & CHANNEL TOGGLE */}
       <div className="flex flex-col lg:flex-row gap-4 bg-white dark:bg-gray-800 p-5 rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm">
         
-        {/* Channel Toggle (Dashboard vs API) */}
+        {/* Channel Toggle */}
         <div className="flex bg-slate-100 dark:bg-gray-900 p-1 rounded-xl w-full lg:w-fit border border-slate-200 dark:border-gray-700 shrink-0">
             {['ALL', 'WEB', 'API'].map((chan) => (
                 <button
@@ -206,7 +218,7 @@ export default function AdminTransactionsPage() {
       </div>
 
       {/* DATA TABLE */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-gray-900/50 text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-gray-700 font-medium">
@@ -220,7 +232,7 @@ export default function AdminTransactionsPage() {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
-                    {filteredDocs.length === 0 ? (
+                    {currentDocs.length === 0 ? (
                         <tr>
                             <td colSpan={6} className="px-6 py-16 text-center text-slate-500 dark:text-gray-400">
                                 <div className="flex flex-col items-center justify-center">
@@ -233,8 +245,7 @@ export default function AdminTransactionsPage() {
                             </td>
                         </tr>
                     ) : (
-                        filteredDocs.map((tx) => {
-                            // Determine Direction & Source dynamically based on Reference
+                        currentDocs.map((tx) => {
                             const isCredit = ['CREDIT', 'DEPOSIT', 'REFUND', 'BONUS'].includes(tx.type);
                             const txChannel = getChannel(tx.reference);
                             
@@ -309,12 +320,40 @@ export default function AdminTransactionsPage() {
         </div>
         
         {/* Pagination / Data Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 text-xs text-slate-500 dark:text-gray-400 flex justify-between items-center">
-            <span>Showing {filteredDocs.length} transaction(s) based on filters</span>
-            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-gray-600 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                Real-time Sync
-            </span>
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-3">
+                <span>
+                    Showing {filteredDocs.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + itemsPerPage, filteredDocs.length)} of {filteredDocs.length}
+                </span>
+                <span className="hidden sm:inline-block w-1 h-1 bg-slate-300 dark:bg-gray-600 rounded-full"></span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-gray-600 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    Real-time Sync
+                </span>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handlePrevPage}
+                        disabled={currentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent transition-colors"
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-medium text-slate-600 dark:text-gray-300 min-w-[4rem] text-center">
+                        {currentPage} / {totalPages}
+                    </span>
+                    <button 
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent transition-colors"
+                    >
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+            )}
         </div>
       </div>
     </div>
