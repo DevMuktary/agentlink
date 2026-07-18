@@ -22,6 +22,16 @@ export default function AdminTransactionsPage() {
     fetchTransactions();
   }, []);
 
+  // Helper to determine channel based on reference prefix
+  const getChannel = (reference: string) => {
+    if (!reference) return 'WEB'; // Fallback
+    // If it contains DASH or is a Fund Wallet (FW-) transaction, it's from the Dashboard
+    if (reference.includes('DASH') || reference.startsWith('FW-')) {
+        return 'WEB';
+    }
+    return 'API';
+  };
+
   // Filter Logic
   useEffect(() => {
     let result = transactions;
@@ -45,9 +55,9 @@ export default function AdminTransactionsPage() {
         }
     }
 
-    // 3. Channel Filter (Assumes API returns 'channel', defaults to 'WEB' if missing)
+    // 3. Channel Filter (Inferred from Reference)
     if (channelFilter !== 'ALL') {
-        result = result.filter(t => (t.channel || 'WEB') === channelFilter);
+        result = result.filter(t => getChannel(t.reference) === channelFilter);
     }
 
     setFilteredDocs(result);
@@ -57,7 +67,6 @@ export default function AdminTransactionsPage() {
     setLoading(true);
     try {
       const res = await axios.get('/api/admin/transactions');
-      // Handle response structure wrapper
       const data = res.data.status ? res.data.data : (Array.isArray(res.data) ? res.data : []);
       setTransactions(data);
       setFilteredDocs(data);
@@ -82,6 +91,7 @@ export default function AdminTransactionsPage() {
     const csvRows = filteredDocs.map(tx => {
         const isCredit = ['CREDIT', 'DEPOSIT', 'REFUND', 'BONUS'].includes(tx.type);
         const sign = isCredit ? '+' : '-';
+        const txChannel = getChannel(tx.reference);
         
         // Escape quotes in description to prevent CSV breaking
         const safeDesc = tx.description ? `"${tx.description.replace(/"/g, '""')}"` : 'N/A';
@@ -93,7 +103,7 @@ export default function AdminTransactionsPage() {
             tx.user?.email || 'N/A',
             tx.type,
             `${sign}${tx.amount}`,
-            tx.channel || 'WEB',
+            txChannel,
             safeDesc,
             new Date(tx.createdAt).toLocaleString()
         ].join(',');
@@ -224,9 +234,9 @@ export default function AdminTransactionsPage() {
                         </tr>
                     ) : (
                         filteredDocs.map((tx) => {
-                            // Determine Direction & Source
+                            // Determine Direction & Source dynamically based on Reference
                             const isCredit = ['CREDIT', 'DEPOSIT', 'REFUND', 'BONUS'].includes(tx.type);
-                            const txChannel = tx.channel || 'WEB';
+                            const txChannel = getChannel(tx.reference);
                             
                             return (
                                 <tr key={tx.id} className="hover:bg-slate-50/80 dark:hover:bg-gray-700/30 transition-colors group">
