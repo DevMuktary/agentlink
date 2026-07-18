@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     const totalUsers = await prisma.user.count({
         where: { 
             role: 'AGENT',
-            isActive: true // <--- Now only counts active users
+            isActive: true 
         }
     });
 
@@ -34,53 +34,37 @@ export async function GET(req: Request) {
         where: { status: 'PROCESSING' }
     });
 
-    // --- 5. Queue Breakdowns ---
-    
-    // CAC
+    // 5. Completed Service Requests (Total Completed Jobs)
+    const completedRequests = await prisma.serviceRequest.count({
+        where: { status: 'COMPLETED' }
+    });
+
+    // --- 6. Queue Breakdowns ---
     const cacCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'CAC_REGISTRATION' }
     });
 
-    // TAX
     const taxCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: { in: ['TAX_ID_INDIVIDUAL', 'TAX_ID_NON_INDIVIDUAL'] } }
     });
 
-    // BVN ENROLLMENT
     const bvnEnrollCount = await prisma.serviceRequest.count({ 
         where: { status: 'PROCESSING', serviceType: 'ANDROID_BVN_ENROLLMENT' }
     });
     
-    // BVN MODIFICATION
     const bvnModCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
             serviceType: { 
-                in: [
-                    'BVN_MODIFICATION', 
-                    'BVN_MOD_NAME', 
-                    'BVN_MOD_DOB', 
-                    'BVN_MOD_PHONE', 
-                    'BVN_MOD_NAME_PHONE', 
-                    'BVN_MOD_DOB_PHONE', 
-                    'BVN_MOD_NAME_DOB',
-                    'BVN_MOD_FULL'
-                ] 
+                in: ['BVN_MODIFICATION', 'BVN_MOD_NAME', 'BVN_MOD_DOB', 'BVN_MOD_PHONE', 'BVN_MOD_NAME_PHONE', 'BVN_MOD_DOB_PHONE', 'BVN_MOD_NAME_DOB', 'BVN_MOD_FULL'] 
             } 
         }
     });
 
-    // BVN RETRIEVAL
     const bvnRetrievalCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
-            serviceType: {
-                in: [
-                    'BVN_RETRIEVAL',
-                    'BVN_RETRIEVAL_PHONE',
-                    'BVN_RETRIEVAL_CRM'
-                ]
-            }
+            serviceType: { in: ['BVN_RETRIEVAL', 'BVN_RETRIEVAL_PHONE', 'BVN_RETRIEVAL_CRM'] }
         }
     });
 
@@ -88,51 +72,27 @@ export async function GET(req: Request) {
         where: { status: 'PROCESSING', serviceType: 'VNIN_TO_NIBSS' }
     });
 
-    // NIN MODIFICATION
     const ninModCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
-            serviceType: { 
-                in: [
-                    'NIN_MODIFICATION_NAME', 
-                    'NIN_MODIFICATION_PHONE', 
-                    'NIN_MODIFICATION_ADDRESS'
-                ] 
-            } 
+            serviceType: { in: ['NIN_MODIFICATION_NAME', 'NIN_MODIFICATION_PHONE', 'NIN_MODIFICATION_ADDRESS'] } 
         }
     });
     
-    // NIN VALIDATION
     const ninValidationCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
-            serviceType: {
-                in: [
-                    'NIN_VALIDATION_NO_RECORD',
-                    'NIN_VALIDATION_UPDATE_RECORD',
-                    'NIN_VALIDATION_VNIN'
-                ]
-            }
+            serviceType: { in: ['NIN_VALIDATION_NO_RECORD', 'NIN_VALIDATION_UPDATE_RECORD', 'NIN_VALIDATION_VNIN'] }
         }
     });
 
-    // JAMB
     const jambCount = await prisma.serviceRequest.count({ 
         where: { 
             status: 'PROCESSING', 
-            serviceType: { 
-                in: [
-                    'JAMB_SERVICES',
-                    'JAMB_ORIGINAL_RESULT', 
-                    'JAMB_ADMISSION_LETTER', 
-                    'JAMB_REGISTRATION_SLIP', 
-                    'JAMB_PROFILE_CODE_RETRIEVAL'
-                ] 
-            } 
+            serviceType: { in: ['JAMB_SERVICES', 'JAMB_ORIGINAL_RESULT', 'JAMB_ADMISSION_LETTER', 'JAMB_REGISTRATION_SLIP', 'JAMB_PROFILE_CODE_RETRIEVAL'] } 
         }
     });
 
-    // 6. Total Revenue (Sum of COMPLETED transactions)
     const revenueSum = await prisma.serviceRequest.aggregate({
         _sum: { cost: true },
         where: { status: 'COMPLETED' }
@@ -142,9 +102,10 @@ export async function GET(req: Request) {
         status: true,
         data: {
             totalUsers: totalUsers || 0,
-            pendingRegistrations: pendingRegistrations || 0, // New field for admin dashboard
+            pendingRegistrations: pendingRegistrations || 0,
             walletLiability: Number(walletSum._sum.walletBalance) || 0,
             pendingRequests: pendingRequests || 0,
+            completedRequests: completedRequests || 0, // Now included!
             totalRevenue: Number(revenueSum._sum.cost) || 0,
             queues: {
                 cac: cacCount,
