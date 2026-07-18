@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     } else if (action === 'REJECT') {
         await prisma.user.update({
             where: { id: userId },
-            data: { apiStatus: 'REJECTED' }
+            data: { apiStatus: 'REVOKED' }
         });
     }
 
