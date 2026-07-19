@@ -6,12 +6,14 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   FileBadge, CheckCircle2, XCircle, RefreshCw, 
   AlertTriangle, User, Download, Layers,
-  Globe, Code, Copy, Check
+  Globe, Code, Copy, Check, Search
 } from 'lucide-react';
 
 export default function AdminNinModificationQueue() {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   const [processing, setProcessing] = useState(false);
@@ -33,7 +35,7 @@ export default function AdminNinModificationQueue() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // 1. Fetch Queue (Robust Version)
+  // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
     try {
@@ -44,7 +46,6 @@ export default function AdminNinModificationQueue() {
         '/api/admin/requests/all?service=NIN_MODIFICATION_DOB&status=ALL', 
       ];
 
-      // Use allSettled so one 404 doesn't crash the whole dashboard
       const results = await Promise.allSettled(endpoints.map(ep => axios.get(ep)));
       
       const combined: any[] = [];
@@ -55,10 +56,10 @@ export default function AdminNinModificationQueue() {
         }
       });
       
-      // Sort by newest first
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       setRequests(combined);
+      setFilteredRequests(combined);
     } catch (error) {
         console.error("Failed to fetch queue", error);
     } finally { 
@@ -67,6 +68,21 @@ export default function AdminNinModificationQueue() {
   };
 
   useEffect(() => { fetchQueue(); }, []);
+
+  // Handle Search Filtering
+  useEffect(() => {
+    if (!searchQuery) {
+        setFilteredRequests(requests);
+        return;
+    }
+    const q = searchQuery.toLowerCase();
+    const filtered = requests.filter(r => 
+        r.requestData?.nin?.includes(q) ||
+        r.requestData?.clientReference?.toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q)
+    );
+    setFilteredRequests(filtered);
+  }, [searchQuery, requests]);
 
   // Update default refund amount
   useEffect(() => {
@@ -118,7 +134,7 @@ export default function AdminNinModificationQueue() {
     setSelectedItem(null);
   };
 
-  // Helper for Badges
+  // UI Helpers
   const getTypeBadge = (type: string) => {
       if (type.includes('NAME')) return <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-bold uppercase border border-blue-200 dark:border-blue-800/50">Name Change</span>;
       if (type.includes('DOB')) return <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded text-[9px] font-bold uppercase border border-purple-200 dark:border-purple-800/50">DOB Correction</span>;
@@ -140,35 +156,50 @@ export default function AdminNinModificationQueue() {
     );
   };
 
-  // Helper to get Applicant Name (Handles different data structures)
   const getApplicantName = (data: any) => {
       if (data?.full_name) return data.full_name;
       if (data?.surname && data?.firstname) return `${data.surname} ${data.firstname}`;
-      return 'N/A'; // Fallback
+      return 'N/A';
   };
 
-  // Reusable Copy Row Component
-  const CopyableRow = ({ label, value, id, isEmail = false }: { label: string, value: any, id: string, isEmail?: boolean }) => {
+  // Bulk Formatting Helpers for Admin
+  const formatOldDetails = (item: any) => {
+    const data = item.requestData || {};
+    const nin = data.nin || 'N/A';
+    const name = getApplicantName(data);
+    const phone = data.phone_number || data.phone || 'N/A';
+    return `NIN: ${nin}; Name: ${name}; Phone: ${phone};`;
+  };
+
+  const formatNewDetails = (item: any) => {
+    const data = item.requestData || {};
+    const type = item.serviceType || '';
+    
+    if (type.includes('NAME') && data.new_details) {
+        return `Surname: ${data.new_details.surname || 'N/A'}; First Name: ${data.new_details.first_name || 'N/A'}; Middle Name: ${data.new_details.middle_name || 'N/A'};`;
+    }
+    if (type.includes('PHONE')) {
+        return `New Phone: ${data.new_phone_number || 'N/A'};`;
+    }
+    if (type.includes('ADDRESS')) {
+        return `New Address: ${data.new_address || 'N/A'};`;
+    }
+    if (type.includes('DOB')) {
+        return `New DOB: ${data.new_dob || 'N/A'};`;
+    }
+    return 'No modifications requested.';
+  };
+
+  // Visual Row without individual copy button
+  const DisplayRow = ({ label, value, isEmail = false }: { label: string, value: any, isEmail?: boolean }) => {
     const strValue = String(value || 'N/A').trim();
     const displayValue = isEmail || strValue === 'N/A' ? strValue : strValue.toUpperCase();
-    
     return (
-        <div className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-700/50 last:border-0 group">
+        <div className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-700/50 last:border-0">
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{label}</span>
-            <div className="flex items-center gap-3">
-                <span className={`font-bold text-slate-900 dark:text-slate-100 text-sm text-right max-w-[200px] truncate ${!isEmail ? 'uppercase tracking-wide' : ''}`} title={displayValue}>
-                    {displayValue}
-                </span>
-                {strValue !== 'N/A' && (
-                    <button 
-                        onClick={() => copyText(displayValue, id)} 
-                        className="text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors bg-white dark:bg-slate-800 p-1.5 rounded-md shadow-sm border border-slate-200 dark:border-slate-700"
-                        title="Copy to clipboard"
-                    >
-                        {copiedId === id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                    </button>
-                )}
-            </div>
+            <span className={`font-bold text-slate-900 dark:text-slate-100 text-sm text-right max-w-[200px] truncate ${!isEmail ? 'uppercase tracking-wide' : ''}`} title={displayValue}>
+                {displayValue}
+            </span>
         </div>
     );
   };
@@ -177,7 +208,7 @@ export default function AdminNinModificationQueue() {
 
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
-      {/* HEADER */}
+      {/* HEADER WITH SEARCH */}
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
             <h1 className="text-2xl font-black flex items-center gap-2 text-slate-900 dark:text-white tracking-tight">
@@ -185,9 +216,22 @@ export default function AdminNinModificationQueue() {
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Manage and process NIN data correction requests.</p>
         </div>
-        <button onClick={fetchQueue} className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition shadow-sm self-start md:self-auto">
-          <RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-        </button>
+        
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder="Search NIN or Reference..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition-colors text-slate-900 dark:text-white"
+            />
+          </div>
+          <button onClick={fetchQueue} className="p-2.5 w-full sm:w-auto flex justify-center items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition shadow-sm">
+            <RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+          </button>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -206,14 +250,14 @@ export default function AdminNinModificationQueue() {
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {requests.length === 0 ? (
+                {filteredRequests.length === 0 ? (
                     <tr>
                         <td colSpan={7} className="px-6 py-16 text-center text-slate-500 dark:text-slate-400 font-medium">
                             No NIN modification requests found.
                         </td>
                     </tr>
                 ) : (
-                    requests.map((item) => {
+                    filteredRequests.map((item) => {
                         const ref = item.requestData?.clientReference || item.id;
                         return (
                         <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
@@ -289,27 +333,10 @@ export default function AdminNinModificationQueue() {
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* LEFT COLUMN: COPYABLE DATA */}
+                {/* LEFT COLUMN: DATA */}
                 <div className="lg:col-span-2 space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
                     
-                    {/* AGENT INFO (COPYABLE) */}
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700/50">
-                        <div className="flex items-center gap-2 mb-4">
-                            <User size={18} className="text-slate-700 dark:text-slate-300" />
-                            <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Agent Information</h4>
-                        </div>
-                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 p-2">
-                            <CopyableRow label="Agent Name" value={`${selectedItem.user?.firstName} ${selectedItem.user?.lastName}`} id="agent-name" />
-                            <CopyableRow label="Agent Email" value={selectedItem.user?.email} id="agent-email" isEmail />
-                            <CopyableRow label="Agent Phone" value={selectedItem.user?.phoneNumber} id="agent-phone" />
-                            <div className="flex justify-between items-center py-2.5 px-2">
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Wallet Balance</span>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* MODIFICATION DATA (COPYABLE) */}
+                    {/* MODIFICATION DATA */}
                     <div className="bg-indigo-50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
                         <div className="flex items-center gap-2 mb-4">
                             <FileBadge size={18} className="text-indigo-700 dark:text-indigo-400" />
@@ -318,34 +345,68 @@ export default function AdminNinModificationQueue() {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             
-                            {/* BASE IDENTITY */}
-                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-800/50 p-2 h-fit">
-                                <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-800 dark:text-indigo-500 px-2 py-2 mb-1 border-b border-indigo-50 dark:border-indigo-900/30">Current Base Data</h5>
-                                <CopyableRow label="Current Name" value={getApplicantName(selectedItem.requestData)} id="curr-name" />
-                                <CopyableRow label="Current Phone" value={selectedItem.requestData?.phone_number || selectedItem.requestData?.phone} id="curr-phone" />
-                                <CopyableRow label="NIN Number" value={selectedItem.requestData?.nin} id="curr-nin" />
+                            {/* BASE IDENTITY (OLD DETAILS) */}
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-800/50 p-2 h-fit flex flex-col">
+                                <div className="flex justify-between items-center px-2 py-2 mb-1 border-b border-indigo-50 dark:border-indigo-900/30">
+                                    <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-800 dark:text-indigo-500">Current Data</h5>
+                                    <button 
+                                        onClick={() => copyText(formatOldDetails(selectedItem), 'old_details')}
+                                        className="text-xs bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 font-bold px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                    >
+                                        {copiedId === 'old_details' ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                                        Copy All Old
+                                    </button>
+                                </div>
+                                <DisplayRow label="Current Name" value={getApplicantName(selectedItem.requestData)} />
+                                <DisplayRow label="Current Phone" value={selectedItem.requestData?.phone_number || selectedItem.requestData?.phone} />
+                                <DisplayRow label="NIN Number" value={selectedItem.requestData?.nin} />
                             </div>
 
-                            {/* REQUESTED CHANGES */}
-                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800/50 p-2 h-fit shadow-sm shadow-amber-100/50 dark:shadow-none">
-                                <h5 className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-500 px-2 py-2 mb-1 border-b border-amber-50 dark:border-amber-900/30">Requested Updates</h5>
+                            {/* REQUESTED CHANGES (NEW DETAILS) */}
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800/50 p-2 h-fit shadow-sm shadow-amber-100/50 dark:shadow-none flex flex-col">
+                                <div className="flex justify-between items-center px-2 py-2 mb-1 border-b border-amber-50 dark:border-amber-900/30">
+                                    <h5 className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-500">Requested Updates</h5>
+                                    <button 
+                                        onClick={() => copyText(formatNewDetails(selectedItem), 'new_details')}
+                                        className="text-xs bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-600 dark:text-amber-400 font-bold px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                    >
+                                        {copiedId === 'new_details' ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                                        Copy All New
+                                    </button>
+                                </div>
                                 
-                                {/* DYNAMIC CHANGES DISPLAY */}
                                 {selectedItem.serviceType.includes('NAME') && selectedItem.requestData?.new_details && (
                                     <>
-                                        <CopyableRow label="New Surname" value={selectedItem.requestData.new_details.surname} id="new-sur" />
-                                        <CopyableRow label="New Firstname" value={selectedItem.requestData.new_details.first_name} id="new-first" />
-                                        <CopyableRow label="New Middlename" value={selectedItem.requestData.new_details.middle_name} id="new-mid" />
+                                        <DisplayRow label="New Surname" value={selectedItem.requestData.new_details.surname} />
+                                        <DisplayRow label="New Firstname" value={selectedItem.requestData.new_details.first_name} />
+                                        <DisplayRow label="New Middlename" value={selectedItem.requestData.new_details.middle_name} />
                                     </>
                                 )}
 
                                 {selectedItem.serviceType.includes('PHONE') && (
-                                    <CopyableRow label="New Phone" value={selectedItem.requestData?.new_phone_number} id="new-phone" />
+                                    <DisplayRow label="New Phone" value={selectedItem.requestData?.new_phone_number} />
                                 )}
 
                                 {selectedItem.serviceType.includes('ADDRESS') && (
-                                    <CopyableRow label="New Address" value={selectedItem.requestData?.new_address} id="new-address" />
+                                    <DisplayRow label="New Address" value={selectedItem.requestData?.new_address} />
                                 )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* AGENT INFO (VIEW ONLY) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <User size={18} className="text-slate-700 dark:text-slate-300" />
+                            <h4 className="font-bold uppercase text-xs tracking-widest text-slate-900 dark:text-white">Agent Information</h4>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 p-2">
+                            <DisplayRow label="Agent Name" value={`${selectedItem.user?.firstName} ${selectedItem.user?.lastName}`} />
+                            <DisplayRow label="Agent Email" value={selectedItem.user?.email} isEmail />
+                            <DisplayRow label="Agent Phone" value={selectedItem.user?.phoneNumber} />
+                            <div className="flex justify-between items-center py-2.5 px-2">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Wallet Balance</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">₦{Number(selectedItem.user?.walletBalance || 0).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
