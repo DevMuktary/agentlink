@@ -142,7 +142,7 @@ export default function VninToNibssClient({ service }: { service: ServiceData | 
                 </p>
                 <div className="text-red-700 dark:text-red-400 font-bold bg-red-50 dark:bg-red-500/10 p-3.5 rounded-xl border border-red-100 dark:border-red-500/20">
                   <p className="uppercase tracking-wider text-[11px] mb-1">Strict No Refund Policy</p>
-                  <p className="text-sm">There is absolutely no refund for this service once submitted.</p>
+                  <p className="text-sm">There is absolutely no refund for this service if you submit a wrong ticket ID.</p>
                 </div>
               </div>
             </div>
@@ -356,7 +356,7 @@ export default function VninToNibssClient({ service }: { service: ServiceData | 
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
-                  There is absolutely NO refund for this service once submitted.
+                  There is absolutely NO refund for this service if wrong ticket ID is submitted.
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
