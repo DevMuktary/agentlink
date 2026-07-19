@@ -109,6 +109,7 @@ export default function AdminNinModificationQueue() {
 
   // 2. Submit Action
   const handleActionSubmit = async () => {
+    if (!actionType) return;
     if (actionType === 'APPROVE' && !resultFile) return alert("Please upload the Modified NIN Slip/Result.");
     if (actionType === 'REJECT' && !rejectionReason) return alert("Please enter a rejection reason.");
     
