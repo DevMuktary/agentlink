@@ -122,7 +122,6 @@ export default function NinVerificationClient({ services }: { services: any }) {
 
   return (
     <>
-      {/* FLOATING ERROR TOAST */}
       {error && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm animate-in slide-in-from-bottom-10 fade-in">
           <div className="flex items-center gap-3 p-4 bg-red-600 text-white rounded-2xl shadow-2xl">
@@ -133,7 +132,6 @@ export default function NinVerificationClient({ services }: { services: any }) {
         </div>
       )}
 
-      {/* SLIP CONFIRMATION MODAL */}
       {selectedSlip && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
@@ -183,7 +181,6 @@ export default function NinVerificationClient({ services }: { services: any }) {
         </div>
       )}
 
-      {/* MAIN CONTENT */}
       <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
         
         <div className="mb-8">
@@ -201,7 +198,6 @@ export default function NinVerificationClient({ services }: { services: any }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="lg:col-span-2 space-y-6">
-            {/* STEP 1: SEARCH */}
             {!verificationResult && (
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden">
                 <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl mb-8 max-w-md border border-slate-200 dark:border-slate-700">
@@ -260,11 +256,8 @@ export default function NinVerificationClient({ services }: { services: any }) {
               </div>
             )}
 
-            {/* STEP 2: REVEAL DATA & UPSell SLIPS */}
             {verificationResult && (
               <div className="space-y-6 animate-in zoom-in-95 duration-300">
-                
-                {/* Raw Data Card */}
                 <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-8 relative overflow-hidden">
                   <div className="shrink-0 flex flex-col items-center">
                      <div className="w-32 h-40 bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm flex items-center justify-center">
@@ -296,7 +289,6 @@ export default function NinVerificationClient({ services }: { services: any }) {
                   </div>
                 </div>
 
-                {/* Upsell: Slip Options */}
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
                      <ImageIcon size={24} />
@@ -332,7 +324,7 @@ export default function NinVerificationClient({ services }: { services: any }) {
 
           <div className="lg:col-span-1 space-y-6">
             
-            {/* Verification History Card */}
+            {/* Unified History Card */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10 group-hover:scale-110 transition-transform duration-500">
                 <History size={100} />
@@ -343,14 +335,14 @@ export default function NinVerificationClient({ services }: { services: any }) {
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Verification Logs</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-medium">
-                  Review your previously verified NIN identity records directly from your secure log.
+                  Review your previously verified NIN identity records and redownload generated slips directly from your secure log.
                 </p>
                 
                 <Link 
                   href="/dashboard/history/nin-verification"
                   className="w-full py-3.5 px-4 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-sm font-bold rounded-xl transition-all flex items-center justify-between group-hover:border-blue-200 dark:group-hover:border-blue-800 shadow-sm"
                 >
-                  View Verifications <ArrowRight size={16} className="text-slate-400 group-hover:translate-x-1 group-hover:text-blue-500 transition-all" />
+                  View History <ArrowRight size={16} className="text-slate-400 group-hover:translate-x-1 group-hover:text-blue-500 transition-all" />
                 </Link>
               </div>
             </div>
