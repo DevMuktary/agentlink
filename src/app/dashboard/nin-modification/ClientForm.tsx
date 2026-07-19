@@ -182,7 +182,7 @@ export default function NinModificationClient({ services }: { services: ServiceD
               </div>
               <div className="bg-orange-50 dark:bg-orange-500/10 p-4 rounded-xl border border-orange-100 dark:border-orange-500/20">
                 <h4 className="font-bold text-orange-800 dark:text-orange-300 mb-1">3. Service Fees & No-Refund Policy</h4>
-                <p className="text-orange-700 dark:text-orange-400">I agree to pay the non-refundable service fee. I understand that wallet funds are non-withdrawable. If a service fails due to an Admin or provider error (as specified in our auto-refund logic), the fee will be credited to my wallet, but it cannot be withdrawn. A ₦500 charge for wrong submissions will be deducted from any refund.</p>
+                <p className="text-orange-700 dark:text-orange-400">I agree to pay the non-refundable service fee. I understand that wallet funds are non-withdrawable. If a service fails due to an Admin or provider error (as specified in our auto-refund logic), the fee will be credited to my wallet, but it cannot be withdrawn. A ₦0 charge for wrong submissions will be deducted from any refund.</p>
               </div>
               <div>
                 <h4 className="font-bold text-slate-900 dark:text-white mb-1">4. Your Responsibilities</h4>
@@ -471,7 +471,7 @@ export default function NinModificationClient({ services }: { services: ServiceD
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
-                  If your request fails due to an invalid submission, a ₦500 penalty charge will be deducted from your refund.
+                  If your request fails due to an invalid submission, You will have to resubmit the application.
                 </li>
               </ul>
             </div>
