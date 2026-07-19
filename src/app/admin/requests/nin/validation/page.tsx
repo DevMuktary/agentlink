@@ -40,16 +40,14 @@ export default function AdminNinValidationQueue() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Helper to determine channel based on reference prefix
   const getChannel = (reference: string) => {
-    if (!reference) return 'API'; // Fallback
+    if (!reference) return 'API'; 
     if (reference.includes('DASH') || reference.startsWith('FW-')) {
         return 'DASHBOARD';
     }
     return 'API';
   };
 
-  // 1. Fetch Queue
   const fetchQueue = async () => {
     setLoading(true);
     try {
@@ -75,7 +73,6 @@ export default function AdminNinValidationQueue() {
       
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      // Remove duplicates
       const uniqueIds = new Set();
       const uniqueRequests = combined.filter(item => {
         const isDuplicate = uniqueIds.has(item.id);
@@ -94,21 +91,17 @@ export default function AdminNinValidationQueue() {
 
   useEffect(() => { fetchQueue(); }, []);
 
-  // Filtering
   useEffect(() => {
     let result = requests;
     
-    // Status Filter
     if (filterStatus !== 'ALL') {
       result = result.filter(r => r.status === filterStatus);
     }
 
-    // Source Filter
     if (sourceFilter !== 'ALL') {
       result = result.filter(r => getChannel(r.requestData?.clientReference || r.id) === sourceFilter);
     }
 
-    // Search Filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(r => 
@@ -124,7 +117,6 @@ export default function AdminNinValidationQueue() {
     setFilteredRequests(result);
   }, [searchQuery, filterStatus, sourceFilter, requests]);
 
-  // Handle Action Modal Open
   const openActionModal = (req: any, action: 'PROCESSING' | 'APPROVE' | 'REJECT') => {
     setSelectedReq(req);
     setActionType(action);
@@ -139,7 +131,6 @@ export default function AdminNinValidationQueue() {
     setActionType(null);
   };
 
-  // 2. Submit Action
   const handleActionSubmit = async () => {
     if (!actionType) return;
     if (actionType === 'REJECT' && !rejectionReason) return alert("Please enter a rejection reason.");
@@ -185,6 +176,13 @@ export default function AdminNinValidationQueue() {
       if (type.includes('NO_RECORD')) return <span className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">No Record</span>;
       if (type.includes('UPDATE')) return <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">Update</span>;
       return <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">Validation</span>;
+  };
+
+  const getServiceName = (type: string) => {
+    if (type.includes('VNIN')) return 'vNIN Validation';
+    if (type.includes('NO_RECORD')) return 'No Record Found Validation';
+    if (type.includes('UPDATE')) return 'Record Update Validation';
+    return 'Standard Validation';
   };
 
   const getChannelBadge = (ref: string) => {
@@ -240,7 +238,7 @@ export default function AdminNinValidationQueue() {
           <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl w-full sm:w-auto border border-slate-200 dark:border-slate-700/50">
             <button onClick={() => setSourceFilter('ALL')} className={`flex-1 px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${sourceFilter === 'ALL' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>All</button>
             <button onClick={() => setSourceFilter('API')} className={`flex-1 px-4 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${sourceFilter === 'API' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400'}`}><Code size={14}/> API</button>
-            <button onClick={() => setSourceFilter('DASHBOARD')} className={`flex-1 px-4 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${sourceFilter === 'DASHBOARD' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}><Monitor size={14}/> Dash</button>
+            <button onClick={() => setSourceFilter('DASHBOARD')} className={`flex-1 px-4 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${sourceFilter === 'DASHBOARD' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}><Globe size={14}/> Dash</button>
           </div>
 
           <div className="relative w-full sm:w-56">
@@ -417,8 +415,12 @@ export default function AdminNinValidationQueue() {
                     </button>
                  </div>
                  <div className="p-4 space-y-0 bg-white dark:bg-slate-900 text-sm">
+                    {/* Explicitly show the human readable Service Requested name instead of raw codes */}
+                    <DisplayRow label="Service Requested" value={getServiceName(viewReq.serviceType)} />
+                    
                     {Object.entries(viewReq.requestData || {}).map(([key, value]) => {
-                        if (!value || typeof value === 'object') return null;
+                        // Skip internal tracking keys to avoid confusing the admin
+                        if (!value || typeof value === 'object' || ['service_code', 'clientReference', 'reference', 'derivedFrom'].includes(key)) return null;
                         const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         return <DisplayRow key={key} label={label} value={value} />;
                     })}
@@ -444,7 +446,7 @@ export default function AdminNinValidationQueue() {
             <div className="flex justify-between items-start mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                  <h3 className="text-xl font-black text-slate-900 dark:text-white capitalize tracking-tight">
-                   {actionType === 'PROCESSING' ? 'Process Request' : actionType === 'APPROVE' ? 'Approve & Complete' : 'Reject Request'}
+                   {actionType === 'PROCESSING' ? `Process ${getServiceName(selectedReq.serviceType)}` : actionType === 'APPROVE' ? 'Approve & Complete' : 'Reject Request'}
                  </h3>
                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">Ref: {selectedReq.requestData?.clientReference || selectedReq.id}</p>
               </div>
