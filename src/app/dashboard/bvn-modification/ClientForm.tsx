@@ -207,7 +207,7 @@ export default function BvnModificationClient({
               </div>
 
               <div className="bg-orange-50 dark:bg-orange-500/10 p-4 rounded-xl border border-orange-100 dark:border-orange-500/20 text-orange-800 dark:text-orange-400">
-                <h4 className="font-bold mb-1">₦1,000 PENALTY IF:</h4>
+                <h4 className="font-bold mb-1">REJECTION IF:</h4>
                 <p>You submit invalid details or submit duplicate requests as one.</p>
               </div>
             </div>
@@ -503,7 +503,7 @@ export default function BvnModificationClient({
               <ul className="space-y-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
-                  If your request fails due to an invalid submission or rule violation, a ₦1,000 penalty charge will be deducted from your refund.
+                  If your request fails due to an invalid submission or rule violation, YOUR APPLICATION WILL BE FAILED.
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 mt-1.5 shrink-0" />
