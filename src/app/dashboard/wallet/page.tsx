@@ -6,7 +6,7 @@ import Script from 'next/script';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Wallet, Search, CreditCard,
-  History, TrendingUp, TrendingDown, Loader2, X, AlertTriangle, CheckCircle2 
+  History, TrendingUp, TrendingDown, Loader2, X, AlertTriangle, CheckCircle2, Info 
 } from 'lucide-react';
 
 // Extend the Window object to include Squad's documented object
@@ -169,7 +169,7 @@ export default function UserWallet() {
       {loading ? (
         <GlobalLoader />
       ) : (
-        <div className="space-y-8 animate-in fade-in duration-500 pb-20 relative">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20 relative max-w-7xl mx-auto">
           
           {/* FLOATING ERROR TOAST */}
           {errorToast && (
@@ -191,6 +191,14 @@ export default function UserWallet() {
                 <Wallet className="w-8 h-8 text-blue-600" /> Wallet & Finance
               </h1>
               <p className="text-slate-500 dark:text-gray-400 text-sm">Manage your funds and view transaction history.</p>
+            </div>
+          </div>
+
+          {/* IMPORTANT POLICY NOTICE */}
+          <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-2xl p-4 sm:p-5 flex items-start gap-3 shadow-sm">
+            <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-sm font-medium text-blue-800 dark:text-blue-300 leading-relaxed">
+              <span className="font-bold">Important Notice:</span> Money funded to your wallet cannot be withdrawn; it can only be used for services on this platform. If your payment is not approved or you experience issues, please send an email to <a href="mailto:agenthub.ng@gmail.com" className="font-bold underline underline-offset-2 hover:text-blue-600 dark:hover:text-blue-200 transition-colors">agenthub.ng@gmail.com</a>.
             </div>
           </div>
 
@@ -247,7 +255,7 @@ export default function UserWallet() {
                         <TrendingDown size={20} />
                     </div>
                 </div>
-                <div className="mt-4 text-xs text-slate-400">Lifetime usage on services</div>
+                <div className="mt-4 text-xs text-slate-400 font-medium">Lifetime usage on services</div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex flex-col justify-between group hover:border-emerald-200 dark:hover:border-emerald-900/30 transition-colors">
@@ -260,7 +268,7 @@ export default function UserWallet() {
                         <TrendingUp size={20} />
                     </div>
                 </div>
-                <div className="mt-4 text-xs text-slate-400">Reversed failed transactions</div>
+                <div className="mt-4 text-xs text-slate-400 font-medium">Reversed failed transactions</div>
             </div>
           </div>
 
