@@ -5,7 +5,7 @@ import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
 import { 
   Search, CheckCircle2, XCircle, RefreshCw, 
-  AlertTriangle, User, Layers, Globe, Code, Copy, Check, Eye, FileBadge, X
+  AlertTriangle, User, Layers, Globe, Code, Copy, Check, Eye, FileBadge, X, Monitor
 } from 'lucide-react';
 
 export default function AdminNinValidationQueue() {
