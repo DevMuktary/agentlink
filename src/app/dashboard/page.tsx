@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Wallet, Clock, Sun, Moon } from 'lucide-react';
+import { Wallet, Clock, Sun, Moon, Mail, MessageCircle, X } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
 export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isDark, setIsDark] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   // Initialize theme and fetch user data
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function UserDashboard() {
   });
 
   return (
-    <div className="animate-in fade-in duration-500 pb-10">
+    <div className="animate-in fade-in duration-500 pb-10 relative">
       
       {/* HEADER WITH THEME TOGGLE */}
       <div className="flex justify-between items-center mb-6">
@@ -149,6 +150,73 @@ export default function UserDashboard() {
           <ServiceCard title="Data Bundles" href="/dashboard/data" imageSrc="/data.png" />
         </CategorySection>
         
+      </div>
+
+      {/* FLOATING SUPPORT WIDGET */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
+        {supportOpen && (
+          <div className="mb-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2 rounded-2xl shadow-2xl flex flex-col gap-2 animate-in slide-in-from-bottom-5 fade-in duration-200 w-64 origin-bottom-right">
+            <a 
+              href="mailto:agenthub.ng@gmail.com" 
+              className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors group"
+            >
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-2.5 rounded-full text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                <Mail size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Email Support</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">agenthub.ng@gmail.com</p>
+              </div>
+            </a>
+            <div className="h-px w-full bg-slate-100 dark:bg-slate-800"></div>
+            <a 
+              href="https://whatsapp.com/channel/0029Vb8wFRQIHphRAJnlib1O" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors group"
+            >
+              <div className="bg-green-100 dark:bg-green-900/30 p-2.5 rounded-full text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform">
+                <MessageCircle size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">WhatsApp Channel</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Join our community</p>
+              </div>
+            </a>
+          </div>
+        )}
+
+        <div className="relative group">
+          {!supportOpen && (
+            <>
+              {/* Bouncing Welcome Bubble */}
+              <div className="absolute -top-12 right-0 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold px-3.5 py-2 rounded-xl shadow-lg whitespace-nowrap animate-bounce">
+                Need Help? 👋
+                <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-slate-900 dark:bg-white rotate-45"></div>
+              </div>
+              {/* Outer Pulsing Ring */}
+              <div className="absolute inset-0 rounded-full border-4 border-blue-500 animate-ping opacity-30 w-full h-full pointer-events-none scale-[1.3]"></div>
+            </>
+          )}
+
+          <button
+            onClick={() => setSupportOpen(!supportOpen)}
+            className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-700 shadow-2xl flex items-center justify-center relative overflow-hidden transition-transform active:scale-95 hover:scale-105 z-10"
+          >
+            {supportOpen ? (
+              <div className="bg-slate-900 dark:bg-white w-full h-full flex items-center justify-center">
+                <X size={28} className="text-white dark:text-slate-900" />
+              </div>
+            ) : (
+              // Anime-style avatar using DiceBear Micah styling
+              <img
+                src="https://api.dicebear.com/9.x/micah/svg?seed=SupportAgent&backgroundColor=b6e3f4"
+                alt="Support Agent"
+                className="w-full h-full object-cover scale-[1.15] mt-1"
+              />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
