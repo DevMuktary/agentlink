@@ -114,6 +114,7 @@ export default function AdminBvnModificationQueue() {
       const q = searchQuery.toLowerCase();
       result = result.filter(r => 
           r.requestData?.bvn?.includes(q) ||
+          r.requestData?.nin?.includes(q) ||
           r.requestData?.clientReference?.toLowerCase().includes(q) ||
           r.user?.firstName?.toLowerCase().includes(q) ||
           r.user?.lastName?.toLowerCase().includes(q) ||
@@ -221,7 +222,7 @@ export default function AdminBvnModificationQueue() {
   const formatOldDetails = (item: any) => {
     const ident = getIdentity(item.requestData);
     const fullName = `${ident.surname || ''} ${ident.first_name || ''} ${ident.middle_name || ''}`.trim() || 'N/A';
-    return `BVN: ${item.requestData?.bvn || 'N/A'}; Name: ${fullName}; Bank: ${item.requestData?.bank_name || 'N/A'};`;
+    return `BVN: ${item.requestData?.bvn || 'N/A'}; NIN: ${item.requestData?.nin || 'N/A'}; Name: ${fullName}; Bank: ${item.requestData?.bank_name || 'N/A'};`;
   };
 
   const formatNewDetails = (item: any) => {
@@ -273,7 +274,7 @@ export default function AdminBvnModificationQueue() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <input 
               type="text"
-              placeholder="Search BVN, Name, Ref..."
+              placeholder="Search BVN, NIN, Name..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9 pr-4 py-2.5 w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400"
@@ -307,7 +308,7 @@ export default function AdminBvnModificationQueue() {
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Date & Reference</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Agent</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Service</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">BVN / Name</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">BVN / NIN</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Status</th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
               </tr>
@@ -350,9 +351,7 @@ export default function AdminBvnModificationQueue() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-slate-900 dark:text-white font-mono font-bold">{req.requestData?.bvn || 'N/A'}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase truncate max-w-[200px]" title={`${ident.surname} ${ident.first_name}`}>
-                          {ident.surname} {ident.first_name}
-                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-mono font-semibold mt-0.5">NIN: {req.requestData?.nin || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${getStatusColor(req.status)}`}>
@@ -472,6 +471,7 @@ export default function AdminBvnModificationQueue() {
                         return (
                             <>
                                 <DisplayRow label="BVN" value={viewReq.requestData?.bvn} />
+                                <DisplayRow label="NIN" value={viewReq.requestData?.nin} />
                                 <DisplayRow label="Surname" value={ident.surname} />
                                 <DisplayRow label="Firstname" value={ident.first_name} />
                                 <DisplayRow label="Middlename" value={ident.middle_name} />
