@@ -372,7 +372,7 @@ export default function IpeClearanceHistoryPage() {
               
               {/* Highlighted Result Box */}
               <div className="bg-emerald-50 dark:bg-emerald-900/10 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/30 text-center relative overflow-hidden">
-                 <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-bold uppercase tracking-widest mb-2">Generated Clearance ID</p>
+                 <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-bold uppercase tracking-widest mb-2">New Tracking ID</p>
                  <div className="flex items-center justify-center gap-3">
                     <p className="text-xl sm:text-2xl font-mono font-black text-slate-900 dark:text-white tracking-widest break-all">
                       {viewReq.responseData?.reply || 'N/A'}
