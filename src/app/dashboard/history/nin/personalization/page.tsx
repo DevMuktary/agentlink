@@ -6,7 +6,7 @@ import GlobalLoader from '@/components/GlobalLoader';
 import { 
   CheckCircle2, XCircle, Clock, Search, 
   Monitor, Code, ChevronLeft, ChevronRight, Users, Info,
-  RefreshCcw, Loader2, AlertTriangle, X
+  RefreshCcw, Loader2, AlertTriangle, X, Hash, Eye, Copy, Check, User
 } from 'lucide-react';
 
 export default function NinPersonalizationHistoryPage() {
@@ -22,7 +22,18 @@ export default function NinPersonalizationHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [checkingStatusId, setCheckingStatusId] = useState<string | null>(null);
+  const [viewReq, setViewReq] = useState<any>(null); // For the View Profile Modal
   
+  // Copy State
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyText = (text: string, id: string) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   // Global Toast Message for manual status checks
   const [toastMsg, setToastMsg] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
 
@@ -63,7 +74,11 @@ export default function NinPersonalizationHistoryPage() {
       const q = searchQuery.toLowerCase();
       result = result.filter(r => 
         r.requestData?.trackingId?.toLowerCase().includes(q) || 
-        r.requestData?.clientReference?.toLowerCase().includes(q)
+        r.requestData?.clientReference?.toLowerCase().includes(q) ||
+        r.responseData?.nin?.includes(q) ||
+        r.responseData?.NIN?.includes(q) ||
+        r.responseData?.firstName?.toLowerCase().includes(q) ||
+        r.responseData?.surname?.toLowerCase().includes(q)
       );
     }
 
@@ -116,6 +131,18 @@ export default function NinPersonalizationHistoryPage() {
         ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' 
         : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
     };
+  };
+
+  const DisplayRow = ({ label, value }: { label: string, value: any }) => {
+    const displayValue = String(value || 'N/A').trim().toUpperCase();
+    return (
+        <div className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-700/50 last:border-0 group">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider pr-2 whitespace-nowrap">{label}</span>
+            <span className="font-bold text-slate-900 dark:text-slate-100 text-sm text-right truncate max-w-[200px]" title={displayValue}>
+                {displayValue}
+            </span>
+        </div>
+    );
   };
 
   if (loading) return <GlobalLoader />;
@@ -177,10 +204,10 @@ export default function NinPersonalizationHistoryPage() {
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search Tracking ID or Ref..." 
+              placeholder="Search ID, NIN, Name..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 shadow-sm"
+              className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 shadow-sm transition-all"
             />
           </div>
         </div>
@@ -197,7 +224,7 @@ export default function NinPersonalizationHistoryPage() {
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Tracking ID / Ref</th>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Amount</th>
                 <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Status</th>
-                <th className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">Notes & Action</th>
+                <th className="px-6 py-4 text-right font-bold text-slate-600 dark:text-slate-300">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -215,6 +242,9 @@ export default function NinPersonalizationHistoryPage() {
                   const source = getSourceDetails(item.requestData?.clientReference);
                   const isChecking = checkingStatusId === item.id;
                   
+                  // Safely extract the generated NIN
+                  const generatedNin = item.responseData?.nin || item.responseData?.NIN || item.responseData?.idNumber || null;
+                  
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">
@@ -230,7 +260,7 @@ export default function NinPersonalizationHistoryPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-mono text-slate-900 dark:text-white font-semibold">
+                        <div className="font-mono text-slate-900 dark:text-white font-semibold tracking-wider">
                           {item.requestData?.trackingId || '---'}
                         </div>
                         <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 tracking-wider">
@@ -252,26 +282,39 @@ export default function NinPersonalizationHistoryPage() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 max-w-[200px] text-xs text-slate-500 dark:text-slate-400">
-                        {item.status === 'PROCESSING' ? (
-                          <button 
-                            onClick={() => handleCheckStatus(item.id, item.requestData?.clientReference)}
-                            disabled={isChecking}
-                            className="inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all shadow-sm"
-                          >
-                            {isChecking ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />}
-                            Check Status
-                          </button>
-                        ) : item.status === 'COMPLETED' && item.responseData?.trackingId ? (
-                           <div className="font-mono text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-500/10 px-2 py-1 rounded inline-block border border-green-200 dark:border-green-500/20">
-                             New ID: {item.responseData.trackingId}
-                           </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 truncate" title={item.adminNote || 'No details'}>
-                            <Info size={14} className="text-slate-400 shrink-0" />
-                            <span className="truncate">{item.adminNote || 'Processed'}</span>
-                          </div>
-                        )}
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          {item.status === 'PROCESSING' ? (
+                            <button 
+                              onClick={() => handleCheckStatus(item.id, item.requestData?.clientReference)}
+                              disabled={isChecking}
+                              className="inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg font-bold transition-all shadow-sm active:scale-95"
+                            >
+                              {isChecking ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />}
+                              Check Status
+                            </button>
+                          ) : item.status === 'COMPLETED' ? (
+                             <>
+                               {/* Badged NIN visible directly on the row */}
+                               <div className="font-mono text-green-700 dark:text-green-400 font-bold bg-green-50 dark:bg-green-500/10 px-2 py-1.5 rounded-lg border border-green-200 dark:border-green-500/30 flex items-center gap-1">
+                                 <Hash size={14} /> {generatedNin || 'N/A'}
+                               </div>
+                               {/* Eye icon to open the full profile modal */}
+                               <button 
+                                 onClick={() => setViewReq(item)}
+                                 className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                 title="View Full Record"
+                               >
+                                 <Eye className="h-5 w-5" />
+                               </button>
+                             </>
+                          ) : (
+                            <div className="flex items-center gap-1.5 truncate text-xs text-slate-500" title={item.adminNote || 'No details'}>
+                              <Info size={14} className="text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[150px]">{item.adminNote || 'Failed'}</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -309,6 +352,99 @@ export default function NinPersonalizationHistoryPage() {
           </div>
         )}
       </div>
+
+      {/* --- VIEW FULL RECORD MODAL --- */}
+      {viewReq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl relative my-8 border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+            
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 p-6 bg-slate-50 dark:bg-slate-950/50 rounded-t-3xl">
+              <div>
+                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                   <Users className="w-5 h-5 text-purple-500" /> Identity Record
+                 </h3>
+                 <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">Tracking ID: {viewReq.requestData?.trackingId}</p>
+              </div>
+              <button onClick={() => setViewReq(null)} className="p-2 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500">
+                <X className="h-5 w-5"/>
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6 custom-scrollbar">
+              
+              {/* Profile Card (Photo + Basic Info) */}
+              <div className="flex flex-col sm:flex-row gap-6 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                {/* Base64 Photo Rendering */}
+                {viewReq.responseData?.photo ? (
+                   <div className="w-32 h-32 shrink-0 rounded-xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-md bg-slate-200 dark:bg-slate-800 mx-auto sm:mx-0">
+                      <img 
+                        src={`data:image/jpeg;base64,${viewReq.responseData.photo}`} 
+                        alt="Applicant Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                   </div>
+                ) : (
+                   <div className="w-32 h-32 shrink-0 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 mx-auto sm:mx-0">
+                      <User size={40} className="text-slate-400 dark:text-slate-600" />
+                   </div>
+                )}
+                
+                <div className="flex-1 flex flex-col justify-center text-center sm:text-left">
+                   <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                     {viewReq.responseData?.firstName || viewReq.responseData?.firstname} {viewReq.responseData?.lastName || viewReq.responseData?.surname}
+                   </h2>
+                   <div className="mt-2 space-y-1.5">
+                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                       <span className="text-slate-400 dark:text-slate-500 text-xs uppercase tracking-widest mr-1">NIN:</span> 
+                       <span className="font-mono font-bold tracking-widest">{viewReq.responseData?.nin || viewReq.responseData?.NIN || viewReq.responseData?.idNumber}</span>
+                     </p>
+                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                       <span className="text-slate-400 dark:text-slate-500 text-xs uppercase tracking-widest mr-1">DOB:</span> 
+                       {viewReq.responseData?.dateOfBirth || viewReq.responseData?.birthdate || 'N/A'}
+                     </p>
+                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                       <span className="text-slate-400 dark:text-slate-500 text-xs uppercase tracking-widest mr-1">Gender:</span> 
+                       {viewReq.responseData?.gender || 'N/A'}
+                     </p>
+                   </div>
+                </div>
+              </div>
+
+              {/* Extended Details Table */}
+              <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden shadow-sm">
+                 <div className="bg-white dark:bg-slate-900 p-2">
+                    <DisplayRow label="Middle Name" value={viewReq.responseData?.middleName || viewReq.responseData?.middlename} />
+                    <DisplayRow label="Phone Number" value={viewReq.responseData?.telephoneno} />
+                    <DisplayRow label="Email Address" value={viewReq.responseData?.email} isEmail />
+                    <DisplayRow label="Marital Status" value={viewReq.responseData?.maritalstatus} />
+                    <DisplayRow label="Religion" value={viewReq.requestData?.religion} />
+                    <DisplayRow label="State of Origin" value={viewReq.responseData?.self_origin_state} />
+                    <DisplayRow label="LGA of Origin" value={viewReq.responseData?.self_origin_lga} />
+                    <DisplayRow label="Residence Address" value={viewReq.responseData?.residence_address || viewReq.responseData?.residence_AdressLine1 || viewReq.responseData?.residence_addr} />
+                    <DisplayRow label="Residence Town" value={viewReq.responseData?.residence_Town} />
+                    <DisplayRow label="Residence State" value={viewReq.responseData?.residence_state} />
+                    <DisplayRow label="Residence LGA" value={viewReq.responseData?.residence_lga} />
+                    <DisplayRow label="Height" value={viewReq.responseData?.heigth ? `${viewReq.responseData.heigth} cm` : 'N/A'} />
+                 </div>
+              </div>
+
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 rounded-b-3xl flex justify-between items-center">
+              <button 
+                onClick={() => copyText(JSON.stringify(viewReq.responseData), 'json-dump')}
+                className="text-xs font-bold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1.5 transition-colors"
+              >
+                {copiedId === 'json-dump' ? <Check size={14} className="text-green-500"/> : <Copy size={14}/>} Copy Raw JSON
+              </button>
+              <button onClick={() => setViewReq(null)} className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
