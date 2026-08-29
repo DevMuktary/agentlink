@@ -197,33 +197,33 @@ export default function ServiceSettings() {
             </div>
         </div>
 
-        {/* DATA PLANS TABLE */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="bg-blue-50/50 dark:bg-blue-900/10 px-6 py-4 border-b border-blue-100 dark:border-blue-900/30 font-bold text-blue-800 dark:text-blue-400 flex items-center gap-2">
-                <Database size={18} className="text-blue-400 dark:text-blue-500" /> Data Plans
-            </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                        <tr>
-                            <th className="px-6 py-4 font-bold">Plan Name</th>
-                            <th className="px-6 py-4 font-bold">
-                              {priceMode === 'REFERRAL' ? 'Referral Reward (₦)' : 'Price Configuration (₦)'}
-                            </th>
-                            <th className="px-6 py-4 font-bold text-right">Global Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                        {filteredData.map(p => (
-                            <Row key={p.id} item={p} type="DATAPLAN" priceMode={priceMode} onUpdate={handleUpdate} savingId={savingId} />
-                        ))}
-                        {filteredData.length === 0 && (
-                            <tr><td colSpan={3} className="p-12 text-center text-slate-500 font-medium">No data plans found.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        {/* DATA PLANS TABLE (Only shown for DASHBOARD and API modes) */}
+        {priceMode !== 'REFERRAL' && (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 px-6 py-4 border-b border-blue-100 dark:border-blue-900/30 font-bold text-blue-800 dark:text-blue-400 flex items-center gap-2">
+                  <Database size={18} className="text-blue-400 dark:text-blue-500" /> Data Plans
+              </div>
+              <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                          <tr>
+                              <th className="px-6 py-4 font-bold">Plan Name</th>
+                              <th className="px-6 py-4 font-bold">Price Configuration (₦)</th>
+                              <th className="px-6 py-4 font-bold text-right">Global Status</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                          {filteredData.map(p => (
+                              <Row key={p.id} item={p} type="DATAPLAN" priceMode={priceMode} onUpdate={handleUpdate} savingId={savingId} />
+                          ))}
+                          {filteredData.length === 0 && (
+                              <tr><td colSpan={3} className="p-12 text-center text-slate-500 font-medium">No data plans found.</td></tr>
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+        )}
     </div>
   );
 }

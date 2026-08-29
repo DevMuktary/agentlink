@@ -258,13 +258,13 @@ export default function ReferralsPage() {
             
             <div className="max-w-2xl relative z-10">
               <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold uppercase tracking-wider border border-purple-500/30 inline-flex items-center gap-1.5 mb-4">
-                <Sparkles className="w-3.5 h-3.5" /> Lifetime Affiliate Program
+                <Sparkles className="w-3.5 h-3.5" /> 1-Year Affiliate Program
               </span>
               <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
                 Turn your network into <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-300">passive income.</span>
               </h2>
               <p className="text-slate-300 text-sm sm:text-base mt-3 leading-relaxed">
-                Connect other agents to AgentHub. Every time your referee purchases Data, NIN Slips, BVN Verifications, or Corporate Filings on their dashboard, you earn instant commission (Airtime top-up excluded).
+                Connect other agents to AgentHub. Every time your referee purchases NIN Slips, BVN Verifications, or Corporate Filings on their dashboard, you earn instant commission for a full year from their signup date (Airtime & Data excluded).
               </p>
             </div>
 
@@ -272,8 +272,8 @@ export default function ReferralsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 pt-8 border-t border-white/10 relative z-10">
               <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-sm">
                 <TrendingUp className="w-6 h-6 text-purple-400 mb-2" />
-                <h4 className="font-bold text-sm">Recurring Commissions</h4>
-                <p className="text-xs text-slate-400 mt-1">Continuous rewards on every completed service.</p>
+                <h4 className="font-bold text-sm">1-Year Commission Window</h4>
+                <p className="text-xs text-slate-400 mt-1">Continuous rewards for 365 days on every referee.</p>
               </div>
               <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-sm">
                 <Wallet className="w-6 h-6 text-emerald-400 mb-2" />
@@ -768,9 +768,14 @@ export default function ReferralsPage() {
             <div className="space-y-6">
               {/* Core Services Table */}
               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">Core Services Commission Rates</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Admin-configured referral payout per completed service.</p>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white">Services Commission Rates Matrix</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Admin-configured referral payout per completed service (Airtime & Data excluded).</p>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                    1-Year Earning Period
+                  </span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
@@ -782,48 +787,23 @@ export default function ReferralsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                      {matrix.services.map((s: any) => (
-                        <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{s.name}</td>
-                          <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-400">₦{s.price.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-right font-mono font-bold text-purple-600 dark:text-purple-400">
-                            {s.reward > 0 ? `₦${s.reward.toLocaleString()}` : <span className="text-slate-400 font-normal">₦0.00 (No reward)</span>}
+                      {matrix.services.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-12 text-center text-slate-400 text-sm">
+                            No active commissionable services configured currently.
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Data Plans Table */}
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">Data Bundles Commission Rates</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Admin-configured referral payout per completed data plan.</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-xs uppercase font-bold border-b border-slate-100 dark:border-slate-800">
-                      <tr>
-                        <th className="px-6 py-4">Network & Plan Name</th>
-                        <th className="px-6 py-4">Dashboard Price</th>
-                        <th className="px-6 py-4 text-right">Referral Reward (You Earn)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                      {matrix.dataPlans.map((d: any) => (
-                        <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
-                            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-mono mr-2 text-slate-500">{d.network}</span>
-                            {d.name}
-                          </td>
-                          <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-400">₦{d.price.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-right font-mono font-bold text-purple-600 dark:text-purple-400">
-                            {d.reward > 0 ? `₦${d.reward.toLocaleString()}` : <span className="text-slate-400 font-normal">₦0.00</span>}
-                          </td>
-                        </tr>
-                      ))}
+                      ) : (
+                        matrix.services.map((s: any) => (
+                          <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{s.name}</td>
+                            <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-400">₦{s.price.toLocaleString()}</td>
+                            <td className="px-6 py-4 text-right font-mono font-bold text-purple-600 dark:text-purple-400">
+                              {s.reward > 0 ? `₦${s.reward.toLocaleString()}` : <span className="text-slate-400 font-normal">₦0.00 (No reward)</span>}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

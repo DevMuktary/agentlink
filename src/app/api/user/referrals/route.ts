@@ -81,8 +81,8 @@ export async function GET(req: Request) {
       take: 50,
     });
 
-    // 5. Fetch Services & Data Plans
-    const [allServices, allDataPlans, minBankSetting, minWalletSetting, legacyMinSetting] = await Promise.all([
+    // 5. Fetch Services
+    const [allServices, minBankSetting, minWalletSetting, legacyMinSetting] = await Promise.all([
       prisma.service.findMany({
         where: { isActive: true },
         select: {
@@ -95,20 +95,6 @@ export async function GET(req: Request) {
         },
         orderBy: { name: 'asc' },
       }),
-      prisma.dataPlan.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          productCode: true,
-          name: true,
-          network: true,
-          category: true,
-          referralReward: true,
-          dashboardPrice: true,
-          price: true,
-        },
-        orderBy: [{ network: 'asc' }, { name: 'asc' }],
-      }),
       prisma.systemSetting.findUnique({
         where: { key: 'MIN_REFERRAL_PAYOUT_BANK' },
       }),
@@ -120,7 +106,7 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    // Excluded codes set
+    // Excluded codes set (internal bank toggles, airtime, data)
     const excludedCodes = new Set([
       'BANK_AGENCY',
       'BANK_HERITAGE',
@@ -138,18 +124,12 @@ export async function GET(req: Request) {
       'DATA',
     ]);
 
-    // Filter services: no bank switches, no airtime, must have price > 0
+    // Filter services: no bank switches, no airtime/data, must have price > 0
     const services = allServices.filter((s) => {
       const codeStr = String(s.code || '');
       if (excludedCodes.has(codeStr)) return false;
       if (codeStr.startsWith('BANK_') || codeStr.startsWith('AIRTIME_')) return false;
       const currentPrice = Number(s.dashboardPrice ?? s.price ?? 0);
-      return currentPrice > 0;
-    });
-
-    // Filter data plans: must have price > 0
-    const dataPlans = allDataPlans.filter((d) => {
-      const currentPrice = Number(d.dashboardPrice ?? d.price ?? 0);
       return currentPrice > 0;
     });
 
@@ -196,14 +176,7 @@ export async function GET(req: Request) {
             reward: Number(s.referralReward || 0),
             price: Number(s.dashboardPrice ?? s.price ?? 0),
           })),
-          dataPlans: dataPlans.map((d) => ({
-            id: d.id,
-            name: d.name,
-            network: d.network,
-            category: d.category,
-            reward: Number(d.referralReward || 0),
-            price: Number(d.dashboardPrice ?? d.price ?? 0),
-          })),
+          dataPlans: [],
         },
         minPayout: minPayoutBank,
         minPayoutBank,

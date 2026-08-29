@@ -56,6 +56,12 @@ export async function distributeReferralCommission({
       return { success: false, reason: 'Referral program is currently inactive.' };
     }
 
+    // Exempt Airtime and Data completely from commissions
+    const serviceTypeStr = String(serviceType || '');
+    if (serviceTypeStr === 'DATA' || serviceTypeStr === 'AIRTIME' || serviceTypeStr.startsWith('AIRTIME_') || dataPlanId) {
+      return { success: false, reason: 'Airtime and Data services are exempt from referral commissions.' };
+    }
+
     // 3. Find Referee & Referrer
     const referee = await prisma.user.findUnique({
       where: { id: refereeId },
@@ -64,6 +70,7 @@ export async function distributeReferralCommission({
         firstName: true,
         lastName: true,
         referredById: true,
+        createdAt: true,
         referrer: {
           select: {
             id: true,
@@ -80,6 +87,16 @@ export async function distributeReferralCommission({
       return { success: false, reason: 'User does not have an active referrer.' };
     }
 
+    // 1-YEAR COMMISSION ELIGIBILITY CHECK
+    const ONE_YEAR_IN_MS = 365 * 24 * 60 * 60 * 1000;
+    const refereeJoinedTime = new Date(referee.createdAt).getTime();
+    if (Date.now() - refereeJoinedTime > ONE_YEAR_IN_MS) {
+      return { 
+        success: false, 
+        reason: '1-Year referral commission period for this referee has expired.' 
+      };
+    }
+
     const referrer = referee.referrer;
     if (!referrer.isActive) {
       return { success: false, reason: 'Referrer account is suspended.' };
@@ -89,18 +106,10 @@ export async function distributeReferralCommission({
     let rewardAmount = 0;
     let serviceLabel = serviceType.replace(/_/g, ' ');
 
-    if (dataPlanId) {
-      const plan = await prisma.dataPlan.findUnique({ where: { id: dataPlanId } });
-      if (plan && plan.referralReward) {
-        rewardAmount = Number(plan.referralReward);
-        serviceLabel = `${plan.network} ${plan.name}`;
-      }
-    } else {
-      const service = await prisma.service.findUnique({ where: { code: serviceType } });
-      if (service && service.referralReward) {
-        rewardAmount = Number(service.referralReward);
-        serviceLabel = service.name;
-      }
+    const service = await prisma.service.findUnique({ where: { code: serviceType } });
+    if (service && service.referralReward) {
+      rewardAmount = Number(service.referralReward);
+      serviceLabel = service.name;
     }
 
     if (rewardAmount <= 0) {
