@@ -412,7 +412,56 @@ async function main() {
     });
   }
 
-  console.log('✅ Services & Data Plans seeded successfully!');
+  // Seed System Settings
+  await prisma.systemSetting.upsert({
+    where: { key: 'MIN_REFERRAL_PAYOUT' },
+    update: {},
+    create: {
+      key: 'MIN_REFERRAL_PAYOUT',
+      value: '3000',
+      description: 'Minimum bank withdrawal threshold for referral earnings',
+    },
+  });
+
+  await prisma.systemSetting.upsert({
+    where: { key: 'IS_REFERRAL_ACTIVE' },
+    update: {},
+    create: {
+      key: 'IS_REFERRAL_ACTIVE',
+      value: 'true',
+      description: 'Global master switch for referral commission distribution',
+    },
+  });
+
+  // Backfill referral codes for existing users
+  const usersWithoutRef = await prisma.user.findMany({
+    where: { referralCode: null },
+    select: { id: true },
+  });
+
+  if (usersWithoutRef.length > 0) {
+    console.log(`⏳ Backfilling referral codes for ${usersWithoutRef.length} users...`);
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (const u of usersWithoutRef) {
+      let code = 'AG';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      try {
+        await prisma.user.update({
+          where: { id: u.id },
+          data: { referralCode: code },
+        });
+      } catch (err) {
+        await prisma.user.update({
+          where: { id: u.id },
+          data: { referralCode: `AG${Date.now().toString(36).toUpperCase().slice(-6)}` },
+        });
+      }
+    }
+  }
+
+  console.log('✅ Services, Data Plans & Referral Settings seeded successfully!');
 }
 
 main()
