@@ -34,7 +34,8 @@ export default function AdminReferralsPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Settings State
-  const [minPayoutInput, setMinPayoutInput] = useState('3000');
+  const [minPayoutBankInput, setMinPayoutBankInput] = useState('3000');
+  const [minPayoutWalletInput, setMinPayoutWalletInput] = useState('1000');
   const [isReferralActive, setIsReferralActive] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -52,7 +53,8 @@ export default function AdminReferralsPage() {
       const res = await axios.get('/api/admin/referrals');
       if (res.data.status) {
         setData(res.data.data);
-        setMinPayoutInput(String(res.data.data.stats?.minPayoutThreshold || 3000));
+        setMinPayoutBankInput(String(res.data.data.stats?.minPayoutBank || res.data.data.stats?.minPayoutThreshold || 3000));
+        setMinPayoutWalletInput(String(res.data.data.stats?.minPayoutWallet || 1000));
         setIsReferralActive(res.data.data.stats?.isReferralActive !== false);
       }
     } catch (error: any) {
@@ -103,7 +105,8 @@ export default function AdminReferralsPage() {
     setSavingSettings(true);
     try {
       const res = await axios.put('/api/admin/referrals', {
-        minPayout: Number(minPayoutInput),
+        minPayoutBank: Number(minPayoutBankInput),
+        minPayoutWallet: Number(minPayoutWalletInput),
         isReferralActive,
       });
       if (res.data.status) {
@@ -541,13 +544,13 @@ export default function AdminReferralsPage() {
           </div>
 
           <form onSubmit={handleSaveSettings} className="space-y-6">
-            {/* Minimum Bank Withdrawal Threshold */}
+            {/* Minimum Wallet Transfer Threshold */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
-                Minimum Bank Withdrawal Amount (₦)
+                Minimum Wallet Transfer Amount (₦)
               </label>
               <p className="text-xs text-slate-400 mb-2">
-                Agents can only request a bank transfer once their referral balance reaches this amount.
+                Agents can instantly transfer referral earnings to their platform wallet starting from this amount.
               </p>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
@@ -555,8 +558,30 @@ export default function AdminReferralsPage() {
                   type="number"
                   min="100"
                   step="100"
-                  value={minPayoutInput}
-                  onChange={(e) => setMinPayoutInput(e.target.value)}
+                  value={minPayoutWalletInput}
+                  onChange={(e) => setMinPayoutWalletInput(e.target.value)}
+                  required
+                  className="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* Minimum Bank Withdrawal Threshold */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                Minimum Bank Withdrawal Amount (₦)
+              </label>
+              <p className="text-xs text-slate-400 mb-2">
+                Agents can only request a direct bank transfer once their referral balance reaches this amount.
+              </p>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
+                <input
+                  type="number"
+                  min="100"
+                  step="100"
+                  value={minPayoutBankInput}
+                  onChange={(e) => setMinPayoutBankInput(e.target.value)}
                   required
                   className="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
                 />

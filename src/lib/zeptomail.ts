@@ -132,5 +132,23 @@ export const emailTemplates = {
     </div>
     <p>This code expires in 10 minutes.</p>
     <p>If you did not request a password reset, you can safely ignore this email.</p>
+  `),
+
+  payoutStatusUpdate: (name: string, amount: number, status: 'COMPLETED' | 'REJECTED', bankName?: string, accountNumber?: string, note?: string) => wrapEmail(`
+    <h2 style="color: #0f172a; margin-top: 0;">Referral Payout ${status === 'COMPLETED' ? 'Processed' : 'Update'}</h2>
+    <p>Hello <strong>${name}</strong>,</p>
+    <p>Your referral earnings withdrawal request for <strong>₦${amount.toLocaleString()}</strong> has been updated.</p>
+    
+    <div style="margin: 20px 0; padding: 15px; border-left: 4px solid ${status === 'COMPLETED' ? '#16a34a' : '#dc2626'}; background: #f8fafc;">
+      <strong>Status:</strong> <span style="color: ${status === 'COMPLETED' ? '#16a34a' : '#dc2626'}; font-weight: bold;">${status === 'COMPLETED' ? 'PAID / COMPLETED' : 'REJECTED (FUNDS REFUNDED)'}</span><br>
+      ${bankName && accountNumber ? `<strong>Destination:</strong> ${bankName} (${accountNumber})<br>` : ''}
+      ${note ? `<strong>Admin Note:</strong> ${note}` : ''}
+    </div>
+
+    ${status === 'COMPLETED' 
+      ? '<p>The funds have been transferred to your bank account. Thank you for partnering with AgentHub!</p>'
+      : '<p>The requested withdrawal amount has been refunded back to your Referral Earnings balance.</p>'
+    }
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/referrals" class="btn">View Referral Dashboard</a>
   `)
 };

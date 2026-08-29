@@ -53,8 +53,16 @@ export async function POST(req: Request) {
 
     // 2. Validate thresholds based on payout type
     if (type === 'WALLET') {
-      if (payoutAmount < 100) {
-        return NextResponse.json({ status: false, error: 'Minimum transfer to wallet is ₦100.' }, { status: 400 });
+      const minWalletSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'MIN_REFERRAL_PAYOUT_WALLET' },
+      });
+      const minWalletPayout = minWalletSetting ? Number(minWalletSetting.value) : 1000;
+
+      if (payoutAmount < minWalletPayout) {
+        return NextResponse.json({ 
+          status: false, 
+          error: `Minimum transfer to wallet is ₦${minWalletPayout.toLocaleString()}.` 
+        }, { status: 400 });
       }
 
       const reference = `PAYOUT-WAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -111,10 +119,11 @@ export async function POST(req: Request) {
         );
       }
 
-      const minPayoutSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'MIN_REFERRAL_PAYOUT' },
-      });
-      const minPayout = minPayoutSetting ? Number(minPayoutSetting.value) : 3000;
+      const [minBankSetting, legacySetting] = await Promise.all([
+        prisma.systemSetting.findUnique({ where: { key: 'MIN_REFERRAL_PAYOUT_BANK' } }),
+        prisma.systemSetting.findUnique({ where: { key: 'MIN_REFERRAL_PAYOUT' } }),
+      ]);
+      const minPayout = minBankSetting ? Number(minBankSetting.value) : (legacySetting ? Number(legacySetting.value) : 3000);
 
       if (payoutAmount < minPayout) {
         return NextResponse.json(

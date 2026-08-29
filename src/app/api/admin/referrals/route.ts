@@ -12,12 +12,15 @@ export async function GET(req: Request) {
     }
 
     // 1. Fetch Global Settings
-    const [minPayoutSetting, activeSetting] = await Promise.all([
+    const [minBankSetting, minWalletSetting, legacyMinSetting, activeSetting] = await Promise.all([
+      prisma.systemSetting.findUnique({ where: { key: 'MIN_REFERRAL_PAYOUT_BANK' } }),
+      prisma.systemSetting.findUnique({ where: { key: 'MIN_REFERRAL_PAYOUT_WALLET' } }),
       prisma.systemSetting.findUnique({ where: { key: 'MIN_REFERRAL_PAYOUT' } }),
       prisma.systemSetting.findUnique({ where: { key: 'IS_REFERRAL_ACTIVE' } }),
     ]);
 
-    const minPayout = minPayoutSetting ? Number(minPayoutSetting.value) : 3000;
+    const minPayoutBank = minBankSetting ? Number(minBankSetting.value) : (legacyMinSetting ? Number(legacyMinSetting.value) : 3000);
+    const minPayoutWallet = minWalletSetting ? Number(minWalletSetting.value) : 1000;
     const isReferralActive = activeSetting ? activeSetting.value === 'true' : true;
 
     // 2. Fetch Global Stats
@@ -100,7 +103,9 @@ export async function GET(req: Request) {
           totalCommissionsPaid: totalCommissions,
           pendingPayoutsCount: pendingPayouts.length,
           pendingPayoutsAmount: pendingPayoutsAmount,
-          minPayoutThreshold: minPayout,
+          minPayoutThreshold: minPayoutBank,
+          minPayoutBank: minPayoutBank,
+          minPayoutWallet: minPayoutWallet,
           isReferralActive,
         },
         pendingPayouts: pendingPayouts.map((p) => ({
@@ -169,14 +174,27 @@ export async function PUT(req: Request) {
       return NextResponse.json({ status: false, error: 'Unauthorized' }, { status: 403 });
     }
 
-    const { minPayout, isReferralActive } = await req.json();
+    const { minPayout, minPayoutBank, minPayoutWallet, isReferralActive } = await req.json();
 
-    if (minPayout !== undefined) {
-      const minVal = Number(minPayout);
+    const bankThreshold = minPayoutBank !== undefined ? minPayoutBank : minPayout;
+
+    if (bankThreshold !== undefined) {
+      const minVal = Number(bankThreshold);
       if (isNaN(minVal) || minVal < 100) {
-        return NextResponse.json({ status: false, error: 'Minimum payout threshold must be at least ₦100.' }, { status: 400 });
+        return NextResponse.json({ status: false, error: 'Minimum bank payout threshold must be at least ₦100.' }, { status: 400 });
       }
 
+      await prisma.systemSetting.upsert({
+        where: { key: 'MIN_REFERRAL_PAYOUT_BANK' },
+        update: { value: String(minVal) },
+        create: {
+          key: 'MIN_REFERRAL_PAYOUT_BANK',
+          value: String(minVal),
+          description: 'Minimum bank withdrawal threshold for referral earnings',
+        },
+      });
+
+      // Legacy fallback sync
       await prisma.systemSetting.upsert({
         where: { key: 'MIN_REFERRAL_PAYOUT' },
         update: { value: String(minVal) },
@@ -184,6 +202,23 @@ export async function PUT(req: Request) {
           key: 'MIN_REFERRAL_PAYOUT',
           value: String(minVal),
           description: 'Minimum bank withdrawal threshold for referral earnings',
+        },
+      });
+    }
+
+    if (minPayoutWallet !== undefined) {
+      const minVal = Number(minPayoutWallet);
+      if (isNaN(minVal) || minVal < 100) {
+        return NextResponse.json({ status: false, error: 'Minimum wallet transfer threshold must be at least ₦100.' }, { status: 400 });
+      }
+
+      await prisma.systemSetting.upsert({
+        where: { key: 'MIN_REFERRAL_PAYOUT_WALLET' },
+        update: { value: String(minVal) },
+        create: {
+          key: 'MIN_REFERRAL_PAYOUT_WALLET',
+          value: String(minVal),
+          description: 'Minimum wallet transfer threshold for referral earnings',
         },
       });
     }

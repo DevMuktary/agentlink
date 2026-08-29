@@ -193,7 +193,8 @@ export default function ReferralsPage() {
   const earnings = dashboardData?.earnings || [];
   const payouts = dashboardData?.payouts || [];
   const matrix = dashboardData?.commissionMatrix || { services: [], dataPlans: [] };
-  const minPayout = dashboardData?.minPayout || 3000;
+  const minPayoutBank = dashboardData?.minPayoutBank || dashboardData?.minPayout || 3000;
+  const minPayoutWallet = dashboardData?.minPayoutWallet || 1000;
   const availableBalance = Number(user?.referralEarningsBalance || 0);
   const lifetimeEarned = Number(user?.referralEarningsTotal || 0);
 
@@ -234,7 +235,7 @@ export default function ReferralsPage() {
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Refer & Earn Program</h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Invite fellow agents and earn recurring commissions whenever they perform dashboard services.
+            Invite fellow agents and earn recurring commissions whenever they perform dashboard services (except Airtime).
           </p>
         </div>
 
@@ -263,7 +264,7 @@ export default function ReferralsPage() {
                 Turn your network into <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-300">passive income.</span>
               </h2>
               <p className="text-slate-300 text-sm sm:text-base mt-3 leading-relaxed">
-                Connect other agents to AgentHub. Every time your referee purchases Data, Airtime, NIN Slips, BVN Verifications, or Corporate Filings on their dashboard, you earn instant commission.
+                Connect other agents to AgentHub. Every time your referee purchases Data, NIN Slips, BVN Verifications, or Corporate Filings on their dashboard, you earn instant commission (Airtime top-up excluded).
               </p>
             </div>
 
@@ -524,9 +525,15 @@ export default function ReferralsPage() {
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px] text-slate-400">
-                <Info className="w-4 h-4 text-purple-500 shrink-0" />
-                <span>Min. Bank Payout: <strong>₦{minPayout.toLocaleString()}</strong></span>
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1 text-[11px] text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                  <span>Min. Bank Payout: <strong>₦{minPayoutBank.toLocaleString()}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span>Min. Wallet Transfer: <strong>₦{minPayoutWallet.toLocaleString()}</strong></span>
+                </div>
               </div>
             </div>
 
@@ -883,7 +890,11 @@ export default function ReferralsPage() {
               {payoutType === 'WALLET' ? (
                 <div className="p-3.5 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-2xl text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
                   <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                  <span>Funds will be added to your platform wallet balance immediately for service purchases.</span>
+                  <div>
+                    <p className="font-bold">Instant Transfer to Main Platform Wallet</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Funds will be added immediately for service purchases.</p>
+                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-1">Min. transfer: ₦{minPayoutWallet.toLocaleString()}</p>
+                  </div>
                 </div>
               ) : (
                 <div className="p-3.5 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl text-xs text-purple-800 dark:text-purple-300 flex items-start gap-2">
@@ -891,7 +902,7 @@ export default function ReferralsPage() {
                   <div>
                     <p className="font-bold">{user?.referralBankName} — {user?.referralAccountNumber}</p>
                     <p className="text-[11px] text-purple-600 dark:text-purple-400">{user?.referralAccountName}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Min. withdrawal: ₦{minPayout.toLocaleString()}</p>
+                    <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 mt-1">Min. bank withdrawal: ₦{minPayoutBank.toLocaleString()}</p>
                   </div>
                 </div>
               )}
@@ -907,7 +918,7 @@ export default function ReferralsPage() {
                     type="number"
                     value={payoutAmount}
                     onChange={(e) => setPayoutAmount(e.target.value)}
-                    placeholder={payoutType === 'WALLET' ? 'Min ₦100' : `Min ₦${minPayout.toLocaleString()}`}
+                    placeholder={payoutType === 'WALLET' ? `Min ₦${minPayoutWallet.toLocaleString()}` : `Min ₦${minPayoutBank.toLocaleString()}`}
                     max={availableBalance}
                     required
                     className="w-full pl-8 pr-20 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
@@ -929,7 +940,8 @@ export default function ReferralsPage() {
                   !payoutAmount || 
                   Number(payoutAmount) <= 0 || 
                   Number(payoutAmount) > availableBalance ||
-                  (payoutType === 'BANK' && Number(payoutAmount) < minPayout)
+                  (payoutType === 'WALLET' && Number(payoutAmount) < minPayoutWallet) ||
+                  (payoutType === 'BANK' && Number(payoutAmount) < minPayoutBank)
                 }
                 className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 mt-4"
               >

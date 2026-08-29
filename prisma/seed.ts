@@ -414,12 +414,32 @@ async function main() {
 
   // Seed System Settings
   await prisma.systemSetting.upsert({
+    where: { key: 'MIN_REFERRAL_PAYOUT_BANK' },
+    update: {},
+    create: {
+      key: 'MIN_REFERRAL_PAYOUT_BANK',
+      value: '3000',
+      description: 'Minimum bank withdrawal threshold for referral earnings',
+    },
+  });
+
+  await prisma.systemSetting.upsert({
+    where: { key: 'MIN_REFERRAL_PAYOUT_WALLET' },
+    update: {},
+    create: {
+      key: 'MIN_REFERRAL_PAYOUT_WALLET',
+      value: '1000',
+      description: 'Minimum wallet transfer threshold for referral earnings',
+    },
+  });
+
+  await prisma.systemSetting.upsert({
     where: { key: 'MIN_REFERRAL_PAYOUT' },
     update: {},
     create: {
       key: 'MIN_REFERRAL_PAYOUT',
       value: '3000',
-      description: 'Minimum bank withdrawal threshold for referral earnings',
+      description: 'Minimum bank withdrawal threshold for referral earnings (legacy)',
     },
   });
 

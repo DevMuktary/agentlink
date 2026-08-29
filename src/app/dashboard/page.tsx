@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Wallet, Clock, Sun, Moon, Mail, MessageCircle, X } from 'lucide-react';
+import { Wallet, Clock, Sun, Moon, Mail, MessageCircle, X, Gift, ArrowRight, Sparkles } from 'lucide-react';
 import GlobalLoader from '@/components/GlobalLoader';
 
 export default function UserDashboard() {
@@ -82,7 +82,7 @@ export default function UserDashboard() {
       </div>
 
       {/* 1. COMPACT WALLET CARD */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#0F172A] to-[#1E293B] dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 text-white shadow-lg shadow-slate-200/40 dark:shadow-none mb-10 border border-slate-800/50">
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#0F172A] to-[#1E293B] dark:from-slate-800 dark:to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-lg shadow-slate-200/40 dark:shadow-none mb-4 border border-slate-800/50">
         
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
@@ -92,16 +92,22 @@ export default function UserDashboard() {
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{formattedBalance}</h2>
           </div>
           
-          <div className="flex gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap gap-2.5 w-full sm:w-auto">
             <Link 
               href="/dashboard/wallet"
-              className="flex-1 sm:flex-none bg-white text-slate-900 px-6 py-2.5 rounded-lg text-sm font-bold text-center hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+              className="flex-1 sm:flex-none bg-white text-slate-900 px-5 py-2.5 rounded-xl text-sm font-bold text-center hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
             >
               Fund Wallet
             </Link>
             <Link 
+              href="/dashboard/referrals"
+              className="flex-1 sm:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold text-center transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1.5"
+            >
+              <Gift className="w-4 h-4" /> Refer & Earn
+            </Link>
+            <Link 
               href="/dashboard/history"
-              className="flex-1 sm:flex-none bg-white/10 backdrop-blur-md text-white px-5 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-white/20 transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2"
+              className="flex-1 sm:flex-none bg-white/10 backdrop-blur-md text-white px-4 py-2.5 rounded-xl text-sm font-semibold text-center hover:bg-white/20 transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-1.5"
             >
               <Clock className="w-3.5 h-3.5" /> History
             </Link>
@@ -109,7 +115,34 @@ export default function UserDashboard() {
         </div>
         
         {/* Subtle Background Glows */}
-        <div className="absolute right-0 top-0 h-40 w-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute right-0 top-0 h-40 w-40 bg-purple-500/15 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+      </div>
+
+      {/* 2. REFER & EARN QUICK PROMO CARD */}
+      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/40 border border-purple-200/70 dark:border-purple-900/40 rounded-3xl p-5 sm:p-6 mb-10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-600/20">
+            <Gift className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">Refer Agents & Earn Continuous Commission</h3>
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                Passive Income
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
+              Earn automatic rewards on all services completed by your referees on their dashboard (except Airtime).
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/dashboard/referrals"
+          className="px-5 py-2.5 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1.5 shrink-0 self-start sm:self-auto"
+        >
+          View Program & Link <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       {/* 2. CARD-BASED SERVICES GRID */}

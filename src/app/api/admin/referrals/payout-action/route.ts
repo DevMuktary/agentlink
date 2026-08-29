@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
+import { sendEmail, emailTemplates } from '@/lib/zeptomail';
 
 export async function POST(req: Request) {
   try {
@@ -38,6 +39,23 @@ export async function POST(req: Request) {
         },
       });
 
+      // Send Email Notification to Agent
+      if (payout.user?.email) {
+        sendEmail({
+          to: payout.user.email,
+          name: `${payout.user.firstName} ${payout.user.lastName}`,
+          subject: 'Referral Payout Processed - AgentHub',
+          html: emailTemplates.payoutStatusUpdate(
+            `${payout.user.firstName} ${payout.user.lastName}`,
+            Number(payout.amount),
+            'COMPLETED',
+            payout.bankName || undefined,
+            payout.accountNumber || undefined,
+            note || undefined
+          ),
+        }).catch((e) => console.error('Payout Email Error:', e));
+      }
+
       return NextResponse.json({
         status: true,
         message: `Payout of ₦${Number(payout.amount).toLocaleString()} to ${payout.user.firstName} ${payout.user.lastName} marked as COMPLETED!`,
@@ -64,6 +82,23 @@ export async function POST(req: Request) {
         });
       });
 
+      // Send Email Notification to Agent
+      if (payout.user?.email) {
+        sendEmail({
+          to: payout.user.email,
+          name: `${payout.user.firstName} ${payout.user.lastName}`,
+          subject: 'Referral Payout Update - AgentHub',
+          html: emailTemplates.payoutStatusUpdate(
+            `${payout.user.firstName} ${payout.user.lastName}`,
+            Number(payout.amount),
+            'REJECTED',
+            payout.bankName || undefined,
+            payout.accountNumber || undefined,
+            note || undefined
+          ),
+        }).catch((e) => console.error('Payout Email Error:', e));
+      }
+
       return NextResponse.json({
         status: true,
         message: `Payout rejected and ₦${Number(payout.amount).toLocaleString()} refunded to ${payout.user.firstName}'s referral balance.`,
@@ -76,3 +111,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: false, error: 'Server error processing payout action.' }, { status: 500 });
   }
 }
+

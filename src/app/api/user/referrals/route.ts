@@ -79,7 +79,7 @@ export async function GET(req: Request) {
     });
 
     // 5. Fetch Services Commission Breakdown (Matrix)
-    const [services, dataPlans, minPayoutSetting] = await Promise.all([
+    const [services, dataPlans, minBankSetting, minWalletSetting, legacyMinSetting] = await Promise.all([
       prisma.service.findMany({
         where: { isActive: true },
         select: {
@@ -105,11 +105,18 @@ export async function GET(req: Request) {
         orderBy: [{ network: 'asc' }, { name: 'asc' }],
       }),
       prisma.systemSetting.findUnique({
+        where: { key: 'MIN_REFERRAL_PAYOUT_BANK' },
+      }),
+      prisma.systemSetting.findUnique({
+        where: { key: 'MIN_REFERRAL_PAYOUT_WALLET' },
+      }),
+      prisma.systemSetting.findUnique({
         where: { key: 'MIN_REFERRAL_PAYOUT' },
       }),
     ]);
 
-    const minPayout = minPayoutSetting ? Number(minPayoutSetting.value) : 3000;
+    const minPayoutBank = minBankSetting ? Number(minBankSetting.value) : (legacyMinSetting ? Number(legacyMinSetting.value) : 3000);
+    const minPayoutWallet = minWalletSetting ? Number(minWalletSetting.value) : 1000;
 
     return NextResponse.json({
       status: true,
@@ -120,13 +127,13 @@ export async function GET(req: Request) {
           name: `${r.firstName} ${r.lastName}`,
           businessName: r.businessName,
           joinedAt: r.createdAt,
-          completedServicesCount: r._count.requests,
+          completedServicesCount: r._count.requests + r._count.transactions,
         })),
         earnings: earnings.map((e) => ({
           id: e.id,
-          refereeName: `${e.referee.firstName} ${e.referee.lastName}`,
-          serviceType: e.serviceType,
           amount: Number(e.amount),
+          serviceType: e.serviceType,
+          refereeName: `${e.referee.firstName} ${e.referee.lastName}`,
           reference: e.reference,
           status: e.status,
           createdAt: e.createdAt,
@@ -160,7 +167,9 @@ export async function GET(req: Request) {
             price: Number(d.dashboardPrice || 0),
           })),
         },
-        minPayout,
+        minPayout: minPayoutBank,
+        minPayoutBank,
+        minPayoutWallet,
       },
     });
   } catch (error) {
