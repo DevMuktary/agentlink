@@ -23,6 +23,24 @@ model User {
   walletBalance         Decimal  @default(0.00) @db.Decimal(10, 2)
   bonusBalance          Decimal  @default(0.00) @db.Decimal(10, 2)
   
+  // Referral System Fields
+  referralCode          String?   @unique
+  referredById          String?
+  referrer              User?     @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals             User[]    @relation("UserReferrals")
+  
+  isReferralEnrolled    Boolean   @default(false)
+  referralBankCode      String?
+  referralBankName      String?
+  referralAccountNumber String?
+  referralAccountName   String?
+  referralEarningsBalance Decimal @default(0.00) @db.Decimal(10, 2)
+  referralEarningsTotal   Decimal @default(0.00) @db.Decimal(10, 2)
+  
+  referralEarnings      ReferralEarning[] @relation("ReferrerEarnings")
+  refereeCommissions    ReferralEarning[] @relation("RefereeCommissions")
+  payoutRequests        PayoutRequest[]
+
   isActive              Boolean  @default(true)
   apiStatus             ApiStatus @default(NONE)
 
@@ -54,9 +72,10 @@ model Service {
   // Kept for migration safety
   price           Decimal     @default(0.00) @db.Decimal(10, 2) 
   
-  // New dual pricing
+  // Dual pricing + referral commission
   dashboardPrice  Decimal     @default(0.00) @db.Decimal(10, 2)
   apiPrice        Decimal     @default(0.00) @db.Decimal(10, 2)
+  referralReward  Decimal     @default(0.00) @db.Decimal(10, 2)
 
   isActive        Boolean     @default(true)
 
@@ -73,9 +92,10 @@ model DataPlan {
   // Kept for migration safety
   price           Decimal  @default(0.00) @db.Decimal(10, 2)
   
-  // New dual pricing
+  // Dual pricing + referral commission
   dashboardPrice  Decimal  @default(0.00) @db.Decimal(10, 2)
   apiPrice        Decimal  @default(0.00) @db.Decimal(10, 2)
+  referralReward  Decimal  @default(0.00) @db.Decimal(10, 2)
 
   productCode     String   @unique 
   validity        String?  
@@ -119,7 +139,60 @@ model Transaction {
   createdAt   DateTime        @default(now())
 }
 
-// 6. VERIFICATION TOKENS
+// 6. REFERRAL EARNING LOGS
+model ReferralEarning {
+  id               String       @id @default(cuid())
+  referrerId       String
+  refereeId        String
+  serviceType      ServiceType
+  serviceRequestId String?
+  amount           Decimal      @db.Decimal(10, 2)
+  reference        String       @unique
+  channel          String       @default("DASHBOARD")
+  status           Status       @default(COMPLETED)
+  
+  referrer         User         @relation("ReferrerEarnings", fields: [referrerId], references: [id])
+  referee          User         @relation("RefereeCommissions", fields: [refereeId], references: [id])
+  
+  createdAt        DateTime     @default(now())
+
+  @@index([referrerId])
+  @@index([refereeId])
+}
+
+// 7. PAYOUT REQUESTS
+model PayoutRequest {
+  id            String       @id @default(cuid())
+  userId        String
+  amount        Decimal      @db.Decimal(10, 2)
+  type          PayoutType
+  status        Status       @default(PENDING)
+  
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+  adminNote     String?
+  reference     String       @unique
+  
+  processedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user          User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+// 8. SYSTEM SETTINGS
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// 9. VERIFICATION TOKENS
 model VerificationToken {
   identifier String   
   token      String   
@@ -129,6 +202,11 @@ model VerificationToken {
 }
 
 // --- ENUMS ---
+
+enum PayoutType {
+  WALLET
+  BANK
+}
 
 enum Role {
   SUPER_ADMIN

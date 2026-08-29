@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { sendEmail, emailTemplates } from '@/lib/zeptomail';
 import { Redis } from 'ioredis';
+import { getUniqueReferralCode } from '@/services/referral.service';
 
 // Initialize Redis
 const redis = new Redis(process.env.REDIS_URL || '');
@@ -19,7 +20,7 @@ const businessNameRegex = /^[a-zA-Z0-9\s\-&.,']{2,100}$/; // Alphanumeric + basi
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, firstName, lastName, phoneNumber, businessName } = body;
+    const { email, password, firstName, lastName, phoneNumber, businessName, referralCode } = body;
 
     // 1. Strict Data Validation
     if (!email || !emailRegex.test(email)) {
@@ -58,7 +59,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 
-    // 4. Create User (Active by Default, API Access is 'NONE')
+    // 4. Validate Referrer Code (if provided)
+    let referrerUserId: string | null = null;
+    if (referralCode && typeof referralCode === 'string' && referralCode.trim().length > 0) {
+      const cleanRefCode = referralCode.trim().toUpperCase();
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: cleanRefCode },
+        select: { id: true, isActive: true },
+      });
+      if (referrer && referrer.isActive) {
+        referrerUserId = referrer.id;
+      }
+    }
+
+    // 5. Generate unique referral code for the new user
+    const newReferralCode = await getUniqueReferralCode();
+
+    // 6. Create User (Active by Default, API Access is 'NONE')
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
@@ -70,11 +87,13 @@ export async function POST(req: Request) {
         businessName,
         role: 'AGENT',
         isActive: true,
-        apiStatus: 'NONE'
+        apiStatus: 'NONE',
+        referralCode: newReferralCode,
+        referredById: referrerUserId,
       },
     });
 
-    // 5. Update Redis IP Count
+    // 7. Update Redis IP Count
     const currentCount = await redis.incr(rateLimitKey);
     if (currentCount === 1) {
        await redis.expire(rateLimitKey, IP_LOCKOUT_SECONDS);

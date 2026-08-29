@@ -21,12 +21,13 @@ export async function PUT(req: Request) {
       return NextResponse.json({}, { status: 403 });
   }
 
-  const { type, id, dashboardPrice, apiPrice, isActive } = await req.json(); // type: 'SERVICE' or 'DATAPLAN'
+  const { type, id, dashboardPrice, apiPrice, referralReward, isActive } = await req.json(); // type: 'SERVICE' or 'DATAPLAN'
 
   // Build the update payload dynamically based on what was sent
   const updateData: any = { isActive };
   if (dashboardPrice !== undefined) updateData.dashboardPrice = Number(dashboardPrice);
   if (apiPrice !== undefined) updateData.apiPrice = Number(apiPrice);
+  if (referralReward !== undefined) updateData.referralReward = Number(referralReward);
 
   try {
       if (type === 'SERVICE') {

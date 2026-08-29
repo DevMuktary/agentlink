@@ -1,16 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
   Loader2, Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff, 
-  KeyRound, Building2, AlertCircle, X, CheckCircle2, ArrowRight
+  KeyRound, Building2, AlertCircle, X, CheckCircle2, ArrowRight, Gift
 } from 'lucide-react';
 
 export default function RegisterPage() {
-  
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>}>
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
+  const searchParams = useSearchParams();
+  const refFromQuery = searchParams.get('ref') || searchParams.get('referral') || '';
+
   // --- STATE MANAGEMENT ---
   const [formData, setFormData] = useState({
     firstName: '',
@@ -19,8 +30,15 @@ export default function RegisterPage() {
     phoneNumber: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    referralCode: refFromQuery
   });
+
+  useEffect(() => {
+    if (refFromQuery && !formData.referralCode) {
+      setFormData(prev => ({ ...prev, referralCode: refFromQuery.toUpperCase() }));
+    }
+  }, [refFromQuery]);
 
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -393,6 +411,24 @@ export default function RegisterPage() {
                       value={formData.phoneNumber} 
                       onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '') })}
                     />
+                  </div>
+
+                  {/* Referral Code (Optional) */}
+                  <div className="relative">
+                    <InputIcon icon={Gift} active={Boolean(formData.referralCode && formData.referralCode.length > 0)} />
+                    <input
+                      type="text" name="referralCode" placeholder="Referral Code (Optional)"
+                      className="block w-full pl-10 pr-20 py-3 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 uppercase font-mono tracking-wider transition-all shadow-sm"
+                      value={formData.referralCode} 
+                      onChange={(e) => setFormData({ ...formData, referralCode: e.target.value.toUpperCase().trim() })}
+                    />
+                    {formData.referralCode && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+                          Applied
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

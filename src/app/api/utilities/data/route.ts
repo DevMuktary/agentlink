@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 // Ensure this path matches your provider logic
 import { purchaseData } from '@/services/providers/cheapdata-data'; 
+import { distributeReferralCommission } from '@/services/referral.service'; 
 
 export async function POST(req: Request) {
   try {
@@ -95,6 +97,22 @@ export async function POST(req: Request) {
             responseData: result.data || { message: 'Data Sent Successfully' }
         }
       });
+
+      // Distribute Referral Commission (Dashboard only, strictly skips API)
+      try {
+        const headersList = await headers();
+        const origin = headersList.get('x-request-origin');
+        distributeReferralCommission({
+          refereeId: user.id,
+          serviceType: 'DATA',
+          dataPlanId: plan.id,
+          serviceRequestId: requestLog.id,
+          reference: reference,
+          origin: origin,
+        }).catch((err) => console.error('Data Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
 
       return NextResponse.json({
         status: true,

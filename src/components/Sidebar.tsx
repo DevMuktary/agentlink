@@ -8,7 +8,7 @@ import {
   ShieldCheck, UserCheck, 
   Wifi, Building2, GraduationCap, Users, FileCog, 
   Smartphone, Search, FileBadge, CreditCard,
-  RefreshCcw, FileText, History
+  RefreshCcw, FileText, History, Gift
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -19,6 +19,7 @@ const menuItems = [
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Wallet & Finance", href: "/dashboard/wallet", icon: Wallet },
+      { name: "Refer & Earn", href: "/dashboard/referrals", icon: Gift },
       { name: "Services History", href: "/dashboard/history", icon: History },
       { name: "API & Developers", href: "/dashboard/developers", icon: Code2 },
     ]

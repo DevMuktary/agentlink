@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 // Make sure this path matches your actual provider file
 import { verifyBvn } from '@/services/providers/confirmident-bvn'; 
+import { distributeReferralCommission } from '@/services/referral.service'; 
 
 export async function POST(req: Request) {
   try {
@@ -80,6 +82,21 @@ export async function POST(req: Request) {
         where: { id: requestLog.id },
         data: { status: 'COMPLETED', responseData: result.data }
       });
+
+      // Distribute Referral Commission (Dashboard only, strictly skips API)
+      try {
+        const headersList = await headers();
+        const origin = headersList.get('x-request-origin');
+        distributeReferralCommission({
+          refereeId: user.id,
+          serviceType: 'BVN_VERIFICATION',
+          serviceRequestId: requestLog.id,
+          reference: reference,
+          origin: origin,
+        }).catch((err) => console.error('BVN Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
 
       return NextResponse.json({
         status: true,

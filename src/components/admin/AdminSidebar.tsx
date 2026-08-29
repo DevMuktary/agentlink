@@ -6,7 +6,7 @@ import axios from 'axios'; // Added axios
 import { 
   LayoutDashboard, Users, CreditCard, Settings, Menu, X, LogOut,
   ShieldAlert, UserCheck, FileText, Smartphone, Search, UserPlus,
-  Building2, GraduationCap, Briefcase, RefreshCcw, Layers
+  Building2, GraduationCap, Briefcase, RefreshCcw, Layers, Gift
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -16,6 +16,7 @@ const menuItems = [
     items: [
       { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
       { name: "User Management", href: "/admin/users", icon: Users },
+      { name: "Referrals & Payouts", href: "/admin/referrals", icon: Gift },
       { name: "Transactions", href: "/admin/transactions", icon: CreditCard },
       { name: "Registration Requests", href: "/admin/users/requests", icon: UserPlus},
     ]

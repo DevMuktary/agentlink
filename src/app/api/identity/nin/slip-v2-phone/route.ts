@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { generateSlipV2, SlipTier } from '@/services/providers/slipapi-v2';
+import { distributeReferralCommission } from '@/services/referral.service';
 
 export async function POST(req: Request) {
   try {
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
     }
 
     // Deduct & Log
-    await prisma.$transaction([
+    const [_, __, requestLog] = await prisma.$transaction([
         prisma.user.update({
             where: { id: user.id },
             data: { walletBalance: { decrement: cost } }
@@ -70,6 +72,21 @@ export async function POST(req: Request) {
             }
         })
     ]);
+
+    // Distribute Referral Commission (Dashboard only, strictly skips API)
+    try {
+      const headersList = await headers();
+      const origin = headersList.get('x-request-origin');
+      distributeReferralCommission({
+        refereeId: user.id,
+        serviceType: serviceCode as any,
+        serviceRequestId: requestLog.id,
+        reference: reference,
+        origin: origin,
+      }).catch((err) => console.error('NIN Slip V2 Phone Referral Commission Error:', err));
+    } catch (err) {
+      // Safe fail
+    }
 
     return NextResponse.json({
         status: true,

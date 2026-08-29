@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { sendEmail, emailTemplates } from '@/lib/zeptomail'; // <--- ADDED IMPORT
+import { distributeReferralCommission } from '@/services/referral.service';
 
 export async function POST(req: Request) {
   try {
@@ -144,6 +145,21 @@ export async function POST(req: Request) {
             });
         }
     });
+
+    // Distribute Referral Commission on Approval (Manual requests only get commission upon approval)
+    if (action === 'APPROVE') {
+      try {
+        distributeReferralCommission({
+          refereeId: request.userId,
+          serviceType: request.serviceType,
+          serviceRequestId: request.id,
+          reference: request.id,
+          origin: 'dashboard',
+        }).catch((err) => console.error('Admin Approval Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
+    }
 
     // 6. SEND EMAIL NOTIFICATION (New Addition)
     // We send this after the DB transaction succeeds to ensure data consistency

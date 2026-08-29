@@ -1,0 +1,170 @@
+import prisma from '@/lib/prisma';
+import { ServiceType } from '@prisma/client';
+
+export function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'AG';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export async function getUniqueReferralCode(): Promise<string> {
+  let unique = false;
+  let code = '';
+  let attempts = 0;
+  while (!unique && attempts < 10) {
+    code = generateReferralCode();
+    const existing = await prisma.user.findUnique({ where: { referralCode: code } });
+    if (!existing) {
+      unique = true;
+    }
+    attempts++;
+  }
+  return code;
+}
+
+interface DistributeCommissionParams {
+  refereeId: string;
+  serviceType: ServiceType;
+  dataPlanId?: string;
+  serviceRequestId?: string;
+  reference: string;
+  origin?: string | null;
+}
+
+export async function distributeReferralCommission({
+  refereeId,
+  serviceType,
+  dataPlanId,
+  serviceRequestId,
+  reference,
+  origin,
+}: DistributeCommissionParams): Promise<{ success: boolean; rewardedAmount?: number; reason?: string }> {
+  try {
+    // 1. STRICT CHANNEL GUARD: Dashboard only, no API requests!
+    if (origin === 'api') {
+      return { success: false, reason: 'Commissions not awarded for API transactions.' };
+    }
+
+    // 2. Check if global referral system is enabled
+    const activeSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'IS_REFERRAL_ACTIVE' },
+    });
+    if (activeSetting && activeSetting.value === 'false') {
+      return { success: false, reason: 'Referral program is currently inactive.' };
+    }
+
+    // 3. Find Referee & Referrer
+    const referee = await prisma.user.findUnique({
+      where: { id: refereeId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        referredById: true,
+        referrer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            isActive: true,
+            isReferralEnrolled: true,
+          },
+        },
+      },
+    });
+
+    if (!referee || !referee.referredById || !referee.referrer) {
+      return { success: false, reason: 'User does not have an active referrer.' };
+    }
+
+    const referrer = referee.referrer;
+    if (!referrer.isActive) {
+      return { success: false, reason: 'Referrer account is suspended.' };
+    }
+
+    // 4. Calculate Commission Amount
+    let rewardAmount = 0;
+    let serviceLabel = serviceType.replace(/_/g, ' ');
+
+    if (dataPlanId) {
+      const plan = await prisma.dataPlan.findUnique({ where: { id: dataPlanId } });
+      if (plan && plan.referralReward) {
+        rewardAmount = Number(plan.referralReward);
+        serviceLabel = `${plan.network} ${plan.name}`;
+      }
+    } else {
+      const service = await prisma.service.findUnique({ where: { code: serviceType } });
+      if (service && service.referralReward) {
+        rewardAmount = Number(service.referralReward);
+        serviceLabel = service.name;
+      }
+    }
+
+    if (rewardAmount <= 0) {
+      return { success: false, reason: 'No referral commission configured for this service.' };
+    }
+
+    // 5. Idempotency Check: prevent duplicate rewards for the same service request/reference
+    const existingEarning = await prisma.referralEarning.findFirst({
+      where: {
+        OR: [
+          { reference: `REF-COMM-${reference}` },
+          ...(serviceRequestId ? [{ serviceRequestId }] : []),
+        ],
+      },
+    });
+
+    if (existingEarning) {
+      return { success: false, reason: 'Commission already distributed for this service.' };
+    }
+
+    const commissionRef = `REF-COMM-${reference}-${Date.now().toString().slice(-4)}`;
+
+    // 6. Atomically credit Referrer balance, log transaction, and create ReferralEarning entry
+    await prisma.$transaction(async (tx) => {
+      // A. Credit Referrer's Referral Earnings
+      await tx.user.update({
+        where: { id: referrer.id },
+        data: {
+          referralEarningsBalance: { increment: rewardAmount },
+          referralEarningsTotal: { increment: rewardAmount },
+        },
+      });
+
+      // B. Create Referral Earning Record
+      await tx.referralEarning.create({
+        data: {
+          referrerId: referrer.id,
+          refereeId: referee.id,
+          serviceType: serviceType,
+          serviceRequestId: serviceRequestId,
+          amount: rewardAmount,
+          reference: commissionRef,
+          channel: 'DASHBOARD',
+          status: 'COMPLETED',
+        },
+      });
+
+      // C. Create Transaction Audit Record
+      await tx.transaction.create({
+        data: {
+          userId: referrer.id,
+          amount: rewardAmount,
+          type: 'BONUS',
+          status: 'COMPLETED',
+          reference: commissionRef,
+          description: `Referral Commission from ${referee.firstName} for ${serviceLabel}`,
+          serviceId: serviceType,
+        },
+      });
+    });
+
+    return { success: true, rewardedAmount: rewardAmount };
+  } catch (error) {
+    console.error('Error distributing referral commission:', error);
+    return { success: false, reason: 'Internal error while processing referral commission.' };
+  }
+}
