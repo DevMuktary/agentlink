@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import GlobalLoader from '@/components/GlobalLoader';
-import { 
-  Gift, Users, Wallet, ArrowUpRight, Copy, Check, Share2, 
-  Building2, CheckCircle2, AlertCircle, Loader2, X, Info, 
+import {
+  Gift, Users, Wallet, ArrowUpRight, Copy, Check, Share2,
+  Building2, CheckCircle2, AlertCircle, Loader2, X, Info,
   Sparkles, TrendingUp, History, CreditCard, ChevronRight,
   ShieldCheck, Smartphone, ExternalLink, RefreshCcw
 } from 'lucide-react';
@@ -203,15 +203,14 @@ export default function ReferralsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in pb-24 max-w-7xl mx-auto">
-      
+
       {/* CUSTOM TOAST NOTIFICATION */}
       {toast && (
         <div className="fixed top-6 right-6 z-[200] max-w-sm animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className={`flex items-center gap-3 p-4 rounded-2xl shadow-2xl border text-sm font-semibold ${
-            toast.type === 'success' 
-              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-800 dark:border-slate-200' 
+          <div className={`flex items-center gap-3 p-4 rounded-2xl shadow-2xl border text-sm font-semibold ${toast.type === 'success'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-800 dark:border-slate-200'
               : 'bg-red-600 text-white border-red-500'
-          }`}>
+            }`}>
             {toast.type === 'success' ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-400 dark:text-emerald-600 shrink-0" />
             ) : (
@@ -235,7 +234,7 @@ export default function ReferralsPage() {
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Refer & Earn Program</h1>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Invite fellow agents and earn recurring commissions whenever they perform dashboard services (except Airtime).
+            Invite fellow agents and earn recurring commissions whenever they perform dashboard services (except Airtime & Data).
           </p>
         </div>
 
@@ -255,7 +254,7 @@ export default function ReferralsPage() {
           {/* Hero Banner */}
           <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 sm:p-10 text-white shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
-            
+
             <div className="max-w-2xl relative z-10">
               <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold uppercase tracking-wider border border-purple-500/30 inline-flex items-center gap-1.5 mb-4">
                 <Sparkles className="w-3.5 h-3.5" /> 1-Year Affiliate Program
@@ -383,10 +382,10 @@ export default function ReferralsPage() {
       ) : (
         /* PHASE 2: ENROLLED REFERRAL DASHBOARD VIEW */
         <div className="space-y-6">
-          
+
           {/* KPI STATS ROW */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
+
             {/* Balance Card */}
             <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col justify-between">
               <div>
@@ -453,7 +452,7 @@ export default function ReferralsPage() {
 
           {/* SHARE CARD & BANK SNAPSHOT */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             {/* Share Link Card (2 cols) */}
             <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
               <div>
@@ -508,7 +507,7 @@ export default function ReferralsPage() {
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-slate-400" /> Payout Bank Account
                 </h3>
-                
+
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700/60 space-y-2">
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Bank Name</p>
@@ -543,41 +542,37 @@ export default function ReferralsPage() {
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full sm:w-fit border border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('referees')}
-              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
-                activeTab === 'referees'
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'referees'
                   ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <Users size={14} /> Referred Agents ({referees.length})
             </button>
             <button
               onClick={() => setActiveTab('earnings')}
-              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
-                activeTab === 'earnings'
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'earnings'
                   ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <History size={14} /> Commission Log ({earnings.length})
             </button>
             <button
               onClick={() => setActiveTab('payouts')}
-              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
-                activeTab === 'payouts'
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'payouts'
                   ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <CreditCard size={14} /> Payout History ({payouts.length})
             </button>
             <button
               onClick={() => setActiveTab('rates')}
-              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
-                activeTab === 'rates'
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'rates'
                   ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <TrendingUp size={14} /> Commission Rates Matrix
             </button>
@@ -625,11 +620,10 @@ export default function ReferralsPage() {
                             {r.completedServicesCount} services
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              r.completedServicesCount > 0 
-                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${r.completedServicesCount > 0
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                            }`}>
+                              }`}>
                               {r.completedServicesCount > 0 ? 'Active Customer' : 'Registered'}
                             </span>
                           </td>
@@ -741,13 +735,12 @@ export default function ReferralsPage() {
                             ₦{p.amount.toLocaleString()}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                              p.status === 'COMPLETED'
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${p.status === 'COMPLETED'
                                 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                                 : p.status === 'PENDING'
-                                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                                : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
-                            }`}>
+                                  ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                                  : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
+                              }`}>
                               {p.status}
                             </span>
                           </td>
@@ -840,11 +833,10 @@ export default function ReferralsPage() {
               <button
                 type="button"
                 onClick={() => setPayoutType('WALLET')}
-                className={`py-3 text-xs font-bold rounded-xl transition-all flex flex-col items-center gap-1 ${
-                  payoutType === 'WALLET'
+                className={`py-3 text-xs font-bold rounded-xl transition-all flex flex-col items-center gap-1 ${payoutType === 'WALLET'
                     ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 <Wallet size={16} />
                 <span>To Main Wallet</span>
@@ -853,11 +845,10 @@ export default function ReferralsPage() {
               <button
                 type="button"
                 onClick={() => setPayoutType('BANK')}
-                className={`py-3 text-xs font-bold rounded-xl transition-all flex flex-col items-center gap-1 ${
-                  payoutType === 'BANK'
+                className={`py-3 text-xs font-bold rounded-xl transition-all flex flex-col items-center gap-1 ${payoutType === 'BANK'
                     ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 <Building2 size={16} />
                 <span>To Bank Account</span>
@@ -916,9 +907,9 @@ export default function ReferralsPage() {
               <button
                 type="submit"
                 disabled={
-                  payoutLoading || 
-                  !payoutAmount || 
-                  Number(payoutAmount) <= 0 || 
+                  payoutLoading ||
+                  !payoutAmount ||
+                  Number(payoutAmount) <= 0 ||
                   Number(payoutAmount) > availableBalance ||
                   (payoutType === 'WALLET' && Number(payoutAmount) < minPayoutWallet) ||
                   (payoutType === 'BANK' && Number(payoutAmount) < minPayoutBank)
