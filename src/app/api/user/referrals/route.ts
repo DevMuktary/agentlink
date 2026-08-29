@@ -79,9 +79,18 @@ export async function GET(req: Request) {
     });
 
     // 5. Fetch Services Commission Breakdown (Matrix)
+    // Exclude: Bank switches (BANK_*), Airtime (AIRTIME_*), 0-priced services, and inactive services
     const [services, dataPlans, minBankSetting, minWalletSetting, legacyMinSetting] = await Promise.all([
       prisma.service.findMany({
-        where: { isActive: true },
+        where: {
+          isActive: true,
+          dashboardPrice: { gt: 0 },
+          NOT: [
+            { code: { startsWith: 'BANK_' } },
+            { code: { startsWith: 'AIRTIME_' } },
+            { code: 'DATA' },
+          ],
+        },
         select: {
           id: true,
           code: true,
@@ -92,7 +101,10 @@ export async function GET(req: Request) {
         orderBy: { name: 'asc' },
       }),
       prisma.dataPlan.findMany({
-        where: { isActive: true },
+        where: {
+          isActive: true,
+          dashboardPrice: { gt: 0 },
+        },
         select: {
           id: true,
           productCode: true,

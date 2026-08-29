@@ -64,8 +64,33 @@ export default function ServiceSettings() {
     }
   };
 
-  const filteredServices = services.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
-  const filteredData = dataPlans.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+  const filteredServices = services.filter(s => {
+    const matchesQuery = s.name.toLowerCase().includes(filter.toLowerCase()) || (s.code && s.code.toLowerCase().includes(filter.toLowerCase()));
+    if (!matchesQuery) return false;
+
+    // In Referral Rewards mode, hide internal bank toggles, 0-priced services, airtime, and inactive services
+    if (priceMode === 'REFERRAL') {
+      if (s.code && (s.code.startsWith('BANK_') || s.code.startsWith('AIRTIME_') || s.code === 'DATA')) return false;
+      if (!s.isActive) return false;
+      const currentDashPrice = Number(s.dashboardPrice ?? s.price ?? 0);
+      if (currentDashPrice <= 0) return false;
+    }
+
+    return true;
+  });
+
+  const filteredData = dataPlans.filter(p => {
+    const matchesQuery = p.name.toLowerCase().includes(filter.toLowerCase()) || (p.network && p.network.toLowerCase().includes(filter.toLowerCase()));
+    if (!matchesQuery) return false;
+
+    if (priceMode === 'REFERRAL') {
+      if (!p.isActive) return false;
+      const currentDashPrice = Number(p.dashboardPrice ?? p.price ?? 0);
+      if (currentDashPrice <= 0) return false;
+    }
+
+    return true;
+  });
 
   if (loading) return <GlobalLoader />;
 
