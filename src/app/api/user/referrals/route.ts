@@ -48,6 +48,9 @@ export async function GET(req: Request) {
             requests: {
               where: { status: 'COMPLETED' },
             },
+            transactions: {
+              where: { status: 'COMPLETED' },
+            },
           },
         },
       },
@@ -78,33 +81,22 @@ export async function GET(req: Request) {
       take: 50,
     });
 
-    // 5. Fetch Services Commission Breakdown (Matrix)
-    // Exclude: Bank switches (BANK_*), Airtime (AIRTIME_*), 0-priced services, and inactive services
-    const [services, dataPlans, minBankSetting, minWalletSetting, legacyMinSetting] = await Promise.all([
+    // 5. Fetch Services & Data Plans
+    const [allServices, allDataPlans, minBankSetting, minWalletSetting, legacyMinSetting] = await Promise.all([
       prisma.service.findMany({
-        where: {
-          isActive: true,
-          dashboardPrice: { gt: 0 },
-          NOT: [
-            { code: { startsWith: 'BANK_' } },
-            { code: { startsWith: 'AIRTIME_' } },
-            { code: 'DATA' },
-          ],
-        },
+        where: { isActive: true },
         select: {
           id: true,
           code: true,
           name: true,
           referralReward: true,
           dashboardPrice: true,
+          price: true,
         },
         orderBy: { name: 'asc' },
       }),
       prisma.dataPlan.findMany({
-        where: {
-          isActive: true,
-          dashboardPrice: { gt: 0 },
-        },
+        where: { isActive: true },
         select: {
           id: true,
           productCode: true,
@@ -113,6 +105,7 @@ export async function GET(req: Request) {
           category: true,
           referralReward: true,
           dashboardPrice: true,
+          price: true,
         },
         orderBy: [{ network: 'asc' }, { name: 'asc' }],
       }),
@@ -127,6 +120,39 @@ export async function GET(req: Request) {
       }),
     ]);
 
+    // Excluded codes set
+    const excludedCodes = new Set([
+      'BANK_AGENCY',
+      'BANK_HERITAGE',
+      'BANK_BOA',
+      'BANK_NIBSS',
+      'BANK_ENTERPRISE',
+      'BANK_FIRSTBANK',
+      'BANK_KEYSTONE',
+      'BANK_FCMB',
+      'AIRTIME',
+      'AIRTIME_MTN',
+      'AIRTIME_GLO',
+      'AIRTIME_AIRTEL',
+      'AIRTIME_9MOBILE',
+      'DATA',
+    ]);
+
+    // Filter services: no bank switches, no airtime, must have price > 0
+    const services = allServices.filter((s) => {
+      const codeStr = String(s.code || '');
+      if (excludedCodes.has(codeStr)) return false;
+      if (codeStr.startsWith('BANK_') || codeStr.startsWith('AIRTIME_')) return false;
+      const currentPrice = Number(s.dashboardPrice ?? s.price ?? 0);
+      return currentPrice > 0;
+    });
+
+    // Filter data plans: must have price > 0
+    const dataPlans = allDataPlans.filter((d) => {
+      const currentPrice = Number(d.dashboardPrice ?? d.price ?? 0);
+      return currentPrice > 0;
+    });
+
     const minPayoutBank = minBankSetting ? Number(minBankSetting.value) : (legacyMinSetting ? Number(legacyMinSetting.value) : 3000);
     const minPayoutWallet = minWalletSetting ? Number(minWalletSetting.value) : 1000;
 
@@ -139,13 +165,13 @@ export async function GET(req: Request) {
           name: `${r.firstName} ${r.lastName}`,
           businessName: r.businessName,
           joinedAt: r.createdAt,
-          completedServicesCount: r._count.requests + r._count.transactions,
+          completedServicesCount: (r._count?.requests || 0) + (r._count?.transactions || 0),
         })),
         earnings: earnings.map((e) => ({
           id: e.id,
           amount: Number(e.amount),
           serviceType: e.serviceType,
-          refereeName: `${e.referee.firstName} ${e.referee.lastName}`,
+          refereeName: e.referee ? `${e.referee.firstName} ${e.referee.lastName}` : 'Unknown Agent',
           reference: e.reference,
           status: e.status,
           createdAt: e.createdAt,
@@ -168,7 +194,7 @@ export async function GET(req: Request) {
             name: s.name,
             code: s.code,
             reward: Number(s.referralReward || 0),
-            price: Number(s.dashboardPrice || 0),
+            price: Number(s.dashboardPrice ?? s.price ?? 0),
           })),
           dataPlans: dataPlans.map((d) => ({
             id: d.id,
@@ -176,7 +202,7 @@ export async function GET(req: Request) {
             network: d.network,
             category: d.category,
             reward: Number(d.referralReward || 0),
-            price: Number(d.dashboardPrice || 0),
+            price: Number(d.dashboardPrice ?? d.price ?? 0),
           })),
         },
         minPayout: minPayoutBank,
