@@ -484,7 +484,7 @@ async function main() {
     await prisma.service.updateMany({
       where: {
         code: code as any,
-        OR: [{ referralReward: null }, { referralReward: 0 }],
+        referralReward: 0,
       },
       data: { referralReward: reward },
     });
