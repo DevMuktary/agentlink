@@ -46,8 +46,23 @@ export async function distributeReferralCommission({
     console.log(`[ReferralEngine] Triggered for Referee: ${refereeId}, Service: ${serviceType}, Reference: ${reference}, Origin: ${origin || 'dashboard'}`);
 
     // 1. STRICT CHANNEL GUARD: Dashboard only, no API requests!
-    if (origin === 'api') {
-      console.log(`[ReferralEngine] Skipped: Request origin is external API.`);
+    let requestOrigin = origin;
+    if (!requestOrigin) {
+      try {
+        const { headers } = await import('next/headers');
+        const headersList = await headers();
+        requestOrigin = headersList.get('x-request-origin');
+        if (!requestOrigin) {
+          const hasApiKey = headersList.has('x-api-key') || headersList.get('authorization')?.startsWith('Bearer ');
+          if (hasApiKey) requestOrigin = 'api';
+        }
+      } catch (e) {
+        // Non-HTTP or background context
+      }
+    }
+
+    if (requestOrigin === 'api') {
+      console.log(`[ReferralEngine] 🛑 Blocked: Request origin is external API (${requestOrigin}). ₦0 referral commission calculated.`);
       return { success: false, reason: 'Commissions not awarded for API transactions.' };
     }
 
