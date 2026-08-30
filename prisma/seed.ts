@@ -453,6 +453,43 @@ async function main() {
     },
   });
 
+  // Set baseline default referral rewards for core services if 0 or null
+  const defaultRewards: Record<string, number> = {
+    NIN_VERIFICATION: 10,
+    NIN_SEARCH_BY_PHONE: 10,
+    VNIN_SLIP: 20,
+    NIN_SLIP_PREMIUM: 50,
+    NIN_SLIP_STANDARD: 40,
+    NIN_SLIP_REGULAR: 30,
+    NIN_SLIP_V2_PREMIUM: 50,
+    NIN_SLIP_V2_STANDARD: 40,
+    NIN_SLIP_V2_REGULAR: 30,
+    NIN_SLIP_V2_PHONE_PREMIUM: 50,
+    NIN_SLIP_V2_PHONE_STANDARD: 40,
+    NIN_SLIP_V2_PHONE_REGULAR: 30,
+    BVN_VERIFICATION: 10,
+    BVN_PREMIUM_SLIP: 50,
+    EXAM_PIN_WAEC: 50,
+    EXAM_PIN_NECO: 30,
+    EXAM_PIN_NABTEB: 30,
+    EXAM_PIN_JAMB: 50,
+    EXAM_PIN_JAMB_UTME: 50,
+    EXAM_PIN_JAMB_DE: 50,
+    CAC_REGISTRATION: 200,
+    TAX_ID_INDIVIDUAL: 50,
+    TAX_ID_NON_INDIVIDUAL: 100,
+  };
+
+  for (const [code, reward] of Object.entries(defaultRewards)) {
+    await prisma.service.updateMany({
+      where: {
+        code: code as any,
+        OR: [{ referralReward: null }, { referralReward: 0 }],
+      },
+      data: { referralReward: reward },
+    });
+  }
+
   // Backfill referral codes for existing users
   const usersWithoutRef = await prisma.user.findMany({
     where: { referralCode: null },

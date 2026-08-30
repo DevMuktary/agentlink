@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { lookupNinByPhone } from '@/services/providers/robost-phone';
+import { distributeReferralCommission } from '@/services/referral.service';
+import { headers } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -89,6 +91,22 @@ export async function POST(req: Request) {
         where: { id: requestLog.id },
         data: { status: 'COMPLETED', responseData: result.data }
       });
+
+      // Distribute Referral Commission
+      try {
+        const headersList = await headers();
+        const origin = headersList.get('x-request-origin');
+        distributeReferralCommission({
+          refereeId: user.id,
+          serviceType: 'NIN_SEARCH_BY_PHONE',
+          serviceRequestId: requestLog.id,
+          reference: reference,
+          origin: origin,
+        }).catch((err) => console.error('NIN Phone Search Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
+
       return NextResponse.json({ status: true, message: 'Success', data: result.data });
     } else {
       // REFUND ON FAILURE

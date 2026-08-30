@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { generateNinSlipPdf } from '@/services/pdf-generator';
+import { distributeReferralCommission } from '@/services/referral.service';
 
 export async function POST(req: Request) {
   try {
@@ -107,6 +108,19 @@ export async function POST(req: Request) {
           responseData: { ...rawData, pdf_generated: true } 
         }
       });
+
+      // Distribute Referral Commission (Dashboard only)
+      try {
+        distributeReferralCommission({
+          refereeId: user.id,
+          serviceType: service.code,
+          serviceRequestId: slipRequestLog.id,
+          reference: reference,
+          origin: 'dashboard',
+        }).catch((err) => console.error('Cached Slip Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
 
       return NextResponse.json({
         status: true,

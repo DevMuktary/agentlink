@@ -43,8 +43,11 @@ export async function distributeReferralCommission({
   origin,
 }: DistributeCommissionParams): Promise<{ success: boolean; rewardedAmount?: number; reason?: string }> {
   try {
+    console.log(`[ReferralEngine] Triggered for Referee: ${refereeId}, Service: ${serviceType}, Reference: ${reference}, Origin: ${origin || 'dashboard'}`);
+
     // 1. STRICT CHANNEL GUARD: Dashboard only, no API requests!
     if (origin === 'api') {
+      console.log(`[ReferralEngine] Skipped: Request origin is external API.`);
       return { success: false, reason: 'Commissions not awarded for API transactions.' };
     }
 
@@ -53,12 +56,14 @@ export async function distributeReferralCommission({
       where: { key: 'IS_REFERRAL_ACTIVE' },
     });
     if (activeSetting && activeSetting.value === 'false') {
+      console.log(`[ReferralEngine] Skipped: Global referral switch IS_REFERRAL_ACTIVE is false.`);
       return { success: false, reason: 'Referral program is currently inactive.' };
     }
 
     // Exempt Airtime and Data completely from commissions
     const serviceTypeStr = String(serviceType || '');
     if (serviceTypeStr === 'DATA' || serviceTypeStr === 'AIRTIME' || serviceTypeStr.startsWith('AIRTIME_') || dataPlanId) {
+      console.log(`[ReferralEngine] Skipped: Service ${serviceTypeStr} is exempt (Airtime/Data).`);
       return { success: false, reason: 'Airtime and Data services are exempt from referral commissions.' };
     }
 
@@ -84,6 +89,7 @@ export async function distributeReferralCommission({
     });
 
     if (!referee || !referee.referredById || !referee.referrer) {
+      console.log(`[ReferralEngine] Skipped: Referee ${refereeId} has no linked referrer.`);
       return { success: false, reason: 'User does not have an active referrer.' };
     }
 
@@ -91,6 +97,7 @@ export async function distributeReferralCommission({
     const ONE_YEAR_IN_MS = 365 * 24 * 60 * 60 * 1000;
     const refereeJoinedTime = new Date(referee.createdAt).getTime();
     if (Date.now() - refereeJoinedTime > ONE_YEAR_IN_MS) {
+      console.log(`[ReferralEngine] Skipped: 1-Year referral window expired for referee ${refereeId}.`);
       return { 
         success: false, 
         reason: '1-Year referral commission period for this referee has expired.' 
@@ -99,6 +106,7 @@ export async function distributeReferralCommission({
 
     const referrer = referee.referrer;
     if (!referrer.isActive) {
+      console.log(`[ReferralEngine] Skipped: Referrer ${referrer.id} is suspended.`);
       return { success: false, reason: 'Referrer account is suspended.' };
     }
 
@@ -113,6 +121,7 @@ export async function distributeReferralCommission({
     }
 
     if (rewardAmount <= 0) {
+      console.log(`[ReferralEngine] Skipped: Service ${serviceType} has ₦0 referral reward configured in database.`);
       return { success: false, reason: 'No referral commission configured for this service.' };
     }
 
@@ -127,6 +136,7 @@ export async function distributeReferralCommission({
     });
 
     if (existingEarning) {
+      console.log(`[ReferralEngine] Skipped: Commission already distributed for reference ${reference}.`);
       return { success: false, reason: 'Commission already distributed for this service.' };
     }
 
@@ -171,9 +181,10 @@ export async function distributeReferralCommission({
       });
     });
 
+    console.log(`[ReferralEngine] ✅ Successfully credited ₦${rewardAmount} to referrer ${referrer.id} (${referrer.firstName}) for referee ${referee.id}'s ${serviceLabel}!`);
     return { success: true, rewardedAmount: rewardAmount };
   } catch (error) {
-    console.error('Error distributing referral commission:', error);
+    console.error('[ReferralEngine] ❌ Error distributing referral commission:', error);
     return { success: false, reason: 'Internal error while processing referral commission.' };
   }
 }

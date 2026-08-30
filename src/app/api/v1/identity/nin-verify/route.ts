@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { lookupNinByNumber } from '@/services/providers/robost-nin'; 
+import { distributeReferralCommission } from '@/services/referral.service';
+import { headers } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -74,6 +76,22 @@ export async function POST(req: Request) {
         where: { id: requestLog.id },
         data: { status: 'COMPLETED', responseData: result.data }
       });
+
+      // Distribute Referral Commission (Dashboard only, strictly skips API)
+      try {
+        const headersList = await headers();
+        const origin = headersList.get('x-request-origin');
+        distributeReferralCommission({
+          refereeId: user.id,
+          serviceType: 'NIN_VERIFICATION',
+          serviceRequestId: requestLog.id,
+          reference: reference,
+          origin: origin,
+        }).catch((err) => console.error('NIN Verification Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
+
       return NextResponse.json({ status: true, message: 'Success', data: result.data });
     } else {
       // 5. Refund Logic (UPDATED)

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { generateVninSlip } from '@/services/providers/dataverify';
+import { distributeReferralCommission } from '@/services/referral.service';
+import { headers } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -87,6 +89,21 @@ export async function POST(req: Request) {
           data: { status: 'COMPLETED', responseData: result.data }
         });
       });
+
+      // Distribute Referral Commission (Dashboard only, strictly skips API)
+      try {
+        const headersList = await headers();
+        const origin = headersList.get('x-request-origin');
+        distributeReferralCommission({
+          refereeId: user.id,
+          serviceType: 'VNIN_SLIP',
+          serviceRequestId: reqLog.id,
+          reference: reference,
+          origin: origin,
+        }).catch((err) => console.error('VNIN Slip Referral Commission Error:', err));
+      } catch (err) {
+        // Safe fail
+      }
 
       return NextResponse.json({ 
           status: true, 

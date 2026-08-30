@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma';
 import { validateApiKey } from '@/lib/api-auth';
 import { lookupNinByNumber } from '@/services/providers/robost-nin';
 import { generateNinSlipPdf } from '@/services/pdf-generator';
+import { distributeReferralCommission } from '@/services/referral.service';
+import { headers } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -142,6 +144,21 @@ export async function POST(req: Request) {
                data: { status: 'COMPLETED' }
            });
         });
+
+        // Distribute Referral Commission (Dashboard only, strictly skips API)
+        try {
+          const headersList = await headers();
+          const origin = headersList.get('x-request-origin');
+          distributeReferralCommission({
+            refereeId: auth.id,
+            serviceType: service.code,
+            serviceRequestId: requestLog.id,
+            reference: reference,
+            origin: origin,
+          }).catch((err) => console.error('Slip Referral Commission Error:', err));
+        } catch (err) {
+          // Safe fail
+        }
 
         // RESPONSE: Return PDF Base64
         return NextResponse.json({
